@@ -1,213 +1,114 @@
 package zinc.lang
 
-import zinc.builtin.ValueError
 import zinc.builtin.ZincBoolean
-import zinc.builtin.ZincNumber
 import zinc.builtin.ZincValue
 
 internal data class VirtualMachine(val chunk: Chunk, val size: Int) {
 
+	data class CallFrame(val bp: Int, val rpc: Int)
+
 	private val stack = arrayOfNulls<ZincValue?>(size)
 	private var stackSize = 0
 
-	private val globals = arrayOfNulls<ZincValue?>(size)
+	private val callStack = arrayOfNulls<CallFrame>(size / 2)
+	private var callStackSize = 0
 
 	private var stopQueued = false
 
 	// basic registers
 	private var pc = 0
-	private var bp = 0
 	private val line get() = chunk.lines[pc]
 
 	fun interpret() {
 		// reset the vm
 		pc = 0
-		bp = 0
 		stackSize = 0
+		callStackSize = 0
 		stopQueued = false
-
 		run()
 	}
 
 	private fun run() {
 		while (!stopQueued) {
 			when (readByte()) {
-				OP_CONSTANT -> pushStack(chunk.constants[readByte().toInt()])
+				OP_CONST -> pushStack(chunk.constants[readByte().toInt()])
 				OP_TRUE -> pushStack(ZincBoolean(true))
 				OP_FALSE -> pushStack(ZincBoolean(false))
 				OP_NULL -> pushStack(null)
 				OP_POP -> --stackSize
+
 				OP_ADD -> {
-					val b = popStack()
-					val a = popStack()
-					a?.let { b?.let { pushStack(a + b) } }
-						?: throw ValueError(
-							"Unsupported operand type(s) for '+': ${a?.javaClass ?: "null"} and ${b?.javaClass ?: "null"}."
-						)
-				}
-
-				OP_SUBTRACT -> {
-					val b = popStack()
-					val a = popStack()
-					a?.let { b?.let { pushStack(a - b) } }
-						?: throw ValueError(
-							"Unsupported operand type(s) for '-': ${a?.javaClass ?: "null"} and ${b?.javaClass ?: "null"}."
-						)
-				}
-
-				OP_MULTIPLY -> {
-					val b = popStack()
-					val a = popStack()
-					a?.let { b?.let { pushStack(a - b) } }
-						?: throw ValueError(
-							"Unsupported operand type(s) for '+': ${a?.name ?: "null"} and ${b?.name ?: "null"}."
-						)
-				}
-
-				OP_DIVIDE -> {
-					val b = popStack()
-					val a = popStack()
-					a?.let { b?.let { pushStack(a / b) } }
-						?: throw ValueError(
-							"Unsupported operand type(s) for '/': ${a?.name ?: "null"} and ${b?.name ?: "null"}."
-						)
-				}
-
-				OP_MODULO -> {
-					val b = popStack()
-					val a = popStack()
-					a?.let { b?.let { pushStack(a % b) } }
-						?: throw ValueError(
-							"Unsupported operand type(s) for '/': ${a?.name ?: "null"} and ${b?.name ?: "null"}."
-						)
-				}
-
-				OP_EXPONENT -> {
-					val b = popStack()
-					val a = popStack()
-					a?.let { b?.let { pushStack(a.pow(b)) } }
-						?: throw ValueError(
-							"Unsupported operand type(s) for '/': ${a?.name ?: "null"} and ${b?.name ?: "null"}."
-						)
-				}
-
-				OP_ADD_UNSAFE -> {
 					val b = popStack() as ZincValue
 					val a = popStack() as ZincValue
 					pushStack(a + b)
 				}
 
-				OP_SUBTRACT_UNSAFE -> {
+				OP_SUB -> {
 					val b = popStack() as ZincValue
 					val a = popStack() as ZincValue
 					pushStack(a - b)
 				}
 
-				OP_MULTIPLY_NUMBER -> {
+				OP_MUL -> {
 					val b = popStack() as ZincValue
 					val a = popStack() as ZincValue
-					pushStack(a + b)
+					pushStack(a * b)
 				}
 
-				OP_DIVIDE_NUMBER -> {
+				OP_DIV -> {
 					val b = popStack() as ZincValue
 					val a = popStack() as ZincValue
 					pushStack(a / b)
 				}
 
-				OP_MODULO_NUMBER -> {
+				OP_MOD -> {
 					val b = popStack() as ZincValue
 					val a = popStack() as ZincValue
 					pushStack(a % b)
 				}
 
-				OP_EXPONENT_NUMBER -> {
+				OP_POW -> {
 					val b = popStack() as ZincValue
 					val a = popStack() as ZincValue
 					pushStack(a.pow(b))
 				}
 
-				OP_EQUAL -> {
-					val b = popStack()
-					val a = popStack()
-					pushStack(ZincBoolean(a == b))
+				OP_ADD_ASSIGN -> {
+					val b = popStack() as ZincValue
+					val a = popStack() as ZincValue
+					a += b
 				}
 
-				OP_NOT_EQUAL -> {
-					val b = popStack()
-					val a = popStack()
-					pushStack(ZincBoolean(a != b))
+				OP_SUB_ASSIGN -> {
+					val b = popStack() as ZincValue
+					val a = popStack() as ZincValue
+					a -= b
 				}
 
-				OP_GREATER -> {
-					val b = popStack()
-					val a = popStack()
-					if (a is ZincNumber && b is ZincNumber)
-						pushStack(ZincBoolean(a.value > b.value))
-					else
-						throw ValueError("Unsupported operand type(s) for '>': ${a?.name ?: "null"} and ${b?.name ?: "null"}.")
+				OP_MUL_ASSIGN -> {
+					val b = popStack() as ZincValue
+					val a = popStack() as ZincValue
+					a *= b
 				}
 
-				OP_GREATER_EQUAL -> {
-					val b = popStack()
-					val a = popStack()
-					if (a is ZincNumber && b is ZincNumber)
-						pushStack(ZincBoolean(a.value >= b.value))
-					else
-						throw ValueError("Unsupported operand type(s) for '>=': ${a?.name ?: "null"} and ${b?.name ?: "null"}.")
+				OP_DIV_ASSIGN -> {
+					val b = popStack() as ZincValue
+					val a = popStack() as ZincValue
+					a /= b
 				}
 
-				OP_LESS -> {
-					val b = popStack()
-					val a = popStack()
-					if (a is ZincNumber && b is ZincNumber)
-						pushStack(ZincBoolean(a.value < b.value))
-					else
-						throw ValueError("Unsupported operand type(s) for '<': ${a?.name ?: "null"} and ${b?.name ?: "null"}.")
+				OP_MOD_ASSIGN -> {
+					val b = popStack() as ZincValue
+					val a = popStack() as ZincValue
+					a %= b
 				}
 
-				OP_LESS_EQUAL -> {
-					val b = popStack()
-					val a = popStack()
-					if (a is ZincNumber && b is ZincNumber)
-						pushStack(ZincBoolean(a.value < b.value))
-					else
-						throw ValueError("Unsupported operand type(s) for '>=': ${a?.name ?: "null"} and ${b?.name ?: "null"}.")
+				OP_POW_ASSIGN -> {
+					val b = popStack() as ZincValue
+					val a = popStack() as ZincValue
+					a.powAssign(b)
 				}
 
-				OP_GREATER_UNSAFE -> {
-					val b = popStack() as ZincNumber
-					val a = popStack() as ZincNumber
-					pushStack(ZincBoolean(a.value > b.value))
-				}
-
-				OP_GREATER_EQUAL_UNSAFE -> {
-					val b = popStack() as ZincNumber
-					val a = popStack() as ZincNumber
-					pushStack(ZincBoolean(a.value >= b.value))
-				}
-
-				OP_LESS_UNSAFE -> {
-					val b = popStack() as ZincNumber
-					val a = popStack() as ZincNumber
-					pushStack(ZincBoolean(a.value < b.value))
-				}
-
-				OP_LESS_EQUAL_UNSAFE -> {
-					val b = popStack() as ZincNumber
-					val a = popStack() as ZincNumber
-					pushStack(ZincBoolean(a.value <= b.value))
-				}
-
-				OP_JUMP -> {
-					val jump = readShort()
-					pc += jump
-				}
-
-				OP_JUMP_IF_FALSE -> {
-					val jump = readShort()
-					peekStack()?.let { x -> if (!x.truthy) pc += jump }
-				}
 			}
 		}
 	}
@@ -220,6 +121,26 @@ internal data class VirtualMachine(val chunk: Chunk, val size: Int) {
 	private fun pushStack(obj: ZincValue?) {
 		stack[stackSize++] = obj
 	}
+
+	private fun popFrame(): CallFrame = callStack[--callStackSize]
+		?: throw IllegalArgumentException("Unable to pop call stack because there are no call frames.")
+
+	/**
+	 * Unsafe. Only use if you know what you are doing
+	 * @param arity The amount of
+	 */
+	fun pushFrame(arity: Int) {
+		callStack[--callStackSize] = CallFrame(stackSize - arity, pc)
+	}
+
+	/**
+	 * Unsafe. Only use if you know what you are doing
+	 * @param pc The new program counter
+	 */
+	fun moveProgramCounter(pc: Int) {
+		this.pc = pc
+	}
+
 
 	private fun error(message: String) {
 		// report error
