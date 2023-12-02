@@ -33,6 +33,6 @@ data class ZincInt(val value: Int) : ZincValue() {
 	override fun powAssign(b: ZincValue) {
 		throw IllegalAccessError("powAssign in $javaClass was illegally called.")
 	}
-}
 
-fun Int.pow(b: Int): Int = this.toDouble().pow(b).toInt()
+	private fun Int.pow(b: Int): Int = this.toDouble().pow(b).toInt()
+}
