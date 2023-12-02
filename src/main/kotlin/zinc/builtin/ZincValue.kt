@@ -3,7 +3,7 @@ package zinc.builtin
 import zinc.builtin.errors.ValueError
 
 open class ZincValue {
-	val name = "Any"
+	open val name = "Any"
 	open val truthy = true
 	open operator fun plus(b: ZincValue): ZincValue? =
 		throw ValueError("Unsupported operand type(s) for '+': '$name' and '${b.name}'.")

@@ -5,6 +5,7 @@ import kotlin.math.pow
 
 data class ZincDouble(val value: Double) : ZincValue() {
 	override val truthy get() = value != 0.0
+	override val name = "double"
 	override operator fun plus(b: ZincValue): ZincValue = ZincDouble(value + (b as ZincDouble).value)
 	override operator fun minus(b: ZincValue): ZincValue = ZincDouble(value - (b as ZincDouble).value)
 	override operator fun times(b: ZincValue): ZincValue = ZincDouble(value * (b as ZincDouble).value)
