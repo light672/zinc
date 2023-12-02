@@ -1,4 +1,4 @@
-package zinc.builtin
+package zinc.builtin.errors
 
 open class RuntimeException(override val message: String? = null) : kotlin.RuntimeException(message) {
 	fun toString(line: Int): String {
