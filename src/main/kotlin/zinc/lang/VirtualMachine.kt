@@ -5,7 +5,7 @@ import zinc.builtin.ZincValue
 
 internal data class VirtualMachine(val chunk: Chunk, val size: Int) {
 
-	data class CallFrame(val bp: Int, val rpc: Int)
+	data class CallFrame(val bp: Int, val pc: Int)
 
 	private val stack = arrayOfNulls<ZincValue?>(size)
 	private var stackSize = 0
@@ -17,6 +17,7 @@ internal data class VirtualMachine(val chunk: Chunk, val size: Int) {
 
 	// basic registers
 	private var pc = 0
+	private var bp = 0
 	private val line get() = chunk.lines[pc]
 
 	fun interpret() {
@@ -109,6 +110,19 @@ internal data class VirtualMachine(val chunk: Chunk, val size: Int) {
 					a.powAssign(b)
 				}
 
+				OP_CALL -> {
+					val function = popStack() as Function
+					pushFrame(function.arity)
+					pc = function.pc
+				}
+
+				OP_RETURN -> {
+					val value = popStack()
+					val frame = popFrame()
+					pc = frame.pc
+					bp = frame.bp
+					pushStack(value)
+				}
 			}
 		}
 	}
@@ -125,12 +139,9 @@ internal data class VirtualMachine(val chunk: Chunk, val size: Int) {
 	private fun popFrame(): CallFrame = callStack[--callStackSize]
 		?: throw IllegalArgumentException("Unable to pop call stack because there are no call frames.")
 
-	/**
-	 * Unsafe. Only use if you know what you are doing
-	 * @param arity The amount of
-	 */
-	fun pushFrame(arity: Int) {
-		callStack[--callStackSize] = CallFrame(stackSize - arity, pc)
+	private fun pushFrame(arity: Int) {
+		bp = stackSize - arity
+		callStack[callStackSize++] = CallFrame(bp, pc)
 	}
 
 	/**
