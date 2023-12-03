@@ -1,4 +1,4 @@
-package zinc.lang
+package zinc.lang.runtime
 
 import zinc.builtin.ZincValue
 

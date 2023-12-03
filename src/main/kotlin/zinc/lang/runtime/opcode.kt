@@ -1,4 +1,4 @@
-package zinc.lang
+package zinc.lang.runtime
 
 val OP_CONST: Byte = 0
 val OP_TRUE: Byte = 1
