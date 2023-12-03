@@ -3,14 +3,14 @@ package zinc.lang
 import zinc.builtin.ZincBoolean
 import zinc.builtin.ZincValue
 
-internal data class VirtualMachine(val chunk: Chunk, val size: Int) {
+internal data class VirtualMachine(val chunk: Chunk, val maxStackSize: Int, val maxCallStackSize: Int) {
 
 	data class CallFrame(val bp: Int, val pc: Int)
 
-	private val stack = arrayOfNulls<ZincValue?>(size)
+	private val stack = arrayOfNulls<ZincValue?>(maxStackSize)
 	private var stackSize = 0
 
-	private val callStack = arrayOfNulls<CallFrame>(size / 2)
+	private val callStack = arrayOfNulls<CallFrame>(maxCallStackSize)
 	private var callStackSize = 0
 
 	private var stopQueued = false
