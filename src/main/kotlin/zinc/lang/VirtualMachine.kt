@@ -123,6 +123,8 @@ internal data class VirtualMachine(val chunk: Chunk, val size: Int) {
 					bp = frame.bp
 					pushStack(value)
 				}
+
+				OP_END -> return
 			}
 		}
 	}

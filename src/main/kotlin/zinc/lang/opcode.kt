@@ -23,4 +23,4 @@ val OP_POW_ASSIGN: Byte = 16
 
 val OP_CALL: Byte = 17
 val OP_RETURN: Byte = 18
-
+val OP_END: Byte = 19

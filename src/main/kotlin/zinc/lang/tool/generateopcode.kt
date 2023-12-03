@@ -27,7 +27,7 @@ fun main() {
 		
 		OP_CALL
 		OP_RETURN
-		
+		OP_END
 	""".trimIndent()
 	val writer = PrintWriter("src/main/kotlin/zinc/lang/opcode.kt", "UTF-8")
 	writer.println("package zinc.lang\n")
