@@ -2,6 +2,7 @@ package zinc.lang.runtime
 
 import zinc.builtin.ZincBoolean
 import zinc.builtin.ZincValue
+import zinc.lang.Chunk
 
 internal data class VirtualMachine(val chunk: Chunk, val maxStackSize: Int, val maxCallStackSize: Int) {
 
