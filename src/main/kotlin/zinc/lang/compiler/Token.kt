@@ -25,4 +25,8 @@ data class Token(val type: Type, val line: Int, val lexeme: String = "") {
 		EOF,
 		ERROR
 	}
+
+	override fun toString(): String {
+		return "Token($type, $line, $lexeme)"
+	}
 }
