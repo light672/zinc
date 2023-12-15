@@ -79,8 +79,15 @@ class Lexer(val source: String) {
 
 		fun identifierToken(): Token.Type {
 			return when (source[start]) {
-				'a' -> check(1, "nd", AND)
-				'c' -> check(1, "lass", CLASS)
+				'a' -> if (current - start > 1)
+					when (source[start + 1]) {
+						's' -> AS
+						'n' -> check(2, "d", AND)
+						else -> IDENTIFIER
+					} else IDENTIFIER
+
+				'b' -> check("reak", BREAK)
+				'c' -> check("lass", CLASS)
 				'e' -> if (current - start > 1 && source[start + 1] == 'l')
 					when (source[start + 2]) {
 						'i' -> check(3, "f", ELIF)
@@ -88,7 +95,15 @@ class Lexer(val source: String) {
 						else -> IDENTIFIER
 					} else IDENTIFIER
 
-				'i' -> check("f", IF)
+				'i' -> if (current - start > 1)
+					when (source[start + 1]) {
+						's' -> IS
+						'f' -> IF
+						'n' -> IN
+						else -> IDENTIFIER
+					} else IDENTIFIER
+
+				'l' -> check("oop", LOOP)
 				'n' -> check("il", NIL)
 				'o' -> check("r", OR)
 				'r' -> check("eturn", RETURN)
@@ -156,7 +171,7 @@ class Lexer(val source: String) {
 			consume()
 		}
 
-		if (end) return errorToken("Unterminated string.")
+		if (end) return errorToken("Unterminated char.")
 		val token = addFormatted(CHAR_VALUE)
 		consume()
 		return token

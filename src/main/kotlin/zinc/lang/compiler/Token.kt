@@ -21,7 +21,7 @@ data class Token(val type: Type, val line: Int, val lexeme: String = "") {
 		FOR, WHILE, LOOP, IF, ELSE, ELIF,
 		RETURN, BREAK,
 		AND, OR,
-		IS, AS,
+		IS, AS, IN,
 		EOF,
 		ERROR
 	}
