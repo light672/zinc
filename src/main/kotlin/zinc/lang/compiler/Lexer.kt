@@ -9,10 +9,8 @@ class Lexer(val source: String) {
 	private var current = 0
 	private var line = 1
 
-	private val currentChar get() = if (end) '\u0000' else source[current]
+	private val currentChar get() = if (end()) '\u0000' else source[current]
 	private val nextChar get() = if (current + 1 >= source.length) '\u0000' else source[current + 1]
-
-	private val end get() = current >= source.length
 
 	fun scanTokens(): List<Token> {
 		val tokens = emptyList<Token>()
@@ -26,7 +24,7 @@ class Lexer(val source: String) {
 	fun scanToken(): Token {
 		skipWhiteSpace()
 		start = current
-		if (end) Token(EOF, line + 1)
+		if (end()) Token(EOF, line + 1)
 		return when (currentChar) {
 			'(' -> add(LEFT_PAREN)
 			')' -> add(RIGHT_PAREN)
@@ -40,7 +38,7 @@ class Lexer(val source: String) {
 			'-' -> if (match('-')) add(MINUS_MINUS) else if (match('=')) add(MINUS_EQUAL) else add(MINUS)
 			'*' -> if (match('=')) add(STAR_EQUAL) else add(STAR)
 			'/' -> {
-				if (match('/')) while (currentChar != '\n' && !end) consume()
+				if (match('/')) while (currentChar != '\n' && !end()) consume()
 				if (match('=')) add(SLASH_EQUAL) else add(SLASH)
 			}
 
@@ -132,12 +130,12 @@ class Lexer(val source: String) {
 			consume()
 			while (currentChar.isDigit()) consume()
 		}
-		return this.add(DOUBLE_VALUE)
+		return this.add(NUMBER_VALUE)
 	}
 
 	private fun string(): Token {
 		start = current
-		while (currentChar != '"' && !end) {
+		while (currentChar != '"' && !end()) {
 			if (currentChar == '\n') {
 				line++
 				return errorToken("Unterminated string on line. For multi-line strings use '\"\"\"'.")
@@ -145,7 +143,7 @@ class Lexer(val source: String) {
 			consume()
 		}
 
-		if (end) return errorToken("Unterminated string.")
+		if (end()) return errorToken("Unterminated string.")
 		val token = addFormatted(STRING_VALUE)
 		consume()
 		return token
@@ -153,7 +151,7 @@ class Lexer(val source: String) {
 
 	private fun multiLineString(): Token {
 		start = current
-		while (!end) {
+		while (!end()) {
 			if (match('"') && match('"') && match('"')) return addFormatted(STRING_VALUE)
 			if (currentChar == '\n') line++
 			consume()
@@ -163,7 +161,7 @@ class Lexer(val source: String) {
 
 	private fun char(): Token {
 		start = current
-		while (currentChar != '\'' && !end) {
+		while (currentChar != '\'' && !end()) {
 			if (currentChar == '\n') {
 				line++
 				return errorToken("Character literals may only be on a single line.")
@@ -171,7 +169,7 @@ class Lexer(val source: String) {
 			consume()
 		}
 
-		if (end) return errorToken("Unterminated char.")
+		if (end()) return errorToken("Unterminated char.")
 		val token = addFormatted(CHAR_VALUE)
 		consume()
 		return token
@@ -180,7 +178,7 @@ class Lexer(val source: String) {
 
 	private fun skipWhiteSpace() {
 		while (true) {
-			if (end) return
+			if (end()) return
 			when (currentChar) {
 				' ', '\r', '\t' -> consume()
 				'\n' -> {
@@ -213,10 +211,12 @@ class Lexer(val source: String) {
 	private fun consume() = source[current++]
 	private fun back() = source[--current]
 	private fun match(expected: Char): Boolean {
-		if (end || source[current] != expected) return false
+		if (end() || source[current] != expected) return false
 		current++
 		return true
 	}
+
+	private fun end() = current >= source.length
 
 	private fun Char.isDigit() = this in '0'..'9'
 	private fun Char.isAlpha() = this in 'a'..'z' || this in 'A'..'Z' || this == '_'

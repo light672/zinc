@@ -2,7 +2,7 @@ package zinc.lang.compiler
 
 open class Statement {
 	class ExpressionStatement(val expression: Expression) : Statement()
-	class VariableDeclaration(val variable: Variable, val initializer: Expression?) : Statement()
+	class VariableDeclaration(val constant: Boolean, val variable: Variable, val initializer: Expression?) : Statement()
 	class Function(val name: Token, val arguments: List<Variable>?, val body: List<Statement> = ArrayList(0)) :
 		Statement()
 

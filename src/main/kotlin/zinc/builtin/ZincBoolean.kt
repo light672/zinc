@@ -1,3 +1,6 @@
 package zinc.builtin
 
-data class ZincBoolean(override val truthy: Boolean) : ZincValue()
+
+open class ZincBoolean(override val truthy: Boolean) : ZincValue()
+object ZincFalse : ZincBoolean(false)
+object ZincTrue : ZincBoolean(true)

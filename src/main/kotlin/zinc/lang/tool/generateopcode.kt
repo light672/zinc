@@ -38,7 +38,7 @@ fun main() {
 			writer.println()
 			continue
 		}
-		writer.println("val $s: Byte = ${i - continueAmount}")
+		writer.println("const val $s: Byte = ${i - continueAmount}")
 	}
 	writer.close()
 }
