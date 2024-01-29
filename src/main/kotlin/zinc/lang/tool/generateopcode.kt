@@ -3,6 +3,7 @@ package zinc.lang.tool
 import java.io.PrintWriter
 
 fun main() {
+	val s = StringBuilder()
 	val opcodes = """
 		OP_CONST
 		OP_TRUE
@@ -10,26 +11,28 @@ fun main() {
 		OP_NULL
 		OP_POP
 		
+		
+		OP_ADD_NUM
+		OP_SUB_NUM
+		OP_DIV_NUM
+		OP_MUL_NUM
+		OP_MOD_NUM
+		OP_POW_NUM
+		
 		OP_ADD
 		OP_SUB
-		OP_MUL
 		OP_DIV
+		OP_MUL
 		OP_MOD
 		OP_POW
 		
-		OP_ADD_ASSIGN
-		OP_SUB_ASSIGN
-		OP_MUL_ASSIGN
-		OP_DIV_ASSIGN
-		OP_MOD_ASSIGN
-		OP_POW_ASSIGN
-		
 		
 		OP_CALL
+		OP_CALL_NATIVE
 		OP_RETURN
 		OP_END
 	""".trimIndent()
-	val writer = PrintWriter("src/main/kotlin/zinc/lang/opcode.kt", "UTF-8")
+	val writer = PrintWriter("src/main/kotlin/zinc/lang/runtime/opcode.kt", "UTF-8")
 	writer.println("package zinc.lang\n")
 	var continueAmount = 0
 	for ((i, s) in opcodes.split("\n").withIndex()) {

@@ -1,43 +1,91 @@
 package zinc.lang.runtime
 
-import zinc.builtin.ZincBoolean
-import zinc.builtin.ZincValue
+import zinc.Zinc
+import zinc.builtin.*
 import zinc.lang.Chunk
 
-internal data class VirtualMachine(val chunk: Chunk, val maxStackSize: Int, val maxCallStackSize: Int) {
+class VirtualMachine(
+	private val instance: Zinc.Runtime,
+	private val stack: Array<ZincValue?>,
+	private val callStack: Array<CallFrame?>,
+	private var stackSize: Int,
+	private var callStackSize: Int,
+	private var chunk: Chunk,
+	private var pc: Int,
+) {
 
-	data class CallFrame(val bp: Int, val pc: Int)
+	data class CallFrame(val bp: Int, val returnLocation: Int)
 
-	private val stack = arrayOfNulls<ZincValue?>(maxStackSize)
-	private var stackSize = 0
-
-	private val callStack = arrayOfNulls<CallFrame>(maxCallStackSize)
-	private var callStackSize = 0
+	constructor(instance: Zinc.Runtime, stackMaxSize: Int, callStackMaxSize: Int, chunk: Chunk) : this(
+		instance,
+		arrayOfNulls<ZincValue>(stackMaxSize),
+		arrayOfNulls<CallFrame>(callStackMaxSize),
+		0,
+		0,
+		chunk,
+		0,
+	)
 
 	private var stopQueued = false
-
-	// basic registers
-	private var pc = 0
-	private var bp = 0
-	private val line get() = chunk.lines[pc]
-
 	fun interpret() {
-		// reset the vm
+		reset()
+		pushFirstFrame()
+		run()
+	}
+
+	fun reset() {
 		pc = 0
 		stackSize = 0
 		callStackSize = 0
 		stopQueued = false
-		run()
 	}
 
 	private fun run() {
 		while (!stopQueued) {
 			when (readByte()) {
-				OP_CONST -> pushStack(chunk.constants[readByte().toInt()])
-				OP_TRUE -> pushStack(ZincBoolean(true))
-				OP_FALSE -> pushStack(ZincBoolean(false))
+				OP_CONST -> pushStack(chunk.constants[readByte().toInt()]) // change to readShort
+				OP_TRUE -> pushStack(ZincTrue)
+				OP_FALSE -> pushStack(ZincFalse)
 				OP_NULL -> pushStack(null)
-				OP_POP -> --stackSize
+				OP_POP -> {
+					instance.out.print("${popStack()}\n")
+				}
+
+				OP_ADD_NUM -> {
+					val b = popStack() as ZincValue
+					val a = popStack() ?: throw IllegalArgumentException()
+					pushStack(a + b as ZincNumber)
+				}
+
+				OP_SUB_NUM -> {
+					val b = popStack() as ZincValue
+					val a = popStack() ?: throw IllegalArgumentException()
+					pushStack(a - b as ZincNumber)
+				}
+
+				OP_DIV_NUM -> {
+					val b = popStack() as ZincValue
+					val a = popStack() ?: throw IllegalArgumentException()
+					pushStack(a / b as ZincNumber)
+				}
+
+				OP_MUL_NUM -> {
+					val b = popStack() as ZincValue
+					val a = popStack() ?: throw IllegalArgumentException()
+					pushStack(a * b as ZincNumber)
+				}
+
+				OP_MOD_NUM -> {
+					val b = popStack() as ZincValue
+					val a = popStack() ?: throw IllegalArgumentException()
+					pushStack(a % b as ZincNumber)
+				}
+
+				OP_POW_NUM -> {
+					val b = popStack() as ZincValue
+					val a = popStack() ?: throw IllegalArgumentException()
+					pushStack(a.pow(b as ZincNumber))
+				}
 
 				OP_ADD -> {
 					val b = popStack() as ZincValue
@@ -51,16 +99,16 @@ internal data class VirtualMachine(val chunk: Chunk, val maxStackSize: Int, val 
 					pushStack(a - b)
 				}
 
-				OP_MUL -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
-					pushStack(a * b)
-				}
-
 				OP_DIV -> {
 					val b = popStack() as ZincValue
 					val a = popStack() as ZincValue
 					pushStack(a / b)
+				}
+
+				OP_MUL -> {
+					val b = popStack() as ZincValue
+					val a = popStack() as ZincValue
+					pushStack(a * b)
 				}
 
 				OP_MOD -> {
@@ -75,89 +123,53 @@ internal data class VirtualMachine(val chunk: Chunk, val maxStackSize: Int, val 
 					pushStack(a.pow(b))
 				}
 
-				OP_ADD_ASSIGN -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
-					a += b
-				}
-
-				OP_SUB_ASSIGN -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
-					a -= b
-				}
-
-				OP_MUL_ASSIGN -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
-					a *= b
-				}
-
-				OP_DIV_ASSIGN -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
-					a /= b
-				}
-
-				OP_MOD_ASSIGN -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
-					a %= b
-				}
-
-				OP_POW_ASSIGN -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
-					a.powAssign(b)
-				}
-
 				OP_CALL -> {
-					val function = popStack() as Function
-					pushFrame(function.arity)
-					pc = function.pc
+					var arity = readByte().toInt()
+					pushCallFrame(arity)
+					val function = popStack() as ZincFunction
+					for (value in function.capturedArguments) {
+						pushStack(value)
+						arity++
+					}
+					pc = function.codeLocation
 				}
 
 				OP_RETURN -> {
-					val value = popStack()
-					val frame = popFrame()
-					pc = frame.pc
-					bp = frame.bp
-					pushStack(value)
+					val returnValue = popStack()
+					returnToPreviousFrame()
+					pushStack(returnValue)
 				}
 
-				OP_END -> return
+				OP_END -> {
+					return
+				}
 			}
 		}
 	}
 
+	private fun readByte() = chunk.code[pc++]
+	private fun line() = chunk.lines[pc]
+	private fun bp() = callStack[callStackSize - 1]!!.bp
 
-	private fun readByte(): Byte = chunk.code[pc++]
-	private fun readShort(): Short = ((chunk.code[pc++].toInt()) shl 8 or (chunk.code[pc++].toInt() and 0xFF)).toShort()
-	private fun popStack(): ZincValue? = stack[--stackSize]
-	private fun peekStack(): ZincValue? = stack[stackSize - 1]
-	private fun pushStack(obj: ZincValue?) {
-		stack[stackSize++] = obj
+	private fun pushStack(value: ZincValue?) {
+		if (stackSize > stack.size) throw StackOverflowError()
+		stack[stackSize++] = value
 	}
 
-	private fun popFrame(): CallFrame = callStack[--callStackSize]
-		?: throw IllegalArgumentException("Unable to pop call stack because there are no call frames.")
+	private fun popStack() = if (stackSize == 0) throw StackOverflowError() else stack[--stackSize]
 
-	private fun pushFrame(arity: Int) {
-		bp = stackSize - arity
-		callStack[callStackSize++] = CallFrame(bp, pc)
+	private fun pushCallFrame(arity: Int) {
+		if (callStackSize > callStack.size) throw StackOverflowError()
+		callStack[callStackSize++] = CallFrame(stackSize - arity, pc)
 	}
 
-	/**
-	 * Unsafe. Only use if you know what you are doing
-	 * @param pc The new program counter
-	 */
-	fun moveProgramCounter(pc: Int) {
-		this.pc = pc
+	private fun pushFirstFrame() {
+		callStack[0] = CallFrame(0, 0)
 	}
 
-
-	private fun error(message: String) {
-		// report error
-		System.err.println("[line ${chunk.lines[pc]}] $message")
+	private fun returnToPreviousFrame() {
+		val frame = callStack[--callStackSize]!!
+		pc = frame.returnLocation
+		stackSize = frame.bp
 	}
 }

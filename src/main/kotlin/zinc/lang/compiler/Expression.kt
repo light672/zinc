@@ -2,25 +2,26 @@ package zinc.lang.compiler
 
 import zinc.builtin.ZincValue
 
-abstract class Expression() {
+abstract class Expression {
+
+	interface Visitor {
+		fun visit(expression: Binary)
+		fun visit(expression: Literal)
+		fun visit(expression: Grouping)
+	}
 
 	class Binary(val left: Expression, val right: Expression, val operator: Token) :
-		Expression()
+		Expression() {
+		override fun accept(visitor: Visitor) = visitor.visit(this);
+	}
 
-	class Unary(val right: Expression, val operator: Token) : Expression()
-	class Literal(val literal: ZincValue?) : Expression()
-	class Call(val callee: Expression) : Expression()
-	class Variable(val name: Token) : Expression()
-	class Assign(val variable: Variable, val value: Expression) : Expression()
+	class Literal(val value: ZincValue?) : Expression() {
+		override fun accept(visitor: Visitor) = visitor.visit(this);
+	}
 
-	class IndexGet(val callee: Expression, val index: Expression) : Expression()
-	class IndexSet(val callee: Expression, val index: Expression, val value: Expression) : Expression()
+	class Grouping(val expression: Expression) : Expression() {
+		override fun accept(visitor: Visitor) = visitor.visit(this);
+	}
 
-	class ObjectGet(val callee: Expression, val field: Token) : Expression()
-	class ObjectSet(val callee: Expression, val field: Token, val value: Expression) : Expression()
-
-	class Group(val expression: Expression) : Expression()
-	class If(
-		val condition: Expression, val thenBlock: List<Statement>, val elseBlock: List<Statement>?,
-	) : Expression()
+	abstract fun accept(visitor: Visitor)
 }

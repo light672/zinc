@@ -9,14 +9,15 @@ class Lexer(val source: String) {
 	private var current = 0
 	private var line = 1
 
-	private val currentChar get() = if (end()) '\u0000' else source[current]
-	private val nextChar get() = if (current + 1 >= source.length) '\u0000' else source[current + 1]
+	private fun currentChar() = if (end()) '\u0000' else source[current]
+	private fun nextChar() = if (current + 1 >= source.length) '\u0000' else source[current + 1]
 
 	fun scanTokens(): List<Token> {
-		val tokens = emptyList<Token>()
+		val tokens = ArrayList<Token>()
 		do {
 			val t = scanToken()
-		} while (t.type == EOF)
+			tokens.add(t)
+		} while (t.type != EOF)
 		return tokens
 	}
 
@@ -24,8 +25,9 @@ class Lexer(val source: String) {
 	fun scanToken(): Token {
 		skipWhiteSpace()
 		start = current
-		if (end()) Token(EOF, line + 1)
-		return when (currentChar) {
+		if (end()) return Token(EOF, line + 1, "EOF")
+		val c = consume()
+		return when (c) {
 			'(' -> add(LEFT_PAREN)
 			')' -> add(RIGHT_PAREN)
 			'{' -> add(LEFT_BRACE)
@@ -34,15 +36,26 @@ class Lexer(val source: String) {
 			']' -> add(RIGHT_BRACKET)
 			',' -> add(COMMA)
 			'.' -> add(DOT)
-			'+' -> if (match('+')) add(PLUS_PLUS) else if (match('=')) add(PLUS_EQUAL) else add(PLUS)
-			'-' -> if (match('-')) add(MINUS_MINUS) else if (match('=')) add(MINUS_EQUAL) else add(MINUS)
-			'*' -> if (match('=')) add(STAR_EQUAL) else add(STAR)
-			'/' -> {
-				if (match('/')) while (currentChar != '\n' && !end()) consume()
-				if (match('=')) add(SLASH_EQUAL) else add(SLASH)
+			'+' -> {
+				if (match('+')) add(PLUS_PLUS)
+				else add(if (match('=')) PLUS_EQUAL else PLUS)
 			}
 
-			'%' -> if (match('=')) add(PERCENT_EQUAL) else add(PERCENT)
+			'-' -> {
+				if (match('-')) add(MINUS_MINUS)
+				else add(if (match('=')) MINUS_EQUAL else MINUS)
+			}
+
+			'*' -> add(if (match('=')) STAR_EQUAL else STAR)
+			'^' -> add(if (match('=')) CARET_EQUAL else CARET)
+			'/' -> {
+				if (match('/')) {
+					while (currentChar() != '\n' && !end()) consume()
+					scanToken()
+				} else if (match('=')) add(SLASH_EQUAL) else add(SLASH)
+			}
+
+			'%' -> add(if (match('=')) PERCENT_EQUAL else PERCENT)
 			':' -> add(COLON)
 			';' -> add(SEMICOLON)
 			'?' -> add(QUESTION)
@@ -50,16 +63,22 @@ class Lexer(val source: String) {
 			'=' -> if (match('=')) add(EQUAL_EQUAL) else add(EQUAL)
 			'>' -> if (match('=')) add(GREATER_EQUAL) else add(GREATER)
 			'<' -> if (match('=')) add(LESS_EQUAL) else add(LESS)
-			'"' -> if (!match('"')) string() else if (match('"')) multiLineString() else {
-				back()
-				string()
+			'"' -> {
+				if (!match('"'))
+					string()
+				else if (nextChar() == '"') {
+					consume()
+					multiLineString()
+				} else {
+					string()
+				}
 			}
 
 			'\'' -> char()
 
 			else -> {
-				if (currentChar.isDigit()) return number()
-				else if (currentChar.isAlpha()) return identifier()
+				if (c.isDigit()) return number()
+				else if (c.isAlpha()) return identifier()
 				else return errorToken("Unexpected character.")
 			}
 		}
@@ -76,67 +95,62 @@ class Lexer(val source: String) {
 		fun check(rest: String, type: Token.Type) = check(1, rest, type)
 
 		fun identifierToken(): Token.Type {
-			return when (source[start]) {
+			when (source[start]) {
 				'a' -> if (current - start > 1)
 					when (source[start + 1]) {
-						's' -> AS
-						'n' -> check(2, "d", AND)
-						else -> IDENTIFIER
-					} else IDENTIFIER
+						's' -> return AS
+						'n' -> return check(2, "d", AND)
+					}
 
-				'b' -> check("reak", BREAK)
-				'c' -> check("lass", CLASS)
+				'b' -> return check("reak", BREAK)
+				'c' -> return check("lass", CLASS)
 				'e' -> if (current - start > 1 && source[start + 1] == 'l')
 					when (source[start + 2]) {
-						'i' -> check(3, "f", ELIF)
-						's' -> check(3, "e", ELSE)
-						else -> IDENTIFIER
-					} else IDENTIFIER
+						'i' -> return check(3, "f", ELIF)
+						's' -> return check(3, "e", ELSE)
+					}
 
 				'i' -> if (current - start > 1)
 					when (source[start + 1]) {
-						's' -> IS
-						'f' -> IF
-						'n' -> IN
-						else -> IDENTIFIER
-					} else IDENTIFIER
+						's' -> return IS
+						'f' -> return IF
+						'n' -> return IN
+					}
 
-				'l' -> check("oop", LOOP)
-				'n' -> check("il", NIL)
-				'o' -> check("r", OR)
-				'r' -> check("eturn", RETURN)
-				'v' -> check("ar", VAR)
-				'w' -> check("hile", WHILE)
-				't' -> check("rue", TRUE)
+				'l' -> return check("oop", LOOP)
+				'n' -> return check("il", NIL)
+				'o' -> return check("r", OR)
+				'r' -> return check("eturn", RETURN)
+				'v' -> return check("ar", VAR)
+				'w' -> return check("hile", WHILE)
+				't' -> return check("rue", TRUE)
 				'f' -> if (current - start > 1)
 					when (source[start + 1]) {
-						'a' -> check(2, "lse", FALSE)
-						'o' -> check(2, "r", FOR)
-						'u' -> check(2, "nc", FUNC)
-						else -> IDENTIFIER
-					} else IDENTIFIER
-
-				else -> IDENTIFIER
+						'a' -> return check(2, "lse", FALSE)
+						'o' -> return check(2, "r", FOR)
+						'u' -> return check(2, "nc", FUNC)
+					}
 			}
+			return IDENTIFIER
 		}
 
-		while (currentChar.isAlphaNumeric()) consume()
+		while (currentChar().isAlphaNumeric()) consume()
 		return add(identifierToken())
 	}
 
 	private fun number(): Token {
-		while (currentChar.isDigit()) consume()
-		if (currentChar == '.' && nextChar.isDigit()) {
+		while (currentChar().isDigit()) consume()
+		if (currentChar() == '.' && nextChar().isDigit()) {
 			consume()
-			while (currentChar.isDigit()) consume()
+			while (currentChar().isDigit()) consume()
 		}
-		return this.add(NUMBER_VALUE)
+		return add(NUMBER_VALUE)
 	}
 
 	private fun string(): Token {
 		start = current
-		while (currentChar != '"' && !end()) {
-			if (currentChar == '\n') {
+		while (currentChar() != '"' && !end()) {
+			if (currentChar() == '\n') {
 				line++
 				return errorToken("Unterminated string on line. For multi-line strings use '\"\"\"'.")
 			}
@@ -153,7 +167,7 @@ class Lexer(val source: String) {
 		start = current
 		while (!end()) {
 			if (match('"') && match('"') && match('"')) return addFormatted(STRING_VALUE)
-			if (currentChar == '\n') line++
+			if (currentChar() == '\n') line++
 			consume()
 		}
 		return errorToken("Unterminated multi-line string.")
@@ -161,8 +175,8 @@ class Lexer(val source: String) {
 
 	private fun char(): Token {
 		start = current
-		while (currentChar != '\'' && !end()) {
-			if (currentChar == '\n') {
+		while (currentChar() != '\'' && !end()) {
+			if (currentChar() == '\n') {
 				line++
 				return errorToken("Character literals may only be on a single line.")
 			}
@@ -179,7 +193,7 @@ class Lexer(val source: String) {
 	private fun skipWhiteSpace() {
 		while (true) {
 			if (end()) return
-			when (currentChar) {
+			when (currentChar()) {
 				' ', '\r', '\t' -> consume()
 				'\n' -> {
 					consume()
@@ -209,7 +223,6 @@ class Lexer(val source: String) {
 	}
 
 	private fun consume() = source[current++]
-	private fun back() = source[--current]
 	private fun match(expected: Char): Boolean {
 		if (end() || source[current] != expected) return false
 		current++
