@@ -80,6 +80,10 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 		if (match(EQUAL)) {
 			initializer = expression() ?: return null
 		}
+		if (initializer == null && type == null) {
+			error("Variable '${name.lexeme}' must have either a type or an initializer.")
+			return null
+		}
 		expect(SEMICOLON, "Expected ';' after variable declaration.") ?: return null
 		return Statement.VariableDeclaration(declaration, name, type, initializer)
 	}
