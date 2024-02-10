@@ -46,80 +46,43 @@ class VirtualMachine(
 				OP_CONST -> pushStack(chunk.constants[readByte().toInt()]) // change to readShort
 				OP_TRUE -> pushStack(ZincTrue)
 				OP_FALSE -> pushStack(ZincFalse)
-				OP_NULL -> pushStack(null)
 				OP_POP -> {
 					instance.out.print("${popStack()}\n")
 				}
 
-				OP_ADD_NUM -> {
-					val b = popStack() as ZincValue
-					val a = popStack() ?: throw IllegalArgumentException()
-					pushStack(a + b as ZincNumber)
-				}
-
-				OP_SUB_NUM -> {
-					val b = popStack() as ZincValue
-					val a = popStack() ?: throw IllegalArgumentException()
-					pushStack(a - b as ZincNumber)
-				}
-
-				OP_DIV_NUM -> {
-					val b = popStack() as ZincValue
-					val a = popStack() ?: throw IllegalArgumentException()
-					pushStack(a / b as ZincNumber)
-				}
-
-				OP_MUL_NUM -> {
-					val b = popStack() as ZincValue
-					val a = popStack() ?: throw IllegalArgumentException()
-					pushStack(a * b as ZincNumber)
-				}
-
-				OP_MOD_NUM -> {
-					val b = popStack() as ZincValue
-					val a = popStack() ?: throw IllegalArgumentException()
-					pushStack(a % b as ZincNumber)
-				}
-
-				OP_POW_NUM -> {
-					val b = popStack() as ZincValue
-					val a = popStack() ?: throw IllegalArgumentException()
-					pushStack(a.pow(b as ZincNumber))
-				}
-
 				OP_ADD -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
+					val b = popStack() as ZincNumber
+					val a = popStack() as ZincNumber
 					pushStack(a + b)
 				}
 
 				OP_SUB -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
+					val b = popStack() as ZincNumber
+					val a = popStack() as ZincNumber
 					pushStack(a - b)
 				}
 
 				OP_DIV -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
+					val b = popStack() as ZincNumber
+					val a = popStack() as ZincNumber
 					pushStack(a / b)
 				}
 
 				OP_MUL -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
+					val b = popStack() as ZincNumber
+					val a = popStack() as ZincNumber
 					pushStack(a * b)
 				}
 
 				OP_MOD -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
+					val b = popStack() as ZincNumber
+					val a = popStack() as ZincNumber
 					pushStack(a % b)
 				}
 
 				OP_POW -> {
-					val b = popStack() as ZincValue
-					val a = popStack() as ZincValue
+					val b = popStack() as ZincNumber
+					val a = popStack() as ZincNumber
 					pushStack(a.pow(b))
 				}
 
@@ -156,7 +119,7 @@ class VirtualMachine(
 		stack[stackSize++] = value
 	}
 
-	private fun popStack() = if (stackSize == 0) throw StackOverflowError() else stack[--stackSize]
+	private fun popStack() = if (stackSize == 0) throw StackOverflowError() else stack[--stackSize]!!
 
 	private fun pushCallFrame(arity: Int) {
 		if (callStackSize > callStack.size) throw StackOverflowError()

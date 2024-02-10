@@ -118,7 +118,6 @@ class Lexer(val source: String) {
 					}
 
 				'l' -> return check("oop", LOOP)
-				'n' -> return check("il", NIL)
 				'o' -> return check("r", OR)
 				'r' -> return check("eturn", RETURN)
 				'v' -> return check("ar", VAR)

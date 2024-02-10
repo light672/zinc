@@ -48,7 +48,6 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 
 		if (match(FALSE)) return Expression.Literal(ZincFalse)
 		if (match(TRUE)) return Expression.Literal(ZincTrue)
-		if (match(NIL)) return Expression.Literal(null)
 		if (match(NUMBER_VALUE)) return Expression.Literal(ZincNumber(parseDouble(previous.lexeme)))
 		if (match(STRING_VALUE)) return Expression.Literal(ZincString(previous.lexeme))
 		if (match(CHAR_VALUE)) {

@@ -8,16 +8,7 @@ fun main() {
 		OP_CONST
 		OP_TRUE
 		OP_FALSE
-		OP_NULL
 		OP_POP
-		
-		
-		OP_ADD_NUM
-		OP_SUB_NUM
-		OP_DIV_NUM
-		OP_MUL_NUM
-		OP_MOD_NUM
-		OP_POW_NUM
 		
 		OP_ADD
 		OP_SUB
@@ -26,14 +17,13 @@ fun main() {
 		OP_MOD
 		OP_POW
 		
-		
 		OP_CALL
 		OP_CALL_NATIVE
 		OP_RETURN
 		OP_END
 	""".trimIndent()
 	val writer = PrintWriter("src/main/kotlin/zinc/lang/runtime/opcode.kt", "UTF-8")
-	writer.println("package zinc.lang\n")
+	writer.println("package zinc.lang.runtime\n")
 	var continueAmount = 0
 	for ((i, s) in opcodes.split("\n").withIndex()) {
 		if (s.isBlank()) {
@@ -41,7 +31,7 @@ fun main() {
 			writer.println()
 			continue
 		}
-		writer.println("const val $s: Byte = ${i - continueAmount}")
+		writer.println("internal const val $s: Byte = ${i - continueAmount}")
 	}
 	writer.close()
 }

@@ -15,7 +15,7 @@ abstract class Expression {
 		override fun accept(visitor: Visitor) = visitor.visit(this);
 	}
 
-	class Literal(val value: ZincValue?) : Expression() {
+	class Literal(val value: ZincValue) : Expression() {
 		override fun accept(visitor: Visitor) = visitor.visit(this);
 	}
 
