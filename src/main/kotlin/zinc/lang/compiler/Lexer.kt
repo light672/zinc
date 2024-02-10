@@ -114,7 +114,7 @@ class Lexer(val source: String) {
 					when (source[start + 1]) {
 						's' -> return IS
 						'f' -> return IF
-						'n' -> return IN
+						'n' -> return if (current - start > 2 && source[start + 2] == 't') INT else IN
 					}
 
 				'l' -> return check("oop", LOOP)
@@ -129,6 +129,8 @@ class Lexer(val source: String) {
 						'o' -> return check(2, "r", FOR)
 						'u' -> return check(2, "nc", FUNC)
 					}
+
+				'p' -> return check("ub", PUB)
 			}
 			return IDENTIFIER
 		}
