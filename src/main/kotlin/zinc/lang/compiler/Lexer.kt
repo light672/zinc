@@ -119,7 +119,12 @@ class Lexer(val source: String) {
 				'l' -> return check("oop", LOOP)
 				'o' -> return check("r", OR)
 				'r' -> return check("eturn", RETURN)
-				'v' -> return check("ar", VAR)
+				'v' -> if (current - start > 1 && source[start + 1] == 'a')
+					when (source[start + 2]) {
+						'r' -> return VAR
+						'l' -> return VAL
+					}
+
 				'w' -> return check("hile", WHILE)
 				't' -> return check("rue", TRUE)
 				'f' -> if (current - start > 1)
