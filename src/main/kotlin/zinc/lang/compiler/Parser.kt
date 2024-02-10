@@ -12,14 +12,76 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 
 	internal fun parse() = ArrayList<Statement>().also {
 		advance()
-		while (!end()) it.add(parseStatement())
+		while (!end()) it.add(parseDeclaration())
 	}
 
 
-	private fun parseStatement() = declaration() ?: throw RuntimeException()
+	private fun parseStatement() = declarationOrStatement() ?: throw RuntimeException()
+	private fun parseDeclaration() = declaration() ?: throw RuntimeException()
+
+	private fun block(startBracketError: String): Array<Statement>? {
+		expect(LEFT_BRACE, startBracketError) ?: return null
+		val statements = ArrayList<Statement>()
+		if (!isNext(RIGHT_BRACE)) {
+			do {
+				statements.add(parseStatement())
+			} while (!isNext(RIGHT_BRACE))
+		}
+		expect(RIGHT_BRACE, "Expected '}' after block.")
+		return statements.toTypedArray()
+	}
 
 	private fun declaration(): Statement? {
+		// if (match(STRUCT)) return structDeclaration()
+		if (match(FUNC)) return functionDeclaration()
+		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
+		errorAtCurrent("Expected declaration.")
+		return null
+	}
+
+	private fun declarationOrStatement(): Statement? {
 		return statement()
+	}
+
+	private fun functionDeclaration(): Statement.Function? {
+		expect(IDENTIFIER, "Expected function name after 'func'.") ?: return null
+		val name = previous
+		expect(LEFT_PAREN, "Expected '(' after function name.") ?: return null
+		val list = ArrayList<Pair<Token, Token>>()
+		if (!isNext(RIGHT_PAREN)) {
+			do {
+				val pair = getNameAndType("parameter") ?: return null
+				list.add(pair)
+			} while (!isNext(RIGHT_PAREN))
+		}
+		expect(RIGHT_PAREN, "Expected ')' after function arguments.") ?: return null
+		var type: Token? = null
+		if (match(COLON)) {
+			expect(IDENTIFIER, "Expected function return type after ':'.") ?: return null
+			type = current
+		}
+
+		val block = block("Expected function body.") ?: return null
+		return Statement.Function(name, list.toTypedArray(), type, block)
+	}
+
+	private fun variableDeclaration(): Statement.VariableDeclaration? {
+		val declaration = current
+		expect(IDENTIFIER, "Expected variable name after '${declaration.lexeme}'.") ?: return null
+		val name = current
+
+		var type: Token? = null
+		var initializer: Expression? = null
+
+		if (match(COLON)) {
+			expect(IDENTIFIER, "Expected variable type after ':'.") ?: return null
+			type = current
+		}
+		if (match(EQUAL)) {
+			initializer = expression() ?: return null
+		}
+		expect(SEMICOLON, "Expected ';' after variable declaration.") ?: return null
+		return Statement.VariableDeclaration(declaration, name, type, initializer)
 	}
 
 	private fun statement(): Statement? {
@@ -77,6 +139,15 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 			return Expression.Binary(expression, right, operator)
 		}
 		return expression
+	}
+
+	private fun getNameAndType(variableType: String): Pair<Token, Token>? {
+		expect(IDENTIFIER, "Expected $variableType name.") ?: return null
+		val name = current
+		expect(COLON, "Expected ':' after $variableType name.") ?: return null
+		expect(IDENTIFIER, "Expected $variableType type after ':'.") ?: return null
+		val type = current
+		return Pair(name, type)
 	}
 
 	/**

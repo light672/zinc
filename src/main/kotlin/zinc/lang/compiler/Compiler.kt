@@ -54,6 +54,14 @@ class Compiler : Expression.Visitor, Statement.Visitor {
 		code.add(OP_POP)
 	}
 
+	override fun visit(expression: Statement.Function) {
+		TODO("Not yet implemented")
+	}
+
+	override fun visit(expression: Statement.VariableDeclaration) {
+		TODO("Not yet implemented")
+	}
+
 
 	private fun Expression.resolve() = accept(this@Compiler)
 	private fun Statement.resolve() = accept(this@Compiler)
