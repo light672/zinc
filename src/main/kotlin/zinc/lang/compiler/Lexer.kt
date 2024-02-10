@@ -103,7 +103,6 @@ class Lexer(val source: String) {
 					}
 
 				'b' -> return check("reak", BREAK)
-				'c' -> return check("lass", CLASS)
 				'e' -> if (current - start > 1 && source[start + 1] == 'l')
 					when (source[start + 2]) {
 						'i' -> return check(3, "f", ELIF)
@@ -131,6 +130,7 @@ class Lexer(val source: String) {
 					}
 
 				'p' -> return check("ub", PUB)
+				's' -> return check("ruct", STRUCT)
 			}
 			return IDENTIFIER
 		}
