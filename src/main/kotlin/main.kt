@@ -4,8 +4,10 @@ fun main() {
 	val runtime =
 		Zinc.Runtime(
 			256, 256, """
-			val a: str = 3 * (11 + 6);
-		""".trimIndent(), Zinc.SystemOutputStream, Zinc.SystemErrorStream, false
+			func add(a: num, b: str): str {
+				6 * 4 + ("3");
+			}
+		""".trimIndent(), Zinc.SystemOutputStream, Zinc.SystemErrorStream, true
 		)
 	runtime.run()
 }

@@ -54,13 +54,13 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 			do {
 				val pair = getNameAndType("parameter") ?: return null
 				list.add(pair)
-			} while (!isNext(RIGHT_PAREN))
+			} while (match(COMMA))
 		}
 		expect(RIGHT_PAREN, "Expected ')' after function arguments.") ?: return null
 		var type: Token? = null
 		if (match(COLON)) {
 			expect(IDENTIFIER, "Expected function return type after ':'.") ?: return null
-			type = current
+			type = previous
 		}
 
 		val block = block("Expected function body.") ?: return null

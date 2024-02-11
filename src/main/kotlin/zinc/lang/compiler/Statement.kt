@@ -11,7 +11,12 @@ abstract class Statement {
 		override fun accept(visitor: Visitor) = visitor.visit(this)
 	}
 
-	class Function(name: Token, arguments: Array<Pair<Token, Token>>, type: Token?, body: Array<Statement>) :
+	class Function(
+		val name: Token,
+		val arguments: Array<Pair<Token, Token>>,
+		val type: Token?,
+		val body: Array<Statement>
+	) :
 		Statement() {
 		override fun accept(visitor: Visitor) = visitor.visit(this)
 	}

@@ -10,4 +10,6 @@ abstract class ZincNativeModule {
 	fun defineFunction(name: String, parameters: Array<Pair<String, String>>) {
 
 	}
+
+	abstract fun getModuleName(): String
 }

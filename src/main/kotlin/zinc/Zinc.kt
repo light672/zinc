@@ -11,6 +11,7 @@ object Zinc {
 		it.declareType("char", Type.Char)
 		it.declareType("bool", Type.Bool)
 		it.declareType("str", Type.String)
+		it.declareType("unit", Type.Unit)
 	}
 
 	class Runtime internal constructor(
@@ -84,7 +85,7 @@ object Zinc {
 
 	object SystemErrorStream : OutputStream {
 		override fun print(message: String) {
-			kotlin.io.print(message)
+			System.err.println(message)
 		}
 
 	}

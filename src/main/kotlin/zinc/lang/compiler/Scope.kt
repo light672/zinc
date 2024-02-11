@@ -1,5 +1,7 @@
 package zinc.lang.compiler
 
+import zinc.Zinc
+
 internal class Scope private constructor(
 	val parent: Scope?,
 	private val functions: HashMap<Pair<String, Array<Type>>, Type> = HashMap(),
@@ -25,12 +27,42 @@ internal class Scope private constructor(
 		variables[name] = Variable(type, true)
 	}
 
-	fun hasVariable(name: String) = variables[name] != null
-
-	fun getType(name: String) = types[name]!!
-	fun hasType(name: String) = types[name] != null
+	fun getType(name: String) = getTypeOrNull(name)!!
+	private fun getTypeOrNull(name: String): Type? = types[name] ?: parent?.getTypeOrNull(name)
+	fun hasType(name: String) = getTypeOrNull(name) != null
 	fun declareType(name: String, type: Type) {
 		types[name] = type
+	}
+
+	fun defineAndDeclareFunction(
+		name: String,
+		parameters: Array<Pair<String, Type>>,
+		returnType: Type,
+		instance: Zinc.Runtime
+	) {
+		fun toString(): String {
+			val params = StringBuilder("$name (")
+			for (parameterType in parameters) {
+				params.append("${parameterType.second},")
+			}
+			if (params[params.length - 1] == ',') params.deleteCharAt(params.length - 1)
+			params.append(") -> $returnType")
+			return params.toString()
+		}
+
+
+		if (functions[Pair(
+				name,
+				ArrayList<Type>().also { for (param in parameters) it.add(param.second) }.toTypedArray()
+			)] != null
+		) {
+			instance.reportCompileError("Function '${toString()}' has already defined in the current scope.")
+			return
+		}
+		functions[Pair(
+			name,
+			ArrayList<Type>().also { for (param in parameters) it.add(param.second) }.toTypedArray()
+		)] = returnType
 	}
 
 	fun copy(): Scope {

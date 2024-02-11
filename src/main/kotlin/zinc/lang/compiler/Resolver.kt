@@ -29,7 +29,36 @@ class Resolver(val instance: Zinc.Runtime) : Expression.Visitor<Unit>, Statement
 	}
 
 	override fun visit(statement: Statement.Function) {
-		TODO("Not yet implemented")
+		val array = ArrayList<Pair<String, Type>>().also {
+			for (param in statement.arguments) {
+				val type =
+					if (currentScope.hasType(param.second.lexeme))
+						currentScope.getType(param.second.lexeme)
+					else {
+						instance.reportCompileError("Type '${param.second.lexeme}' does not exist in the current scope.")
+						return
+					}
+				it.add(Pair(param.first.lexeme, type))
+			}
+		}.toTypedArray()
+
+		currentScope.defineAndDeclareFunction(
+			statement.name.lexeme,
+			array,
+			if (statement.type == null)
+				Type.Unit
+			else if (currentScope.hasType(statement.type.lexeme))
+				currentScope.getType(statement.type.lexeme)
+			else {
+				instance.reportCompileError("Type '${statement.type.lexeme}' does not exist in the current scope.")
+				return
+			},
+			instance
+		)
+		scope {
+			for (pair in array) currentScope.declareAndDefineVariable(pair.first, pair.second)
+			for (stmt in statement.body) stmt.resolve()
+		}
 	}
 
 	override fun visit(statement: Statement.VariableDeclaration) {

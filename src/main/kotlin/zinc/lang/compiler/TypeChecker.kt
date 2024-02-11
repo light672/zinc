@@ -54,6 +54,10 @@ sealed class Type {
 		override fun toString() = "str"
 	}
 
+	object Unit : Type() {
+		override fun toString() = "unit"
+	}
+
 	data class Function(val function: Pair<Array<Type>, Type>) : Type() {
 		override fun toString(): kotlin.String {
 			val params = StringBuilder("(")
