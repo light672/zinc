@@ -40,6 +40,8 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	}
 
 	private fun declarationOrStatement(): Statement? {
+		if (match(FUNC)) return functionDeclaration()
+		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
 		return statement()
 	}
 
@@ -75,7 +77,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 
 		if (match(COLON)) {
 			expect(IDENTIFIER, "Expected variable type after ':'.") ?: return null
-			type = current
+			type = previous
 		}
 		if (match(EQUAL)) {
 			initializer = expression() ?: return null
@@ -147,11 +149,10 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 
 	private fun getNameAndType(variableType: String): Pair<Token, Token>? {
 		expect(IDENTIFIER, "Expected $variableType name.") ?: return null
-		val name = current
+		val name = previous
 		expect(COLON, "Expected ':' after $variableType name.") ?: return null
 		expect(IDENTIFIER, "Expected $variableType type after ':'.") ?: return null
-		val type = current
-		return Pair(name, type)
+		return Pair(name, previous)
 	}
 
 	/**

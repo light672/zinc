@@ -51,6 +51,18 @@ sealed class Type {
 	}
 
 	object String : Type() {
-		override fun toString() = "String"
+		override fun toString() = "str"
+	}
+
+	data class Function(val function: Pair<Array<Type>, Type>) : Type() {
+		override fun toString(): kotlin.String {
+			val params = StringBuilder("(")
+			for (parameterType in function.first) {
+				params.append("$parameterType,")
+			}
+			if (params[params.length - 1] == ',') params.deleteCharAt(params.length - 1)
+			params.append(") -> ${function.second}")
+			return params.toString()
+		}
 	}
 }

@@ -1,13 +1,18 @@
 package zinc
 
 import zinc.builtin.ZincException
-import zinc.lang.compiler.Compiler
-import zinc.lang.compiler.Lexer
-import zinc.lang.compiler.Parser
-import zinc.lang.compiler.Resolver
+import zinc.lang.compiler.*
 import zinc.lang.runtime.VirtualMachine
 
 object Zinc {
+	internal val defaultGlobalScope = Scope(null).also {
+		// define primitives
+		it.declareType("num", Type.Number)
+		it.declareType("char", Type.Char)
+		it.declareType("bool", Type.Bool)
+		it.declareType("str", Type.String)
+	}
+
 	class Runtime internal constructor(
 		private val stackSize: Int,
 		private val callStackSize: Int,
@@ -60,6 +65,12 @@ object Zinc {
 
 
 	}
+
+
+	fun includeModule(module: ZincNativeModule) {
+
+	}
+
 
 	interface OutputStream {
 		fun print(message: String)
