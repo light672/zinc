@@ -10,13 +10,9 @@ internal class TypeChecker(val instance: Zinc.Runtime, val resolver: Resolver) :
 	override fun visit(expression: Expression.Binary): Type? {
 		val right = expression.right.type()
 		val left = expression.left.type()
-		if (left === Type.Number) {
-			if (right !== Type.Number) {
-				instance.reportCompileError("Invalid operands for '${expression.operator.lexeme}', '$left' and '$right'.")
-				return null
-			}
-			return Type.Number
-		}
+
+		if (left === Type.Number && right === Type.Number) return Type.Number
+
 		instance.reportCompileError("Invalid operands for '${expression.operator.lexeme}', '$left' and '$right'.")
 		return null
 	}
