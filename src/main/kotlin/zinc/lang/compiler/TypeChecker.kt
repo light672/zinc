@@ -6,19 +6,19 @@ import zinc.builtin.ZincChar
 import zinc.builtin.ZincNumber
 import zinc.builtin.ZincString
 
-internal class TypeChecker(val instance: Zinc.Runtime, val resolver: Resolver) : Expression.Visitor<Type?> {
-	override fun visit(expression: Expression.Binary): Type? {
-		val right = expression.right.type()
-		val left = expression.left.type()
+internal class TypeChecker(val instance: Zinc.Runtime, val resolver: Resolver) {
+	fun Expression.Binary.type(): Type? {
+		val right = right.type()
+		val left = left.type()
 
 		if (left === Type.Number && right === Type.Number) return Type.Number
 
-		instance.reportCompileError("Invalid operands for '${expression.operator.lexeme}', '$left' and '$right'.")
+		instance.reportCompileError("Invalid operands for '${operator.lexeme}', '$left' and '$right'.")
 		return null
 	}
 
-	override fun visit(expression: Expression.Literal): Type {
-		return when (expression.value) {
+	fun Expression.Literal.type(): Type {
+		return when (value) {
 			is ZincNumber -> Type.Number
 			is ZincChar -> Type.Char
 			is ZincBoolean -> Type.Bool
@@ -27,10 +27,15 @@ internal class TypeChecker(val instance: Zinc.Runtime, val resolver: Resolver) :
 		}
 	}
 
-	override fun visit(expression: Expression.Grouping) = expression.expression.type()
-	override fun visit(expression: Expression.GetVariable) =
-		resolver.currentScope.getVariable(expression.variable.lexeme).type
+	fun Expression.GetVariable.type() = resolver.currentScope.getVariable(variable.lexeme).type
 
-	fun Expression.type(): Type? = accept(this@TypeChecker)
+	fun Expression.type(): Type? {
+		return when (this) {
+			is Expression.Literal -> type()
+			is Expression.Binary -> type()
+			is Expression.Grouping -> expression.type()
+			is Expression.GetVariable -> type()
+		}
+	}
 
 }

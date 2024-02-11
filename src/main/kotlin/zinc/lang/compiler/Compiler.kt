@@ -7,22 +7,57 @@ import zinc.lang.Chunk
 import zinc.lang.compiler.Token.Type.*
 import zinc.lang.runtime.*
 
-class Compiler : Expression.Visitor<Unit>, Statement.Visitor {
-	val code = ArrayList<Byte>()
-	val constants = ArrayList<ZincValue>()
-	val lines = ArrayList<Int>()
+class Compiler {
+	private val code = ArrayList<Byte>()
+	private val constants = ArrayList<ZincValue>()
+	private val lines = ArrayList<Int>()
 	fun compile(ast: List<Statement>): Chunk {
 		for (statement in ast) {
-			statement.resolve()
+			statement.compile()
 		}
 		code.add(OP_END)
 		return Chunk(code.toTypedArray(), constants.toTypedArray(), lines.toTypedArray())
 	}
 
-	override fun visit(expression: Expression.Binary) {
-		expression.left.resolve()
-		expression.right.resolve()
-		when (expression.operator.type) {
+	private fun Statement.compile() {
+		when (this) {
+			is Statement.ExpressionStatement -> compile()
+			is Statement.Function -> compile()
+			is Statement.VariableDeclaration -> compile()
+		}
+	}
+
+	private fun Statement.ExpressionStatement.compile() {}
+
+	private fun Statement.Function.compile() {}
+
+	private fun Statement.VariableDeclaration.compile() {}
+
+	private fun Expression.compile() {
+		when (this) {
+			is Expression.Literal -> compile()
+			is Expression.Binary -> compile()
+			is Expression.Grouping -> expression.compile()
+			is Expression.GetVariable -> compile()
+		}
+	}
+
+	private fun Expression.Literal.compile() {
+		when (value) {
+			is ZincTrue -> code.add(OP_TRUE)
+			is ZincFalse -> code.add(OP_FALSE)
+			else -> {
+				constants.add(value)
+				code.add(OP_CONST)
+				code.add((constants.size - 1).toByte())
+			}
+		}
+	}
+
+	private fun Expression.Binary.compile() {
+		left.compile()
+		right.compile()
+		when (operator.type) {
 			PLUS -> code.add(OP_ADD)
 			MINUS -> code.add(OP_SUB)
 			SLASH -> code.add(OP_DIV)
@@ -33,40 +68,5 @@ class Compiler : Expression.Visitor<Unit>, Statement.Visitor {
 		}
 	}
 
-	override fun visit(expression: Expression.Literal) {
-		when (expression.value) {
-			is ZincTrue -> code.add(OP_TRUE)
-			is ZincFalse -> code.add(OP_FALSE)
-			else -> {
-				constants.add(expression.value)
-				code.add(OP_CONST)
-				code.add((constants.size - 1).toByte())
-			}
-		}
-	}
-
-	override fun visit(expression: Expression.Grouping) {
-		expression.expression.resolve()
-	}
-
-	override fun visit(expression: Expression.GetVariable) {
-		TODO("Not yet implemented")
-	}
-
-	override fun visit(statement: Statement.ExpressionStatement) {
-		statement.expression.resolve()
-		code.add(OP_POP)
-	}
-
-	override fun visit(statement: Statement.Function) {
-		TODO("Not yet implemented")
-	}
-
-	override fun visit(statement: Statement.VariableDeclaration) {
-		TODO("Not yet implemented")
-	}
-
-
-	private fun Expression.resolve() = accept(this@Compiler)
-	private fun Statement.resolve() = accept(this@Compiler)
+	private fun Expression.GetVariable.compile() {}
 }
