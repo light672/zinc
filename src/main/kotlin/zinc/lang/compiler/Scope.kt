@@ -2,7 +2,7 @@ package zinc.lang.compiler
 
 import zinc.Zinc
 
-internal class Scope private constructor(
+internal class Scope(
 	val parent: Scope?,
 	private val functions: HashMap<Pair<String, Array<Type>>, Type> = HashMap(),
 	private val types: HashMap<String, Type> = HashMap(),
