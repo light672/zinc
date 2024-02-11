@@ -4,6 +4,7 @@ import zinc.Zinc
 import zinc.builtin.ZincBoolean
 import zinc.builtin.ZincChar
 import zinc.builtin.ZincNumber
+import zinc.builtin.ZincString
 
 internal class TypeChecker(val instance: Zinc.Runtime) : Expression.Visitor<Type?> {
 	override fun visit(expression: Expression.Binary): Type? {
@@ -24,6 +25,7 @@ internal class TypeChecker(val instance: Zinc.Runtime) : Expression.Visitor<Type
 			is ZincNumber -> Type.Number
 			is ZincChar -> Type.Char
 			is ZincBoolean -> Type.Bool
+			is ZincString -> Type.String
 			else -> throw IllegalArgumentException()
 		}
 	}
@@ -45,5 +47,9 @@ sealed class Type {
 
 	object Bool : Type() {
 		override fun toString() = "bool"
+	}
+
+	object String : Type() {
+		override fun toString() = "String"
 	}
 }
