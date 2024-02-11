@@ -113,19 +113,19 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	 * Errors already handled, returns null if an error was found and processed.
 	 */
 	private fun primary(): Expression? {
-
 		if (match(FALSE)) return Expression.Literal(ZincFalse)
 		if (match(TRUE)) return Expression.Literal(ZincTrue)
 		if (match(NUMBER_VALUE)) return Expression.Literal(ZincNumber(parseDouble(previous.lexeme)))
 		if (match(STRING_VALUE)) return Expression.Literal(ZincString(previous.lexeme))
+		if (match(IDENTIFIER)) return Expression.GetVariable(previous)
 		if (match(CHAR_VALUE)) {
-			if (previous.lexeme.length != 1) {
+			return if (previous.lexeme.length != 1) {
 				error(
 					if (previous.lexeme.length > 1) "Too many characters in a character literal '${previous.lexeme}'."
 					else "Cannot have an empty character literal."
 				)
-				return null
-			} else return Expression.Literal(ZincChar(previous.lexeme[0]))
+				null
+			} else Expression.Literal(ZincChar(previous.lexeme[0]))
 		}
 		if (match(LEFT_PAREN)) {
 			val expression = expression() ?: return null

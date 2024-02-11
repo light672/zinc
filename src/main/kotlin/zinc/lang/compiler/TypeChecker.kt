@@ -6,7 +6,7 @@ import zinc.builtin.ZincChar
 import zinc.builtin.ZincNumber
 import zinc.builtin.ZincString
 
-internal class TypeChecker(val instance: Zinc.Runtime) : Expression.Visitor<Type?> {
+internal class TypeChecker(val instance: Zinc.Runtime, val resolver: Resolver) : Expression.Visitor<Type?> {
 	override fun visit(expression: Expression.Binary): Type? {
 		val right = expression.right.type()
 		val left = expression.left.type()
@@ -32,6 +32,8 @@ internal class TypeChecker(val instance: Zinc.Runtime) : Expression.Visitor<Type
 	}
 
 	override fun visit(expression: Expression.Grouping) = expression.expression.type()
+	override fun visit(expression: Expression.GetVariable) =
+		resolver.currentScope.getVariable(expression.variable.lexeme).type
 
 	fun Expression.type(): Type? = accept(this@TypeChecker)
 

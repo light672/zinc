@@ -27,6 +27,10 @@ internal class Scope private constructor(
 		variables[name] = Variable(type, true)
 	}
 
+	fun getVariable(name: String) = getVariableOrNull(name)!!
+	private fun getVariableOrNull(name: String): Variable? = variables[name] ?: parent?.getVariableOrNull(name)
+	fun hasVariable(name: String) = getVariableOrNull(name) != null
+
 	fun getType(name: String) = getTypeOrNull(name)!!
 	private fun getTypeOrNull(name: String): Type? = types[name] ?: parent?.getTypeOrNull(name)
 	fun hasType(name: String) = getTypeOrNull(name) != null

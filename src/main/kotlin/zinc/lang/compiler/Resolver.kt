@@ -2,10 +2,10 @@ package zinc.lang.compiler
 
 import zinc.Zinc
 
-class Resolver(val instance: Zinc.Runtime) : Expression.Visitor<Unit>, Statement.Visitor {
-	private val typeChecker = TypeChecker(instance)
+internal class Resolver(val instance: Zinc.Runtime) : Expression.Visitor<Unit>, Statement.Visitor {
+	private val typeChecker = TypeChecker(instance, this)
 	private val global = Zinc.defaultGlobalScope.copy()
-	private var currentScope = global
+	var currentScope = global
 	fun resolve(ast: List<Statement>) {
 		for (statement in ast) {
 			statement.resolve()
@@ -22,6 +22,18 @@ class Resolver(val instance: Zinc.Runtime) : Expression.Visitor<Unit>, Statement
 
 	override fun visit(expression: Expression.Grouping) {
 		expression.expression.resolve()
+	}
+
+	override fun visit(expression: Expression.GetVariable) {
+		if (!currentScope.hasVariable(expression.variable.lexeme)) {
+			instance.reportCompileError("Variable '${expression.variable.lexeme}' does not exist in the current scope.")
+			return
+		}
+		val variable = currentScope.getVariable(expression.variable.lexeme)
+		if (!variable.initialized) {
+			instance.reportCompileError("Cannot use variable '${expression.variable.lexeme}' before it is initialized.")
+			return
+		}
 	}
 
 	override fun visit(statement: Statement.ExpressionStatement) {
