@@ -81,6 +81,7 @@ internal class Resolver(val instance: Zinc.Runtime) {
 		checkTypeSafety()
 		left.resolve()
 		right.resolve()
+
 	}
 
 	private fun Expression.GetVariable.resolve() {
