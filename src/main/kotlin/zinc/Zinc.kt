@@ -2,7 +2,6 @@ package zinc
 
 import zinc.builtin.ZincException
 import zinc.lang.compiler.*
-import zinc.lang.runtime.VirtualMachine
 
 object Zinc {
 	internal val defaultGlobalScope = Scope(null).also {
@@ -33,17 +32,17 @@ object Zinc {
 		) : this(stackSize, callStackSize, source, out, err, false)
 
 		fun run() {
-			if (debug) {
-				val lexer = Lexer(source)
-				println(lexer.scanTokens())
-			}
-			val parser = Parser(source, this)
-			val statements = parser.parse()
+			if (debug) println(Lexer(source).scanTokens())
+
+			val statements = Parser(source, this).parse()
+
 			if (debug) println(statements)
+
 			if (hadError) return
-			val resolver = Resolver(this)
-			resolver.resolve(statements)
-			if (hadError) return
+			
+			Resolver(this).resolve(statements)
+
+			/*if (hadError) return
 			val compiler = Compiler()
 			val chunk = compiler.compile(statements)
 			if (hadError) return
@@ -52,7 +51,7 @@ object Zinc {
 				//vm.interpret()
 			} catch (exception: ZincException) {
 				reportRuntimeError(exception)
-			}
+			}*/
 		}
 
 		private fun reportRuntimeError(error: ZincException) {
