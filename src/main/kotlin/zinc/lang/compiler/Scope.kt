@@ -17,7 +17,7 @@ internal class Scope(
 		variables[name]!!.initialized = true
 	}
 
-	fun declareAndDefineType(name: String, type: Type) {
+	fun defineType(name: String, type: Type) {
 		types[name] = type
 	}
 

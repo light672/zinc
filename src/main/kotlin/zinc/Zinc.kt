@@ -6,11 +6,11 @@ import zinc.lang.compiler.*
 object Zinc {
 	internal val defaultGlobalScope = Scope(null).also {
 		// define primitives
-		it.declareType("num", Type.Number)
-		it.declareType("char", Type.Char)
-		it.declareType("bool", Type.Bool)
-		it.declareType("str", Type.String)
-		it.declareType("unit", Type.Unit)
+		it.defineType("num", Type.Number)
+		it.defineType("char", Type.Char)
+		it.defineType("bool", Type.Bool)
+		it.defineType("str", Type.String)
+		it.defineType("unit", Type.Unit)
 	}
 
 	class Runtime internal constructor(
@@ -39,7 +39,7 @@ object Zinc {
 			if (debug) println(statements)
 
 			if (hadError) return
-			
+
 			Resolver(this).resolve(statements)
 
 			/*if (hadError) return
