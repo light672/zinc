@@ -8,12 +8,6 @@ internal class Scope private constructor(
 	private val types: HashMap<String, Type> = HashMap(),
 	private val variables: HashMap<String, Variable> = HashMap()
 ) {
-	constructor(parent: Scope?) : this(
-		parent,
-		HashMap<Pair<String, Array<Type>>, Type>(),
-		HashMap<String, Type>(),
-		HashMap<String, Variable>()
-	)
 
 	fun declareVariable(name: String, type: Type) {
 		variables[name] = Variable(type)
@@ -23,20 +17,13 @@ internal class Scope private constructor(
 		variables[name]!!.initialized = true
 	}
 
-	fun declareAndDefineVariable(name: String, type: Type) {
-		variables[name] = Variable(type, true)
-	}
-
-	fun getVariable(name: String) = getVariableOrNull(name)!!
-	private fun getVariableOrNull(name: String): Variable? = variables[name] ?: parent?.getVariableOrNull(name)
-	fun hasVariable(name: String) = getVariableOrNull(name) != null
-
-	fun getType(name: String) = getTypeOrNull(name)!!
-	private fun getTypeOrNull(name: String): Type? = types[name] ?: parent?.getTypeOrNull(name)
-	fun hasType(name: String) = getTypeOrNull(name) != null
-	fun declareType(name: String, type: Type) {
+	fun declareAndDefineType(name: String, type: Type) {
 		types[name] = type
 	}
+
+	fun getVariableOrNull(name: String): Variable? = variables[name] ?: parent?.getVariableOrNull(name)
+
+	fun getTypeOrNull(name: String): Type? = types[name] ?: parent?.getTypeOrNull(name)
 
 	fun defineAndDeclareFunction(
 		name: String,
