@@ -3,7 +3,6 @@ package zinc.lang.compiler
 import zinc.Zinc
 
 internal class Resolver(val instance: Zinc.Runtime) {
-	private val typeChecker = TypeChecker(instance, this)
 	private val global = Zinc.defaultGlobalScope.copy()
 	var currentScope = global
 	fun resolve(ast: List<Statement>) {
@@ -46,34 +45,25 @@ internal class Resolver(val instance: Zinc.Runtime) {
 	}
 
 	private fun Statement.Function.resolve() {
-		val array = ArrayList<Pair<String, Type>>().also {
-			for (param in arguments) {
-				val type =
-					if (currentScope.hasType(param.second.lexeme))
-						currentScope.getType(param.second.lexeme)
-					else {
-						instance.reportCompileError("Type '${param.second.lexeme}' does not exist in the current scope.")
-						return
-					}
-				it.add(Pair(param.first.lexeme, type))
-			}
-		}.toTypedArray()
-
-		currentScope.defineAndDeclareFunction(
-			name.lexeme,
-			array,
-			if (type == null)
-				Type.Unit
-			else if (currentScope.hasType(type.lexeme))
-				currentScope.getType(type.lexeme)
-			else {
-				instance.reportCompileError("Type '${type.lexeme}' does not exist in the current scope.")
+		val array = Array(arguments.size) {
+			val type = currentScope.getTypeOrNull(arguments[it].second.lexeme) ?: run {
+				instance.reportCompileError("Type '${arguments[it].second.lexeme}' does not exist in the current scope.")
 				return
-			},
-			instance
-		)
+			}
+			Pair(arguments[it].first.lexeme, type)
+		}
+
+		currentScope.defineAndDeclareFunction(name.lexeme, array, type?.let {
+			currentScope.getTypeOrNull(type.lexeme) ?: run {
+				instance.reportCompileError("Type '${it.lexeme}' does not exist in the current scope.")
+				return
+			}
+		} ?: Type.Unit, instance)
+
 		scope {
-			for (pair in array) currentScope.declareAndDefineVariable(pair.first, pair.second)
+			for (pair in array) {
+				currentScope.declareVariable(pair.first, pair.second, false)
+			}
 			for (stmt in body) stmt.resolve()
 		}
 	}
