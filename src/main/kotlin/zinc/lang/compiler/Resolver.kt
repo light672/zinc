@@ -21,26 +21,27 @@ internal class Resolver(val instance: Zinc.Runtime) {
 	}
 
 	private fun Statement.VariableDeclaration.resolve() {
-		if (type != null) {
-			if (!currentScope.hasType(type.lexeme)) {
-				instance.reportCompileError("Type '${type.lexeme}' does not exist in the current scope.")
+		val mutable = declaration.type == Token.Type.VAR
+		val definedType = type?.lexeme?.let {
+			currentScope.getTypeOrNull(it)?.apply {
+				initializer ?: currentScope.declareVariable(type.lexeme, this, mutable)
+			} ?: run {
+				instance.reportCompileError("Type '$it' does not exist in the current scope.")
 				return
 			}
-			if (initializer == null) currentScope.declareVariable(
-				name.lexeme,
-				currentScope.getType(statement.type.lexeme)
-			)
 		}
-		if (initializer != null) {
+
+		initializer?.run {
 			initializer.resolve()
-			val type = initializer.checkTypeSafety() ?: return
-			if (type != null) {
-				if (type !== currentScope.getType(type.lexeme)) {
-					instance.reportCompileError("Type '${type.lexeme}' does not match with initialized type of '$type'.")
+			val inferredType = initializer.type()
+			definedType?.run {
+				if (inferredType !== definedType) {
+					instance.reportCompileError("Type '${type!!.lexeme}' does not match with initialized type of $type.")
 					return
 				}
 			}
-			currentScope.declareAndDefineVariable(name.lexeme, type)
+			currentScope.declareVariable(name.lexeme, inferredType, mutable)
+			currentScope.defineVariable(name.lexeme)
 		}
 	}
 
@@ -107,6 +108,10 @@ internal class Resolver(val instance: Zinc.Runtime) {
 		currentScope = Scope(currentScope)
 		block()
 		currentScope = currentScope.parent!!
+	}
+
+	private fun Expression.type(): Type {
+
 	}
 
 }
