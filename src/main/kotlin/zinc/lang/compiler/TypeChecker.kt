@@ -17,6 +17,7 @@ internal class TypeChecker(val instance: Zinc.Runtime) : Expression.Visitor<Type
 			}
 			return Type.Number
 		}
+		instance.reportCompileError("Invalid operands for '${expression.operator.lexeme}', '$left' and '$right'.")
 		return null
 	}
 
