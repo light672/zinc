@@ -9,8 +9,8 @@ internal class Scope(
 	private val variables: HashMap<String, Variable> = HashMap()
 ) {
 
-	fun declareVariable(name: String, type: Type) {
-		variables[name] = Variable(type)
+	fun declareVariable(name: String, type: Type, mutable: Boolean) {
+		variables[name] = Variable(type, mutable)
 	}
 
 	fun defineVariable(name: String) {
@@ -61,7 +61,7 @@ internal class Scope(
 		return Scope(null, functions.copy(), types.copy(), variables.copy())
 	}
 
-	data class Variable(val type: Type, var initialized: Boolean = false)
+	data class Variable(val type: Type, val mutable: Boolean, var initialized: Boolean = false)
 
 
 	private fun <K, V> HashMap<K, V>.copy() = clone() as HashMap<K, V>
