@@ -2,9 +2,9 @@ package zinc.lang.compiler
 
 abstract class Statement {
 	interface Visitor {
-		fun visit(expression: ExpressionStatement)
-		fun visit(expression: Function)
-		fun visit(expression: VariableDeclaration)
+		fun visit(statement: ExpressionStatement)
+		fun visit(statement: Function)
+		fun visit(statement: VariableDeclaration)
 	}
 
 	class ExpressionStatement(val expression: Expression) : Statement() {
@@ -16,7 +16,8 @@ abstract class Statement {
 		override fun accept(visitor: Visitor) = visitor.visit(this)
 	}
 
-	class VariableDeclaration(declaration: Token, name: Token, type: Token?, initializer: Expression?) : Statement() {
+	class VariableDeclaration(val declaration: Token, val name: Token, val type: Token?, val initializer: Expression?) :
+		Statement() {
 		override fun accept(visitor: Visitor) = visitor.visit(this)
 	}
 

@@ -4,6 +4,7 @@ import zinc.builtin.ZincException
 import zinc.lang.compiler.Compiler
 import zinc.lang.compiler.Lexer
 import zinc.lang.compiler.Parser
+import zinc.lang.compiler.Resolver
 import zinc.lang.runtime.VirtualMachine
 
 object Zinc {
@@ -34,12 +35,15 @@ object Zinc {
 			val statements = parser.parse()
 			if (debug) println(statements)
 			if (hadError) return
+			val resolver = Resolver(this)
+			resolver.resolve(statements)
+			if (hadError) return
 			val compiler = Compiler()
 			val chunk = compiler.compile(statements)
 			if (hadError) return
 			val vm = VirtualMachine(this, stackSize, callStackSize, chunk)
 			try {
-				vm.interpret()
+				//vm.interpret()
 			} catch (exception: ZincException) {
 				reportRuntimeError(exception)
 			}

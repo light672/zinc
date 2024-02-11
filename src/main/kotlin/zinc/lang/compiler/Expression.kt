@@ -4,24 +4,24 @@ import zinc.builtin.ZincValue
 
 abstract class Expression {
 
-	interface Visitor {
-		fun visit(expression: Binary)
-		fun visit(expression: Literal)
-		fun visit(expression: Grouping)
+	interface Visitor<T> {
+		fun visit(expression: Binary): T
+		fun visit(expression: Literal): T
+		fun visit(expression: Grouping): T
 	}
 
 	class Binary(val left: Expression, val right: Expression, val operator: Token) :
 		Expression() {
-		override fun accept(visitor: Visitor) = visitor.visit(this);
+		override fun <T> accept(visitor: Visitor<T>) = visitor.visit(this);
 	}
 
 	class Literal(val value: ZincValue) : Expression() {
-		override fun accept(visitor: Visitor) = visitor.visit(this);
+		override fun <T> accept(visitor: Visitor<T>) = visitor.visit(this)
 	}
 
 	class Grouping(val expression: Expression) : Expression() {
-		override fun accept(visitor: Visitor) = visitor.visit(this);
+		override fun <T> accept(visitor: Visitor<T>) = visitor.visit(this);
 	}
 
-	abstract fun accept(visitor: Visitor)
+	abstract fun <T> accept(visitor: Visitor<T>): T
 }

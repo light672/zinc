@@ -7,7 +7,7 @@ import zinc.lang.Chunk
 import zinc.lang.compiler.Token.Type.*
 import zinc.lang.runtime.*
 
-class Compiler : Expression.Visitor, Statement.Visitor {
+class Compiler : Expression.Visitor<Unit>, Statement.Visitor {
 	val code = ArrayList<Byte>()
 	val constants = ArrayList<ZincValue>()
 	val lines = ArrayList<Int>()
@@ -49,16 +49,16 @@ class Compiler : Expression.Visitor, Statement.Visitor {
 		expression.expression.resolve()
 	}
 
-	override fun visit(expression: Statement.ExpressionStatement) {
-		expression.expression.resolve()
+	override fun visit(statement: Statement.ExpressionStatement) {
+		statement.expression.resolve()
 		code.add(OP_POP)
 	}
 
-	override fun visit(expression: Statement.Function) {
+	override fun visit(statement: Statement.Function) {
 		TODO("Not yet implemented")
 	}
 
-	override fun visit(expression: Statement.VariableDeclaration) {
+	override fun visit(statement: Statement.VariableDeclaration) {
 		TODO("Not yet implemented")
 	}
 

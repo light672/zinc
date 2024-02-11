@@ -1,27 +1,49 @@
 package zinc.lang.compiler
 
-class Resolver : Expression.Visitor, Statement.Visitor {
-	override fun visit(expression: Expression.Binary) {
-		TODO("Not yet implemented")
+import zinc.Zinc
+
+class Resolver(val instance: Zinc.Runtime) : Expression.Visitor<Unit>, Statement.Visitor {
+	private val typeChecker = TypeChecker(instance)
+
+	fun resolve(ast: List<Statement>) {
+		for (statement in ast) {
+			statement.resolve()
+		}
 	}
 
-	override fun visit(expression: Expression.Literal) {
-		TODO("Not yet implemented")
+	override fun visit(expression: Expression.Binary) {
+		expression.checkTypeSafety()
+		expression.left.resolve()
+		expression.right.resolve()
 	}
+
+	override fun visit(expression: Expression.Literal) {}
 
 	override fun visit(expression: Expression.Grouping) {
+		expression.expression.resolve()
+	}
+
+	override fun visit(statement: Statement.ExpressionStatement) {
+		statement.expression.resolve()
+	}
+
+	override fun visit(statement: Statement.Function) {
 		TODO("Not yet implemented")
 	}
 
-	override fun visit(expression: Statement.ExpressionStatement) {
-		TODO("Not yet implemented")
+	override fun visit(statement: Statement.VariableDeclaration) {
+		if (statement.initializer != null) {
+			statement.initializer.resolve()
+			if (statement.type != null) {
+				val type = statement.initializer.checkTypeSafety() ?: return
+				// TODO: compare the two types here
+			}
+
+		}
 	}
 
-	override fun visit(expression: Statement.Function) {
-		TODO("Not yet implemented")
-	}
+	private fun Expression.resolve() = accept(this@Resolver)
+	private fun Statement.resolve() = accept(this@Resolver)
+	private fun Expression.checkTypeSafety() = accept(typeChecker)
 
-	override fun visit(expression: Statement.VariableDeclaration) {
-		TODO("Not yet implemented")
-	}
 }
