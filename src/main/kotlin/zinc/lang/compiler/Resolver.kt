@@ -84,14 +84,12 @@ internal class Resolver(val instance: Zinc.Runtime) {
 	}
 
 	private fun Expression.GetVariable.resolve() {
-		if (!currentScope.hasVariable(variable.lexeme)) {
+		val variableInScope = currentScope.getVariableOrNull(variable.lexeme) ?: run {
 			instance.reportCompileError("Variable '${variable.lexeme}' does not exist in the current scope.")
 			return
 		}
-		val gottenVariable = currentScope.getVariable(variable.lexeme)
-		if (!gottenVariable.initialized) {
+		if (!variableInScope.initialized)
 			instance.reportCompileError("Cannot use variable '${variable.lexeme}' before it is initialized.")
-		}
 	}
 
 	private fun scope(block: () -> Unit) {
