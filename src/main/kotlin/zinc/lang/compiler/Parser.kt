@@ -70,7 +70,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	private fun variableDeclaration(): Statement.VariableDeclaration? {
 		val declaration = current
 		expect(IDENTIFIER, "Expected variable name after '${declaration.lexeme}'.") ?: return null
-		val name = current
+		val name = previous
 
 		var type: Token? = null
 		var initializer: Expression? = null
