@@ -30,7 +30,7 @@ internal class Scope(
 		parameters: Array<Pair<String, Type>>,
 		returnType: Type,
 		instance: Zinc.Runtime
-	) {
+	): Pair<String, Array<Type>>? {
 		fun toString(): String {
 			val params = StringBuilder("$name (")
 			for (parameterType in parameters) {
@@ -41,20 +41,25 @@ internal class Scope(
 			return params.toString()
 		}
 
-
-		if (functions[Pair(
-				name,
-				ArrayList<Type>().also { for (param in parameters) it.add(param.second) }.toTypedArray()
-			)] != null
-		) {
-			instance.reportCompileError("Function '${toString()}' has already defined in the current scope.")
-			return
-		}
-		functions[Pair(
+		val pair = Pair(
 			name,
 			ArrayList<Type>().also { for (param in parameters) it.add(param.second) }.toTypedArray()
-		)] = returnType
+		)
+
+		functions[pair]?.run {
+			instance.reportCompileError("Function '${toString()}' has already defined in the current scope.")
+			return null
+		}
+
+		functions[pair] = returnType
+		return pair
 	}
+
+	fun getFunctionTypeOrNull(function: Pair<String, Array<Type>>): Type? =
+		functions[function] ?: parent?.getFunctionTypeOrNull(function)
+
+	fun getFunctionInCurrent(function: Pair<String, Array<Type>>) = functions[function]
+	fun getFunctionInParent(function: Pair<String, Array<Type>>) = parent!!.functions[function]
 
 	fun copy(): Scope {
 		if (parent != null) throw IllegalArgumentException("Cannot copy a non-top level scope.")

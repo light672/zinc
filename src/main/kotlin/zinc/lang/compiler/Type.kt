@@ -18,7 +18,11 @@ sealed class Type {
 	}
 
 	object Unit : Type() {
-		override fun toString() = "unit"
+		override fun toString() = "()"
+	}
+
+	object Nothing : Type() {
+		override fun toString() = "nothing"
 	}
 
 	data class Function(val function: Pair<Array<Type>, Type>) : Type() {

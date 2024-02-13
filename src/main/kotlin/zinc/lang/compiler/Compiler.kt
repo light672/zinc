@@ -39,6 +39,7 @@ class Compiler {
 			is Expression.Binary -> compile()
 			is Expression.Grouping -> expression.compile()
 			is Expression.GetVariable -> compile()
+			else -> TODO("Not yet implemented.")
 		}
 	}
 

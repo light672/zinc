@@ -5,8 +5,8 @@ fun main() {
 		Zinc.Runtime(
 			256, 256, """
 			func add(a: num, b: num): str {
-				val a = " ";
-				a + b;
+				var a = 3;
+				var b = "my string";
 			}
 		""".trimIndent(), Zinc.SystemOutputStream, Zinc.SystemErrorStream, true
 		)

@@ -11,4 +11,8 @@ sealed class Expression {
 	class Grouping(val expression: Expression) : Expression()
 
 	class GetVariable(val variable: Token) : Expression()
+
+	object Unit : Expression()
+
+	class Return(val expression: Expression?) : Expression()
 }

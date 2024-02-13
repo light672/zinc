@@ -9,6 +9,7 @@ import zinc.builtin.ZincString
 internal class Resolver(val instance: Zinc.Runtime) {
 	private val global = Zinc.defaultGlobalScope.copy()
 	var currentScope = global
+	var inFunction: Pair<String, Array<Type>>? = null
 	fun resolve(ast: List<Statement>) {
 		for (statement in ast) {
 			statement.resolve()
@@ -58,29 +59,36 @@ internal class Resolver(val instance: Zinc.Runtime) {
 			Pair(arguments[it].first.lexeme, type)
 		}
 
-		currentScope.defineAndDeclareFunction(name.lexeme, array, type?.let {
+		val returnType = type?.let {
 			currentScope.getTypeOrNull(type.lexeme) ?: run {
 				instance.reportCompileError("Type '${it.lexeme}' does not exist in the current scope.")
 				return null
 			}
-		} ?: Type.Unit, instance)
+		} ?: Type.Unit
 
-		scope {
+		val func = currentScope.defineAndDeclareFunction(name.lexeme, array, returnType, instance) ?: return null
+		var properlyReturns = false
+		functionScope(func) {
 			for (pair in array) {
 				currentScope.declareVariable(pair.first, pair.second, false)
 				currentScope.defineVariable(pair.first)
 			}
-			for (stmt in body) stmt.resolve()
+			properlyReturns = allPathsReturn(body)
 		}
-		return Unit
+		return if (properlyReturns || returnType === Type.Unit) Unit else run {
+			instance.reportCompileError("Not all paths in function return a value.")
+			null
+		}
 	}
 
 	private fun Expression.resolve(): Unit? =
 		when (this) {
 			is Expression.Literal -> Unit
+			is Expression.Unit -> Unit
 			is Expression.Grouping -> expression.resolve()
 			is Expression.Binary -> resolve()
 			is Expression.GetVariable -> resolve()
+			is Expression.Return -> resolve()
 		}
 
 
@@ -109,8 +117,21 @@ internal class Resolver(val instance: Zinc.Runtime) {
 		return Unit
 	}
 
+	private fun Expression.Return.resolve(): Unit? {
+		val returnType = expression?.type() ?: Type.Unit
+		// safe to typecast inFunction here because it will never make it to the resolver if statement is outside function
+		val function = currentScope.getFunctionInParent(inFunction!!)!!
+		if (function !== returnType) {
+			instance.reportCompileError("Type returned '$returnType' does not match function return type of '$function'.")
+			return null
+		}
+		return Unit
+	}
+
 	private fun Expression.type(): Type {
 		return when (this) {
+			is Expression.Unit -> Type.Unit
+			is Expression.Return -> Type.Nothing
 			is Expression.Grouping -> expression.type()
 			is Expression.Literal -> type()
 			is Expression.Binary -> type()
@@ -134,10 +155,30 @@ internal class Resolver(val instance: Zinc.Runtime) {
 
 	private fun Expression.GetVariable.type() = currentScope.getVariableOrNull(variable.lexeme)!!.type
 
+	private fun allPathsReturn(block: Array<Statement>): Boolean {
+		for (statement in block) {
+			statement.resolve()
+			if (when (statement) {
+					is Statement.ExpressionStatement -> statement.expression is Expression.Return
+					is Statement.Function -> continue
+					is Statement.VariableDeclaration -> continue
+				}
+			) return true
+		}
+		return false
+	}
+
 	private fun scope(block: () -> Unit) {
 		currentScope = Scope(currentScope)
 		block()
 		currentScope = currentScope.parent!!
+	}
+
+	private fun functionScope(func: Pair<String, Array<Type>>, block: () -> Unit) {
+		val previousFunction = inFunction
+		inFunction = func
+		scope(block)
+		inFunction = previousFunction
 	}
 
 }

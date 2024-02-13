@@ -10,6 +10,12 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
 
+	private var inFunction = FunctionType.NONE
+
+	enum class FunctionType {
+		NONE, UNIT, VALUE
+	}
+
 	internal fun parse() = ArrayList<Statement>().also {
 		advance()
 		while (!end()) it.add(parseDeclaration())
@@ -62,9 +68,11 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 			expect(IDENTIFIER, "Expected function return type after ':'.") ?: return null
 			type = previous
 		}
-
-		val block = block("Expected function body.") ?: return null
-		return Statement.Function(name, list.toTypedArray(), type, block)
+		val wasInFunction = inFunction
+		inFunction = type?.let { FunctionType.VALUE } ?: FunctionType.UNIT
+		val block = block("Expected function body.")
+		inFunction = wasInFunction
+		return block?.let { Statement.Function(name, list.toTypedArray(), type, it) }
 	}
 
 	private fun variableDeclaration(): Statement.VariableDeclaration? {
@@ -128,11 +136,23 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 			} else Expression.Literal(ZincChar(previous.lexeme[0]))
 		}
 		if (match(LEFT_PAREN)) {
+			if (match(RIGHT_PAREN)) return Expression.Unit
 			val expression = expression() ?: return null
 			expect(RIGHT_PAREN, "Expect ')' after expression.") ?: return null
 			return Expression.Grouping(expression)
 		}
+		if (match(RETURN)) {
+			val expression = when (inFunction) {
+				FunctionType.NONE -> {
+					error("Cannot return from top level code.")
+					return null
+				}
 
+				FunctionType.UNIT -> null
+				FunctionType.VALUE -> expression() ?: return null
+			}
+			return Expression.Return(expression)
+		}
 		errorAtCurrent("Expected expression.")
 		return null
 	}
