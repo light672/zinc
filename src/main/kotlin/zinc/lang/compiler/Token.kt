@@ -1,9 +1,9 @@
 package zinc.lang.compiler
 
-data class Token(val type: Type, val line: Int, val lexeme: String = "") {
+data class Token(val type: Type, val line: Int, val range: IntRange, val lexeme: String = "") {
 	companion object {
 		fun empty(): Token {
-			return Token(Type.NA, 0)
+			return Token(Type.NA, 0, 0..0)
 		}
 	}
 
@@ -36,6 +36,6 @@ data class Token(val type: Type, val line: Int, val lexeme: String = "") {
 	}
 
 	override fun toString(): String {
-		return "Token($type, $line, $lexeme)"
+		return "Token($type, $lexeme)"
 	}
 }

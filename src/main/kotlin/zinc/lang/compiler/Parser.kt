@@ -72,7 +72,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 		inFunction = type?.let { FunctionType.VALUE } ?: FunctionType.UNIT
 		val block = block("Expected function body.")
 		inFunction = wasInFunction
-		return block?.let { Statement.Function(name, list.toTypedArray(), type, it) }
+		return block?.let { Statement.Function(name, list.toTypedArray(), type, it, previous) }
 	}
 
 	private fun variableDeclaration(): Statement.VariableDeclaration? {
@@ -121,10 +121,10 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	 * Errors already handled, returns null if an error was found and processed.
 	 */
 	private fun primary(): Expression? {
-		if (match(FALSE)) return Expression.Literal(ZincFalse)
-		if (match(TRUE)) return Expression.Literal(ZincTrue)
-		if (match(NUMBER_VALUE)) return Expression.Literal(ZincNumber(parseDouble(previous.lexeme)))
-		if (match(STRING_VALUE)) return Expression.Literal(ZincString(previous.lexeme))
+		if (match(FALSE)) return Expression.Literal(ZincFalse, previous)
+		if (match(TRUE)) return Expression.Literal(ZincTrue, previous)
+		if (match(NUMBER_VALUE)) return Expression.Literal(ZincNumber(parseDouble(previous.lexeme)), previous)
+		if (match(STRING_VALUE)) return Expression.Literal(ZincString(previous.lexeme), previous)
 		if (match(IDENTIFIER)) return Expression.GetVariable(previous)
 		if (match(CHAR_VALUE)) {
 			return if (previous.lexeme.length != 1) {
@@ -133,15 +133,17 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 					else "Cannot have an empty character literal."
 				)
 				null
-			} else Expression.Literal(ZincChar(previous.lexeme[0]))
+			} else Expression.Literal(ZincChar(previous.lexeme[0]), previous)
 		}
 		if (match(LEFT_PAREN)) {
-			if (match(RIGHT_PAREN)) return Expression.Unit
+			val leftParen = previous
+			if (match(RIGHT_PAREN)) return Expression.Unit(leftParen, previous)
 			val expression = expression() ?: return null
 			expect(RIGHT_PAREN, "Expect ')' after expression.") ?: return null
-			return Expression.Grouping(expression)
+			return Expression.Grouping(expression, leftParen, previous)
 		}
 		if (match(RETURN)) {
+			val returnToken = previous
 			val expression = when (inFunction) {
 				FunctionType.NONE -> {
 					error("Cannot return from top level code.")
@@ -151,7 +153,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 				FunctionType.UNIT -> null
 				FunctionType.VALUE -> expression() ?: return null
 			}
-			return Expression.Return(expression)
+			return Expression.Return(returnToken, expression)
 		}
 		errorAtCurrent("Expected expression.")
 		return null
@@ -238,12 +240,6 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	private fun error(message: String) = errorAt(previous, message)
 	private fun errorAtCurrent(message: String) = errorAt(current, message)
 	private fun errorAt(token: Token, message: String) {
-		instance.reportCompileError(
-			"Error ${
-				if (token.type == EOF) "at end"
-				else if (token.type != ERROR) "at '${token.lexeme}'"
-				else "with scanning"
-			}: '$message'."
-		)
+		instance.reportCompileError(CompilerError.TokenError(token, message))
 	}
 }

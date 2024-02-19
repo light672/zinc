@@ -37,6 +37,7 @@
       </indentOptions>
     </codeStyleSettings>
     <codeStyleSettings language="JAVA">
+      <option name="RIGHT_MARGIN" value="150" />
       <option name="BLOCK_COMMENT_ADD_SPACE" value="true" />
       <option name="KEEP_FIRST_COLUMN_COMMENT" value="false" />
       <option name="BLANK_LINES_AFTER_PACKAGE" value="0" />
@@ -73,6 +74,7 @@
     </codeStyleSettings>
     <codeStyleSettings language="kotlin">
       <option name="CODE_STYLE_DEFAULTS" value="KOTLIN_OFFICIAL" />
+      <option name="RIGHT_MARGIN" value="150" />
       <indentOptions>
         <option name="USE_TAB_CHARACTER" value="true" />
       </indentOptions>

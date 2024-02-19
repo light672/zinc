@@ -25,9 +25,8 @@ class Lexer(val source: String) {
 	fun scanToken(): Token {
 		skipWhiteSpace()
 		start = current
-		if (end()) return Token(EOF, line + 1, "EOF")
-		val c = consume()
-		return when (c) {
+		if (end()) return Token(EOF, line, source.length - 1..<source.length, "EOF")
+		return when (val c = consume()) {
 			'(' -> add(LEFT_PAREN)
 			')' -> add(RIGHT_PAREN)
 			'{' -> add(LEFT_BRACE)
@@ -214,18 +213,22 @@ class Lexer(val source: String) {
 	private fun addFormatted(type: Token.Type): Token {
 		val lexeme = source.substring(start, current)
 		val final = StringEscapeUtils.escapeJava(lexeme)
-		return Token(type, line, final)
+		val token = Token(type, line, start..current, final)
+		start = current
+		return token
 	}
 
 	private fun add(type: Token.Type): Token {
 		val lexeme = source.substring(start, current)
+		val token = Token(type, line, start..current, lexeme)
 		start = current
-		return Token(type, line, lexeme)
+		return token
 	}
 
 	private fun errorToken(message: String): Token {
+		val token = Token(ERROR, line, start..current, message)
 		start = current
-		return Token(ERROR, line, message)
+		return token
 	}
 
 	private fun consume() = source[current++]
