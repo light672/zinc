@@ -7,7 +7,7 @@ import zinc.lang.Chunk
 import zinc.lang.compiler.Token.Type.*
 import zinc.lang.runtime.*
 
-class Compiler {
+class CodeGenerator {
 	private val code = ArrayList<Byte>()
 	private val constants = ArrayList<ZincValue>()
 	private val lines = ArrayList<Int>()
