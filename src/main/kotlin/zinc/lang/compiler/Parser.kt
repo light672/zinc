@@ -52,6 +52,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	}
 
 	private fun functionDeclaration(): Statement.Function? {
+		val declaration = previous
 		expect(IDENTIFIER, "Expected function name after 'func'.") ?: return null
 		val name = previous
 		expect(LEFT_PAREN, "Expected '(' after function name.") ?: return null
@@ -63,6 +64,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 			} while (match(COMMA))
 		}
 		expect(RIGHT_PAREN, "Expected ')' after function arguments.") ?: return null
+		val rightParen = previous
 		var type: Token? = null
 		if (match(COLON)) {
 			expect(IDENTIFIER, "Expected function return type after ':'.") ?: return null
@@ -72,7 +74,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 		inFunction = type?.let { FunctionType.VALUE } ?: FunctionType.UNIT
 		val block = block("Expected function body.")
 		inFunction = wasInFunction
-		return block?.let { Statement.Function(name, list.toTypedArray(), type, it, previous) }
+		return block?.let { Statement.Function(declaration, name, list.toTypedArray(), rightParen, type, it, previous) }
 	}
 
 	private fun variableDeclaration(): Statement.VariableDeclaration? {
