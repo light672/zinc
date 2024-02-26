@@ -1,99 +1,148 @@
 package zinc.lang.compiler
 
 import zinc.Zinc
+import zinc.builtin.ZincBoolean
+import zinc.builtin.ZincChar
+import zinc.builtin.ZincNumber
+import zinc.builtin.ZincString
+import zinc.lang.compiler.parsing.Expression
+import zinc.lang.compiler.parsing.Statement
+import zinc.lang.compiler.parsing.Token
+import java.util.*
 
-internal class Resolver(val instance: Zinc.Runtime) {
-	val typeChecker = TypeChecker(this)
-	val scopeHandler = ScopeHandler(this)
+internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
+	private val locals = Stack<HashMap<String, Declaration>>()
+	private val localTypes = Stack<HashMap<String, Type>>()
 
-	fun resolve(ast: List<Statement>) {
-		for (statement in ast) {
-			statement.resolve()
-		}
-	}
+	private val currentVars get() = if (locals.empty()) module.globals else locals.peek()
+	private val currentTypes get() = if (localTypes.empty()) module.types else localTypes.peek()
+	private val inGlobal get() = locals.empty()
 
-	private fun Statement.resolve() {
-		when (this) {
-			is Statement.ExpressionStatement -> expression.resolve()
+	private var funReturnType: Type? = null
+
+	fun Statement.resolve(): Unit? {
+		return when (this) {
 			is Statement.VariableDeclaration -> resolve()
-			is Statement.Function -> resolve()
+			is Statement.Function -> {
+				val declaration = resolve() ?: return null
+				scope((declaration.type as Type.Function).returnType) {
+					for (stmt in body) stmt.resolve()
+				}
+			}
+
+			is Statement.ExpressionStatement -> expression.resolve()
 		}
 	}
 
-	private fun Statement.VariableDeclaration.resolve(): Unit? {
-		initializer?.resolve()
-		val type = initializer?.type()
-		return scopeHandler.declareVariable(this, type)
-	}
+	fun Statement.VariableDeclaration.resolve(): Unit? {
+		val mutable = declaration.type == Token.Type.VAR
+		if (initializer != null) initializer.resolve() ?: return null
+		if (inGlobal) initializer ?: runtime.reportCompileError(CompilerError.OneRangeError(getRange(), "Global variables must have an initializer."))
+		val declaredType = if (type != null) getTypeFromName(type) ?: return null else null
+		val initializerType = initializer?.getType()
 
-	private fun Statement.Function.resolve(): Unit? {
-		val array = Array(arguments.size) {
-			val type = currentScope.getTypeOrNull(arguments[it].second.lexeme) ?: run {
-				instance.reportCompileError(
-					CompilerError.TokenError(
-						arguments[it].second,
-						"Type '${arguments[it].second.lexeme}' does not exist in the current scope."
-					)
-				)
-				return null
-			}
-			Pair(arguments[it].first.lexeme, type)
-		}
-
-		val returnType = type?.let {
-			currentScope.getTypeOrNull(type.lexeme) ?: run {
-				instance.reportCompileError(
-					CompilerError.TokenError(
-						it,
-						"Type '${it.lexeme}' does not exist in the current scope."
-					)
-				)
-				return null
-			}
-		} ?: Type.Unit
-
-		val func = currentScope.defineAndDeclareFunction(name.lexeme, array, returnType, instance) ?: return null
-		var properlyReturns = false
-		functionScope(func) {
-			for (pair in array) {
-				currentScope.declareVariable(pair.first, pair.second, false)
-				currentScope.defineVariable(pair.first)
-			}
-			properlyReturns = allPathsReturn(body)
-		}
-		return if (properlyReturns || returnType === Type.Unit) Unit else run {
-			instance.reportCompileError(
-				CompilerError.TokenError(
-					closeToken,
-					"Not all paths in function return a value."
-				)
-			)
-			null
-		}
-	}
-
-	private fun Expression.resolve(): Unit? =
-		when (this) {
-			is Expression.Literal -> Unit
-			is Expression.Unit -> Unit
-			is Expression.Grouping -> expression.resolve()
-			is Expression.Binary -> resolve()
-			is Expression.GetVariable -> resolve()
-			is Expression.Return -> resolve()
-		}
-
-
-	private fun Expression.Binary.resolve(): Unit? {
-		left.resolve() ?: return null
-		right.resolve() ?: return null
-		val leftType = left.type()
-		val rightType = right.type()
-
-		if (leftType !== Type.Number || rightType !== Type.Number) {
-			instance.reportCompileError(
+		if (declaredType != null && initializerType != null && declaredType != initializerType) {
+			runtime.reportCompileError(
 				CompilerError.OneRangeError(
 					getRange(),
-					"Invalid operands for '${operator.lexeme}', '${leftType}' and '${rightType}'."
+					"Declared type of '$declaredType' does not match initializer type of '$initializerType'."
+				)
+			)
+			return null
+		}
+
+		val type = declaredType ?: initializerType!!
+		if (currentVars[name.lexeme]?.function == true) {
+			runtime.reportCompileError(
+				CompilerError.TwoRangeError(
+					currentVars[name.lexeme]!!.statement.getRange(), getRange(),
+					"Function '${currentVars[name.lexeme]!!.name}' first declared here.",
+					"'${name.lexeme}' declared here again.",
+					"Variable '${name.lexeme}' declared with same name as function in the same scope."
+				)
+			)
+			return null
+		}
+		if (inGlobal && currentVars[name.lexeme] != null) {
+			runtime.reportCompileError(
+				CompilerError.TwoRangeError(
+					currentVars[name.lexeme]!!.statement.getRange(), getRange(),
+					"'${name.lexeme}' first declared here in top level scope.",
+					"'${name.lexeme}' declared again in top level scope.",
+					"'${name.lexeme} can only be declared once in top level scope."
+				)
+			)
+			return null
+		}
+
+		currentVars[name.lexeme] = Declaration(name.lexeme, type, mutable, this, initializer?.getRange(), false)
+		return Unit
+	}
+
+	fun Statement.Function.resolve(): Declaration? {
+		val declaredType = if (type != null) getTypeFromName(type) else Type.Unit
+
+		var paramTypeError = false
+		val paramTypes = Array(arguments.size) { i ->
+			val type = arguments[i].second
+			getTypeFromName(type) ?: run {
+				paramTypeError = true
+				null
+			}
+		}
+
+		if (paramTypeError) return null
+		val params = Array(paramTypes.size) { i -> paramTypes[i]!! }
+		if (currentVars[name.lexeme]?.function == true) {
+			runtime.reportCompileError(
+				CompilerError.TwoRangeError(
+					currentVars[name.lexeme]!!.statement.getRange(), getRange(),
+					"Function '${currentVars[name.lexeme]!!.name}' first declared here.",
+					"'${name.lexeme}' declared here again.",
+					"Function '${name.lexeme}' declared with same name as other function in the same scope."
+				)
+			)
+			return null
+		}
+		if (inGlobal && currentVars[name.lexeme] != null) {
+			runtime.reportCompileError(
+				CompilerError.TwoRangeError(
+					currentVars[name.lexeme]!!.statement.getRange(), getRange(),
+					"'${name.lexeme}' first declared here in top level scope.",
+					"'${name.lexeme}' declared again in top level scope.",
+					"'${name.lexeme} can only be declared once in top level scope."
+				)
+			)
+			return null
+		}
+
+		declaredType ?: return null
+
+		val declaration = Declaration(name.lexeme, Type.Function(params, declaredType), false, this, getRange(), true)
+		currentVars[name.lexeme] = declaration
+		return declaration
+	}
+
+	fun Expression.resolve(): Unit? {
+		return when (this) {
+			is Expression.Grouping -> expression.resolve()
+			is Expression.Return -> resolve()
+			is Expression.Binary -> resolve()
+			is Expression.GetVariable -> resolve()
+			is Expression.SetVariable -> resolve()
+			else -> {}
+		}
+	}
+
+	fun Expression.Return.resolve(): Unit? {
+		if (expression != null) expression.resolve() ?: return null
+		val type = expression?.getType() ?: Type.Unit
+		funReturnType ?: throw IllegalArgumentException("Somehow top level return got past parsing.")
+		if (funReturnType != type) {
+			runtime.reportCompileError(
+				CompilerError.OneRangeError(
+					getRange(),
+					"Return type '$type' does not match function return type of '$funReturnType'."
 				)
 			)
 			return null
@@ -101,49 +150,92 @@ internal class Resolver(val instance: Zinc.Runtime) {
 		return Unit
 	}
 
-	private fun Expression.GetVariable.resolve(): Unit? {
-		val variableInScope = currentScope.getVariableOrNull(variable.lexeme) ?: run {
-			instance.reportCompileError(
-				CompilerError.TokenError(
-					variable,
-					"Variable '${variable.lexeme}' does not exist in the current scope."
+	fun Expression.Binary.resolve(): Unit? {
+		left.resolve() ?: return null
+		right.resolve() ?: return null
+		if (left.getType() == Type.Number && right.getType() == Type.Number) return Unit
+		runtime.reportCompileError(CompilerError.OneRangeError(getRange(), "Binary expression '${operator.lexeme}' can only be between two numbers."))
+		return null
+	}
+
+	fun Expression.GetVariable.resolve(): Unit? {
+		val variable = findVariable(variable) ?: return null
+		if (variable.initRange == null) {
+			runtime.reportCompileError(
+				CompilerError.TwoRangeError(
+					variable.statement.getRange(), getRange(),
+					"Variable declared here without an initializer.",
+					"Variable used before being initialized.",
+					"Variable '${variable.name}' used before being initialized."
 				)
 			)
 			return null
 		}
-		if (!variableInScope.initialized) {
-			instance.reportCompileError("Cannot use variable '${variable.lexeme}' before it is initialized.")
-			return null
-		}
 		return Unit
 	}
 
-	private fun Expression.Return.resolve(): Unit? {
-		val returnType = expression?.type() ?: Type.Unit
-		// safe to typecast inFunction here because it will never make it to the resolver if statement is outside function
-		val function = currentScope.getFunctionInParent(inFunction!!)!!
-		if (function !== returnType) {
-			instance.reportCompileError("Type returned '$returnType' does not match function return type of '$function'.")
+	fun Expression.SetVariable.resolve(): Unit? {
+		val variable = findVariable(variable) ?: return null
+		value.resolve() ?: return null
+		val expressionType = value.getType()
+		if (variable.type != expressionType) {
+			runtime.reportCompileError(
+				CompilerError.TwoRangeError(
+					variable.statement.getRange(), getRange(),
+					"Declared with type '${variable.type}'.",
+					"Set with type '$expressionType'.",
+					"Value being set to '${variable.name}' has type '$expressionType', while '${variable.name}' is type '${variable.type}'."
+				)
+			)
 			return null
 		}
+		if (variable.initRange == null) variable.initRange = getRange()
 		return Unit
 	}
 
-	private fun Expression.type(): Type {
-		return typeChecker.getType(this)
+
+	fun findVariable(name: Token): Declaration? {
+		for (map in locals) if (map[name.lexeme] != null) return map[name.lexeme]
+		if (module.globals[name.lexeme] != null) return module.globals[name.lexeme]
+		runtime.reportCompileError(CompilerError.TokenError(name, "Variable '${name.lexeme}' does not exist in the current scope."))
+		return null
 	}
 
-	private fun allPathsReturn(block: Array<Statement>): Boolean {
-		for (statement in block) {
-			statement.resolve()
-			if (when (statement) {
-					is Statement.ExpressionStatement -> statement.expression is Expression.Return
-					is Statement.Function -> continue
-					is Statement.VariableDeclaration -> continue
+	fun Expression.getType(): Type {
+		return when (this) {
+			is Expression.Return -> Type.Nothing
+			is Expression.Unit -> Type.Unit
+			is Expression.Binary -> Type.Number
+			is Expression.Grouping -> expression.getType()
+			is Expression.SetVariable -> value.getType()
+			is Expression.GetVariable -> findVariable(variable)!!.type
+			is Expression.Literal -> {
+				when (value) {
+					is ZincNumber -> Type.Number
+					is ZincBoolean -> Type.Bool
+					is ZincChar -> Type.Char
+					is ZincString -> Type.String
+					else -> throw IllegalArgumentException("how did you even mess this up")
 				}
-			) return true
+			}
 		}
-		return false
 	}
 
+	fun getTypeFromName(name: Token): Type? {
+		for (map in localTypes) if (map[name.lexeme] != null) return map[name.lexeme]
+		if (module.types[name.lexeme] != null) return module.types[name.lexeme]
+		runtime.reportCompileError(CompilerError.TokenError(name, "Type '${name.lexeme}' does not exist in the current scope."))
+		return null
+	}
+
+	fun scope(functionType: Type? = funReturnType, block: () -> Unit) {
+		val prevReturnType = funReturnType
+		funReturnType = functionType
+		locals.push(HashMap())
+		localTypes.push(HashMap())
+		block()
+		locals.pop()
+		localTypes.pop()
+		funReturnType = prevReturnType
+	}
 }

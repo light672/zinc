@@ -1,8 +1,9 @@
-package zinc.lang.compiler
+package zinc.lang.compiler.parsing
 
 import zinc.Zinc
 import zinc.builtin.*
-import zinc.lang.compiler.Token.Type.*
+import zinc.lang.compiler.CompilerError
+import zinc.lang.compiler.parsing.Token.Type.*
 import java.lang.Double.parseDouble
 
 internal class Parser(source: String, private val instance: Zinc.Runtime) {
@@ -16,9 +17,16 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 		NONE, UNIT, VALUE
 	}
 
-	internal fun parse() = ArrayList<Statement>().also {
+	internal fun parse(): Pair<ArrayList<Statement.Function>, ArrayList<Statement.VariableDeclaration>> {
 		advance()
-		while (!end()) it.add(parseDeclaration())
+		val functions = ArrayList<Statement.Function>()
+		val variables = ArrayList<Statement.VariableDeclaration>()
+		while (!end()) {
+			val declaration = parseDeclaration()
+			if (declaration is Statement.Function) functions.add(declaration)
+			else variables.add(declaration as Statement.VariableDeclaration)
+		}
+		return Pair(functions, variables)
 	}
 
 
@@ -78,7 +86,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	}
 
 	private fun variableDeclaration(): Statement.VariableDeclaration? {
-		val declaration = current
+		val declaration = previous
 		expect(IDENTIFIER, "Expected variable name after '${declaration.lexeme}'.") ?: return null
 		val name = previous
 
@@ -97,7 +105,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 			return null
 		}
 		expect(SEMICOLON, "Expected ';' after variable declaration.") ?: return null
-		return Statement.VariableDeclaration(declaration, name, type, initializer)
+		return Statement.VariableDeclaration(declaration, name, type, initializer, previous)
 	}
 
 	private fun statement(): Statement? {
@@ -107,10 +115,25 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	private fun expressionStatement(): Statement.ExpressionStatement? {
 		val expression = expression() ?: return null
 		expect(SEMICOLON, "Expected ';' after expression.")
-		return Statement.ExpressionStatement(expression)
+		return Statement.ExpressionStatement(expression, previous)
 	}
 
-	private fun expression() = equality()
+	private fun expression() = assignment()
+
+	private fun assignment(): Expression? {
+		val expression = equality() ?: return null
+		if (match(EQUAL)) {
+			val value = expression() ?: return null
+			return when (expression) {
+				is Expression.GetVariable -> Expression.SetVariable(expression.variable, value)
+				else -> {
+					instance.reportCompileError(CompilerError.OneRangeError(expression.getRange(), "Invalid assignment target."))
+					null
+				}
+			}
+		}
+		return expression
+	}
 
 	private fun equality() = parseBinaryExpression({ comparison() }, BANG_EQUAL, EQUAL_EQUAL)
 	private fun comparison() = parseBinaryExpression({ modulo() }, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)

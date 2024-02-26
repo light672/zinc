@@ -1,4 +1,4 @@
-package zinc.lang.compiler
+package zinc.lang.compiler.parsing
 
 import zinc.builtin.ZincValue
 

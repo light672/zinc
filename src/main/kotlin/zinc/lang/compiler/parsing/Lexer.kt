@@ -1,10 +1,10 @@
-package zinc.lang.compiler
+package zinc.lang.compiler.parsing
 
 import org.apache.commons.lang3.StringEscapeUtils
-import zinc.lang.compiler.Token.Type.*
+import zinc.lang.compiler.parsing.Token.Type.*
 
-class Lexer(val source: String) {
-
+class Lexer(val s: String) {
+	val source = s.replace("\t", "    ")
 	private var start = 0
 	private var current = 0
 	private var line = 1

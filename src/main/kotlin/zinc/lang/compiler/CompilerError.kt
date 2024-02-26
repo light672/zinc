@@ -1,15 +1,17 @@
 package zinc.lang.compiler
 
-internal sealed class CompilerError(val range: IntRange, val message: String) {
-	class TokenError(val token: Token, message: String) : CompilerError(token.range, message)
+import zinc.lang.compiler.parsing.Token
 
-	class OneRangeError(range: IntRange, message: String) : CompilerError(range, message)
+internal sealed class CompilerError(val message: String) {
+	class TokenError(val token: Token, message: String) : CompilerError(message)
+
+	class OneRangeError(val range: IntRange, message: String) : CompilerError(message)
 
 	class TwoRangeError(
 		val rangeA: IntRange,
-		rangeB: IntRange,
+		val rangeB: IntRange,
 		val rangeAMessage: String,
 		val rangeBMessage: String,
 		message: String
-	) : CompilerError(rangeB, message)
+	) : CompilerError(message)
 }

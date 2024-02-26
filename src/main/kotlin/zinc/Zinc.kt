@@ -1,10 +1,11 @@
 package zinc
 
 import zinc.builtin.ZincException
+import zinc.lang.compiler.Compiler
 import zinc.lang.compiler.CompilerError
-import zinc.lang.compiler.Lexer
-import zinc.lang.compiler.Parser
-import zinc.lang.compiler.Resolver
+import zinc.lang.compiler.parsing.Lexer
+import kotlin.math.max
+import kotlin.math.min
 
 object Zinc {
 
@@ -17,29 +18,11 @@ object Zinc {
 		private val err: OutputStream,
 		internal val debug: Boolean,
 	) {
-		private var hadError = false
+		internal var hadError = false
 
 		fun run() {
 			if (debug) println(Lexer(source).scanTokens())
-
-			val statements = Parser(source, this).parse()
-
-			if (debug) println(statements)
-
-			if (hadError) return
-
-			Resolver(this).resolve(statements)
-
-			/*if (hadError) return
-			val compiler = Compiler()
-			val chunk = compiler.compile(statements)
-			if (hadError) return
-			val vm = VirtualMachine(this, stackSize, callStackSize, chunk)
-			try {
-				//vm.interpret()
-			} catch (exception: ZincException) {
-				reportRuntimeError(exception)
-			}*/
+			Compiler(this, source).compile()
 		}
 
 		private fun reportRuntimeError(error: ZincException) {
@@ -48,53 +31,114 @@ object Zinc {
 
 		internal fun reportCompileError(error: CompilerError) {
 			err.println(error.message)
-			val linesInRange = ArrayList<Triple<Int, String, IntRange>>().also {
+
+
+
+			fun linesInRange(range: IntRange) = ArrayList<Triple<Int, String, IntRange>>().also {
 				var len = 0
-				for ((index, line) in source.lines().toTypedArray().withIndex()) {
-					val previousLength = len
-					len += line.length
-					if (len > error.range.last) break
-					if (len in error.range) it.add(Triple(index, line, previousLength..len))
+				val lines = source.replace("\t", "    ").lines()
+				for ((index, line) in lines.withIndex()) {
+					val prevLen = len
+					len += line.length + if (index == lines.size - 1) 0 else 1
+					val lineRange = prevLen..<len
+					if (range.first in lineRange || range.last in lineRange) {
+						it.add(Triple(index, line, lineRange))
+					}
 				}
 			}
 
 			when (error) {
 				is CompilerError.TokenError -> {
-					val (line, content, range) = linesInRange[0]
-					val beginning = " |    ".padStart(line.toString().length)
+					val (_, content, range) = linesInRange(error.token.range)[0]
+
+					val lineNumLen = error.token.line.toString().length
+
+					val beginning = " |    ".leftPad(lineNumLen)
 					err.println(beginning)
 					err.println("${error.token.line} |    $content")
-					err.println(
-						beginning + "".padStart(error.range.last - error.range.first, '^')
-							.padStart(error.range.last - range.first) + error.message
-					)
+					err.print(beginning)
+					err.print(' ' * (error.token.range.first - range.first))
+					err.print('^' * error.token.range.len())
+					err.println(" ${error.message}")
 				}
 
 				is CompilerError.OneRangeError -> {
-					val last = linesInRange[linesInRange.size - 1]
-					val numberSpace = last.first.toString().length
-					val beginning = " |    ".padStart(numberSpace)
+					val linesInRange = linesInRange(error.range)
+					val lineNumLen = linesInRange.last().first.toString().length
+					val beginning = " |    ".leftPad(lineNumLen)
 					err.println(beginning)
 
 
 					for ((index, triple) in linesInRange.withIndex()) {
-						val (line, content, _) = triple
-						val lineString = String.format("% ${numberSpace}d", line)
+						val (l, content, _) = triple
+						val line = l + 1
+						val lineString = String.format("%${lineNumLen}d", line)
 						val char = if (linesInRange.size > 1) if (index == 0) '/' else '|' else ' '
 						err.println("$lineString | $char  $content")
 					}
 
-					val toPad = if (linesInRange.size > 1) "^" else ""
-					val padLength = error.range.last - error.range.first - if (linesInRange.size > 1) 1 else 0
-					val padChar = if (linesInRange.size > 1) '_' else '^'
-					err.println(
-						beginning + toPad.padStart(padLength, padChar)
-							.padStart(error.range.last - last.third.first)
-								+ error.message
-					)
+					err.print(beginning)
+					if (linesInRange.size > 1) {
+						err.print(' ' * (error.range.last - linesInRange.last().third.last))
+						err.print('_' * (error.range.len() - linesInRange.last().third.len() + 1))
+						err.print("^ ${error.message}")
+					} else {
+						val line = linesInRange[0]
+						err.print(' ' * (error.range.first - line.third.first))
+						err.print('^' * error.range.len())
+						err.println(" ${error.message}")
+					}
+				}
 
+				is CompilerError.TwoRangeError -> {
+					val linesInFirstRange = linesInRange(error.rangeA)
+					val linesInSecondRange = linesInRange(error.rangeB)
+					val lineNumLen = max(linesInFirstRange.last().first, linesInSecondRange.last().first).toString().length
+					val beginning = " |    ".leftPad(lineNumLen)
+					err.println(beginning)
+
+					for ((index, triple) in linesInFirstRange.withIndex()) {
+						val (l, content, _) = triple
+						val line = l + 1
+						val lineString = String.format("%${lineNumLen}d", line)
+						val char = if (linesInFirstRange.size > 1) if (index == 0) '/' else '|' else ' '
+						err.println("$lineString | $char  $content")
+					}
+
+					err.print(beginning)
+					if (linesInFirstRange.size > 1) {
+						err.print(' ' * (error.rangeA.last - linesInFirstRange.last().third.last))
+						err.print('_' * (error.rangeA.len() - linesInFirstRange.last().third.len() + 1))
+						err.print("^ ${error.rangeAMessage}")
+					} else {
+						val line = linesInFirstRange[0]
+						err.print(' ' * (error.rangeA.first - line.third.first))
+						err.print('^' * error.rangeA.len())
+						err.println(" ${error.rangeAMessage}")
+					}
+
+					for ((index, triple) in linesInSecondRange.withIndex()) {
+						val (l, content, _) = triple
+						val line = l + 1
+						val lineString = String.format("%${lineNumLen}d", line)
+						val char = if (linesInSecondRange.size > 1) if (index == 0) '/' else '|' else ' '
+						err.println("$lineString | $char  $content")
+					}
+
+					err.print(beginning)
+					if (linesInSecondRange.size > 1) {
+						err.print(' ' * (error.rangeB.last - linesInSecondRange.last().third.last))
+						err.print('_' * (error.rangeB.len() - linesInSecondRange.last().third.len() + 1))
+						err.print("^ ${error.rangeBMessage}")
+					} else {
+						val line = linesInSecondRange[0]
+						err.print(' ' * (error.rangeB.first - line.third.first))
+						err.print('^' * error.rangeB.len())
+						err.println(" ${error.rangeBMessage}")
+					}
 				}
 			}
+			err.println("")
 			hadError = true
 		}
 
@@ -120,11 +164,13 @@ object Zinc {
 
 	object SystemErrorStream : OutputStream() {
 		override fun print(message: String) {
-			System.err.println(message)
+			System.err.print(message)
 		}
 	}
 
-	fun createZincRuntime() {
-
-	}
+	private fun String.leftPad(amount: Int, char: Char = ' ') = padStart(length + amount, char)
+	private operator fun Char.times(a: Int) = "".leftPad(a, this)
+	private fun difference(a: Int, b: Int) = max(a, b) - min(a, b)
+	private fun IntRange.firstToZero() = 0..last - first
+	private fun IntRange.len() = firstToZero().last
 }

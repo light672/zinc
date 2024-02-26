@@ -4,7 +4,9 @@ import zinc.builtin.ZincFalse
 import zinc.builtin.ZincTrue
 import zinc.builtin.ZincValue
 import zinc.lang.Chunk
-import zinc.lang.compiler.Token.Type.*
+import zinc.lang.compiler.parsing.Expression
+import zinc.lang.compiler.parsing.Statement
+import zinc.lang.compiler.parsing.Token.Type.*
 import zinc.lang.runtime.*
 
 class CodeGenerator {

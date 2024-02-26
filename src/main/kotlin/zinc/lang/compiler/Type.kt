@@ -29,9 +29,11 @@ sealed class Type {
 		override fun toString(): kotlin.String {
 			val params = StringBuilder("(")
 			for (parameterType in parameters) {
-				params.append("$parameterType,")
+				params.append("$parameterType, ")
 			}
-			if (params[params.length - 1] == ',') params.deleteCharAt(params.length - 1)
+			if (params[params.length - 2] == ',') {
+				params.delete(params.length - 2, params.length)
+			}
 			params.append(") -> $returnType")
 			return params.toString()
 		}
