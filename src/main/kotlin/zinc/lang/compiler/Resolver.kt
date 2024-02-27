@@ -83,6 +83,18 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 				val pair = statement.arguments[index]
 				val name = pair.first.lexeme
 				val range = pair.first.range.first..pair.second.range.last
+				if (currentVars[name] != null) {
+					val current = currentVars[name]!!
+					runtime.reportCompileError(
+						CompilerError.TwoRangeError(
+							current.initRange!!, range,
+							"Function parameter '${current.name}' first declared here.",
+							"'$name' declared here again in the same function.",
+							"Function parameter '$name' declared twice in the functions parameters."
+						)
+					)
+					return
+				}
 				currentVars[name] = Declaration(name, paramType, false, statement, range, false)
 			}
 			for (stmt in statement.body) stmt.resolve()
