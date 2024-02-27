@@ -2,7 +2,6 @@ package zinc.lang.compiler
 
 import zinc.Zinc
 import zinc.lang.compiler.parsing.Parser
-import zinc.lang.compiler.parsing.Statement
 
 internal class Compiler(val runtime: Zinc.Runtime, val source: String) {
 	fun compile() {
@@ -17,8 +16,7 @@ internal class Compiler(val runtime: Zinc.Runtime, val source: String) {
 		if (runtime.hadError) return
 		for (function in functionDeclarations) {
 			function ?: continue
-			function.statement as Statement.Function
-			for (stmt in function.statement.body) with(module.resolver) { stmt.resolve() }
+			with(module.resolver) { function.resolveFunctionBlock() }
 		}
 	}
 }

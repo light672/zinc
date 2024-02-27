@@ -11,7 +11,7 @@ fun main() {
 				a = 3;
 			}
 			
-			func add(a: num, b: num): num {
+			func add(a: num, a: num): num {
 				return a + b;
 			}
 		""".trimIndent(), Zinc.SystemOutputStream, Zinc.SystemErrorStream, true

@@ -24,10 +24,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 		return when (this) {
 			is Statement.VariableDeclaration -> resolve()
 			is Statement.Function -> {
-				val declaration = resolve() ?: return null
-				scope((declaration.type as Type.Function).returnType) {
-					for (stmt in body) stmt.resolve()
-				}
+				resolve()?.resolveFunctionBlock() ?: return null
 			}
 
 			is Statement.ExpressionStatement -> expression.resolve()
@@ -77,6 +74,19 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 
 		currentVars[name.lexeme] = Declaration(name.lexeme, type, mutable, this, initializer?.getRange(), false)
 		return Unit
+	}
+
+	fun Declaration.resolveFunctionBlock() {
+		scope((type as Type.Function).returnType) {
+			statement as Statement.Function
+			for ((index, paramType) in type.parameters.withIndex()) {
+				val pair = statement.arguments[index]
+				val name = pair.first.lexeme
+				val range = pair.first.range.first..pair.second.range.last
+				currentVars[name] = Declaration(name, paramType, false, statement, range, false)
+			}
+			for (stmt in statement.body) stmt.resolve()
+		}
 	}
 
 	fun Statement.Function.resolve(): Declaration? {
@@ -154,7 +164,12 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 		left.resolve() ?: return null
 		right.resolve() ?: return null
 		if (left.getType() == Type.Number && right.getType() == Type.Number) return Unit
-		runtime.reportCompileError(CompilerError.OneRangeError(getRange(), "Binary expression '${operator.lexeme}' can only be between two numbers."))
+		runtime.reportCompileError(
+			CompilerError.OneRangeError(
+				getRange(),
+				"Binary expression '${operator.lexeme}' can only be between 'num' and 'num'. Instead got '${left.getType()}' and '${right.getType()}'."
+			)
+		)
 		return null
 	}
 
@@ -228,7 +243,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 		return null
 	}
 
-	fun scope(functionType: Type? = funReturnType, block: () -> Unit) {
+	private inline fun scope(functionType: Type? = funReturnType, block: () -> Unit) {
 		val prevReturnType = funReturnType
 		funReturnType = functionType
 		locals.push(HashMap())
