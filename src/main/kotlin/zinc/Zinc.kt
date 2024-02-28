@@ -5,7 +5,6 @@ import zinc.lang.compiler.Compiler
 import zinc.lang.compiler.CompilerError
 import zinc.lang.compiler.parsing.Lexer
 import kotlin.math.max
-import kotlin.math.min
 
 object Zinc {
 
@@ -36,7 +35,7 @@ object Zinc {
 
 			fun linesInRange(range: IntRange) = ArrayList<Triple<Int, String, IntRange>>().also {
 				var len = 0
-				val lines = source.replace("\t", "    ").lines()
+				val lines = source.replace("\t", "    ").split("\n")
 				for ((index, line) in lines.withIndex()) {
 					val prevLen = len
 					len += line.length + if (index == lines.size - 1) 0 else 1
@@ -170,7 +169,13 @@ object Zinc {
 
 	private fun String.leftPad(amount: Int, char: Char = ' ') = padStart(length + amount, char)
 	private operator fun Char.times(a: Int) = "".leftPad(a, this)
-	private fun difference(a: Int, b: Int) = max(a, b) - min(a, b)
 	private fun IntRange.firstToZero() = 0..last - first
 	private fun IntRange.len() = firstToZero().last
+
+
+	internal inline fun <T> time(block: () -> T): Long {
+		val time = System.currentTimeMillis()
+		block()
+		return System.currentTimeMillis() - time
+	}
 }
