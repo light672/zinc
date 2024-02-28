@@ -26,17 +26,7 @@ sealed class Type {
 	}
 
 	data class Function(val parameters: Array<Type>, val returnType: Type) : Type() {
-		override fun toString(): kotlin.String {
-			val params = StringBuilder("(")
-			for (parameterType in parameters) {
-				params.append("$parameterType, ")
-			}
-			if (params[params.length - 2] == ',') {
-				params.delete(params.length - 2, params.length)
-			}
-			params.append(") -> $returnType")
-			return params.toString()
-		}
+		override fun toString(): kotlin.String = "${typeArrayToString(parameters)} -> $returnType"
 
 		override fun equals(other: Any?): Boolean {
 			if (this === other) return true
@@ -54,6 +44,20 @@ sealed class Type {
 			var result = parameters.contentHashCode()
 			result = 31 * result + returnType.hashCode()
 			return result
+		}
+
+		companion object {
+			fun typeArrayToString(parameters: Array<Type>): kotlin.String {
+				val params = StringBuilder("(")
+				for (parameterType in parameters) {
+					params.append("$parameterType, ")
+				}
+				if (params[params.length - 2] == ',') {
+					params.delete(params.length - 2, params.length)
+				}
+				params.append(")")
+				return params.toString()
+			}
 		}
 	}
 }

@@ -3,6 +3,11 @@ package zinc.lang.compiler.parsing
 import zinc.builtin.ZincValue
 
 sealed class Expression {
+
+	class Unary(val operator: Token, val right: Expression) : Expression() {
+		override fun getRange() = operator.range.first..right.getRange().last
+	}
+
 	class Binary(val left: Expression, val right: Expression, val operator: Token) : Expression() {
 		override fun getRange() = left.getRange().first..right.getRange().last
 	}
@@ -21,6 +26,10 @@ sealed class Expression {
 
 	class SetVariable(val variable: Token, val value: Expression) : Expression() {
 		override fun getRange() = variable.range.first..value.getRange().last
+	}
+
+	class Call(val callee: Expression, val leftParen: Token, val arguments: Array<Expression>, val rightParen: Token) : Expression() {
+		override fun getRange() = callee.getRange().first..rightParen.range.last
 	}
 
 	class Unit(val beginning: Token, val end: Token) : Expression() {

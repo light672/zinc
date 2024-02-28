@@ -41,7 +41,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 				statements.add(parseStatement())
 			} while (!isNext(RIGHT_BRACE))
 		}
-		expect(RIGHT_BRACE, "Expected '}' after block.")
+		expect(RIGHT_BRACE, "Expected '}' after block.") ?: return null
 		return statements.toTypedArray()
 	}
 
@@ -114,7 +114,7 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 
 	private fun expressionStatement(): Statement.ExpressionStatement? {
 		val expression = expression() ?: return null
-		expect(SEMICOLON, "Expected ';' after expression.")
+		expect(SEMICOLON, "Expected ';' after expression.") ?: return null
 		return Statement.ExpressionStatement(expression, previous)
 	}
 
@@ -139,7 +139,34 @@ internal class Parser(source: String, private val instance: Zinc.Runtime) {
 	private fun comparison() = parseBinaryExpression({ modulo() }, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)
 	private fun modulo() = parseBinaryExpression({ term() }, PERCENT)
 	private fun term() = parseBinaryExpression({ factor() }, MINUS, PLUS)
-	private fun factor() = parseBinaryExpression({ primary() }, SLASH, STAR)
+	private fun factor() = parseBinaryExpression({ unary() }, SLASH, STAR)
+
+	private fun unary(): Expression? {
+		if (match(arrayOf(BANG, MINUS))) {
+			val operator = previous
+			val right = unary() ?: return null
+			return Expression.Unary(operator, right)
+		}
+		return call()
+	}
+
+	private fun call(): Expression? {
+		val callee = primary() ?: return null
+		while (match(LEFT_PAREN)) return finishFunctionCall(callee)
+		return callee
+	}
+
+	private fun finishFunctionCall(callee: Expression): Expression? {
+		val left = previous
+		val arguments = ArrayList<Expression>()
+		if (!isNext(RIGHT_PAREN)) {
+			do {
+				arguments.add(expression() ?: return null)
+			} while (match(COMMA))
+		}
+		expect(RIGHT_PAREN, "Expected ')' after function arguments.") ?: return null
+		return Expression.Call(callee, left, arguments.toTypedArray(), previous)
+	}
 
 	/**
 	 * Returns literals and groups.

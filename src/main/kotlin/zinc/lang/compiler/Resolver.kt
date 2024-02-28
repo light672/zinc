@@ -90,7 +90,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 							current.initRange!!, range,
 							"Function parameter '${current.name}' first declared here.",
 							"'$name' declared here again in the same function.",
-							"Function parameter '$name' declared twice in the functions parameters."
+							"Function parameter '$name' declared twice in the function parameters."
 						)
 					)
 					return
@@ -149,9 +149,11 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 		return when (this) {
 			is Expression.Grouping -> expression.resolve()
 			is Expression.Return -> resolve()
+			is Expression.Unary -> resolve()
 			is Expression.Binary -> resolve()
 			is Expression.GetVariable -> resolve()
 			is Expression.SetVariable -> resolve()
+			is Expression.Call -> resolve()
 			else -> {}
 		}
 	}
@@ -172,6 +174,25 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 		return Unit
 	}
 
+	fun Expression.Unary.resolve(): Unit? {
+		right.resolve() ?: return null
+		return when (operator.type) {
+			Token.Type.BANG -> {
+				if (right.getType() == Type.Bool) return Unit
+				runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '!' on ${right.getType()}"))
+				null
+			}
+
+			Token.Type.MINUS -> {
+				if (right.getType() == Type.Number) return Unit
+				runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '-' on ${right.getType()}"))
+				null
+			}
+
+			else -> throw IllegalArgumentException("should not happen")
+		}
+	}
+
 	fun Expression.Binary.resolve(): Unit? {
 		left.resolve() ?: return null
 		right.resolve() ?: return null
@@ -179,7 +200,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 		runtime.reportCompileError(
 			CompilerError.OneRangeError(
 				getRange(),
-				"Binary expression '${operator.lexeme}' can only be between 'num' and 'num'. Instead got '${left.getType()}' and '${right.getType()}'."
+				"Cannot perform binary '${operator.lexeme}' on '${left.getType()}' and '${right.getType()}'."
 			)
 		)
 		return null
@@ -220,6 +241,30 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 		return Unit
 	}
 
+	fun Expression.Call.resolve(): Unit? {
+		callee.resolve() ?: return null
+		val calleeType = callee.getType()
+		if (calleeType is Type.Function) {
+			val argTypes = Array(calleeType.parameters.size) { i -> arguments[i].getType() }
+			if (!argTypes.contentEquals(calleeType.parameters)) {
+				runtime.reportCompileError(
+					CompilerError.OneRangeError(
+						callee.getRange(),
+						"Function expected argument types '${Type.Function.typeArrayToString(calleeType.parameters)}', but got ${
+							Type.Function.typeArrayToString(
+								argTypes
+							)
+						}'."
+					)
+				)
+				return null
+			}
+			return Unit
+		}
+		runtime.reportCompileError(CompilerError.OneRangeError(callee.getRange(), "Can only call callable types, instead got '$calleeType'."))
+		return null
+	}
+
 
 	fun findVariable(name: Token): Declaration? {
 		for (map in locals) if (map[name.lexeme] != null) return map[name.lexeme]
@@ -232,10 +277,17 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 		return when (this) {
 			is Expression.Return -> Type.Nothing
 			is Expression.Unit -> Type.Unit
+			is Expression.Unary -> when (operator.type) {
+				Token.Type.MINUS -> Type.Number
+				Token.Type.BANG -> Type.Bool
+				else -> throw IllegalArgumentException("Should not be possible")
+			}
+
 			is Expression.Binary -> Type.Number
 			is Expression.Grouping -> expression.getType()
 			is Expression.SetVariable -> value.getType()
 			is Expression.GetVariable -> findVariable(variable)!!.type
+			is Expression.Call -> (callee.getType() as Type.Function).returnType
 			is Expression.Literal -> {
 				when (value) {
 					is ZincNumber -> Type.Number

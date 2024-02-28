@@ -1,0 +1,7 @@
+func main() {
+	val a: str = add(3, 2);
+}
+
+func add(a: num, b: num): num {
+	return a + b;
+}
