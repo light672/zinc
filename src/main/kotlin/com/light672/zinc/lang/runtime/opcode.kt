@@ -1,4 +1,4 @@
-package zinc.lang.runtime
+package com.light672.zinc.lang.runtime
 
 internal const val OP_CONST: Byte = 0
 internal const val OP_TRUE: Byte = 1

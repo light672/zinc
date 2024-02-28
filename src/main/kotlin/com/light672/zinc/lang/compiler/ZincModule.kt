@@ -1,10 +1,9 @@
-package zinc.lang.compiler
+package com.light672.zinc.lang.compiler
 
-import zinc.Zinc
-import zinc.lang.compiler.parsing.Statement
+import com.light672.zinc.lang.compiler.parsing.Statement
 
 internal class ZincModule(
-	runtime: Zinc.Runtime,
+	runtime: com.light672.zinc.Zinc.Runtime,
 	val source: String,
 	val functions: ArrayList<Statement.Function>,
 	val variables: ArrayList<Statement.VariableDeclaration>

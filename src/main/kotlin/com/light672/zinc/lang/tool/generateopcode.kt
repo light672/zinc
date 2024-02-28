@@ -1,4 +1,4 @@
-package zinc.lang.tool
+package com.light672.zinc.lang.tool
 
 import java.io.PrintWriter
 

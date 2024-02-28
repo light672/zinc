@@ -1,4 +1,4 @@
-package zinc.lang.compiler.parsing
+package com.light672.zinc.lang.compiler.parsing
 
 data class Token(val type: Type, val line: Int, val range: IntRange, val lexeme: String = "") {
 	companion object {

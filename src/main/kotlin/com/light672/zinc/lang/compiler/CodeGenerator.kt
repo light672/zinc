@@ -1,13 +1,13 @@
-package zinc.lang.compiler
+package com.light672.zinc.lang.compiler
 
-import zinc.builtin.ZincFalse
-import zinc.builtin.ZincTrue
-import zinc.builtin.ZincValue
-import zinc.lang.Chunk
-import zinc.lang.compiler.parsing.Expression
-import zinc.lang.compiler.parsing.Statement
-import zinc.lang.compiler.parsing.Token.Type.*
-import zinc.lang.runtime.*
+import com.light672.zinc.builtin.ZincFalse
+import com.light672.zinc.builtin.ZincTrue
+import com.light672.zinc.builtin.ZincValue
+import com.light672.zinc.lang.Chunk
+import com.light672.zinc.lang.compiler.parsing.Expression
+import com.light672.zinc.lang.compiler.parsing.Statement
+import com.light672.zinc.lang.compiler.parsing.Token.Type.*
+import com.light672.zinc.lang.runtime.*
 
 class CodeGenerator {
 	private val code = ArrayList<Byte>()

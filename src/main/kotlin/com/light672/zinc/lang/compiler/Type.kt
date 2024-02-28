@@ -1,4 +1,4 @@
-package zinc.lang.compiler
+package com.light672.zinc.lang.compiler
 
 sealed class Type {
 	data object Number : Type() {

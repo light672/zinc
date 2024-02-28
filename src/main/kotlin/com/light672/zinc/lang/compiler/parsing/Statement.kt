@@ -1,4 +1,4 @@
-package zinc.lang.compiler.parsing
+package com.light672.zinc.lang.compiler.parsing
 
 sealed class Statement {
 	class ExpressionStatement(val expression: Expression, val sc: Token?) : Statement() {

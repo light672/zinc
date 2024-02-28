@@ -1,7 +1,7 @@
-package zinc.lang.compiler.parsing
+package com.light672.zinc.lang.compiler.parsing
 
+import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import org.apache.commons.lang3.StringEscapeUtils
-import zinc.lang.compiler.parsing.Token.Type.*
 
 class Lexer(val s: String) {
 	val source = s.replace("\t", "    ")

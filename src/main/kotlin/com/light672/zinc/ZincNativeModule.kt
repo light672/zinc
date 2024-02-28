@@ -1,4 +1,4 @@
-package zinc
+package com.light672.zinc
 
 abstract class ZincNativeModule {
 	private val types = ArrayList<String>()

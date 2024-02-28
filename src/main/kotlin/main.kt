@@ -1,4 +1,3 @@
-import zinc.Zinc
 import java.io.File
 import java.nio.charset.Charset
 
@@ -7,14 +6,14 @@ fun main() {
 	val string = File("src/main/kotlin/script.zc").readBytes().toString(Charset.defaultCharset())
 	println(
 		"${
-			Zinc.time {
+			com.light672.zinc.Zinc.time {
 				val runtime =
-					Zinc.Runtime(
+					com.light672.zinc.Zinc.Runtime(
 						256,
 						256,
 						string,
-						Zinc.SystemOutputStream,
-						Zinc.SystemErrorStream,
+						com.light672.zinc.Zinc.SystemOutputStream,
+						com.light672.zinc.Zinc.SystemErrorStream,
 						false
 					)
 				runtime.run()

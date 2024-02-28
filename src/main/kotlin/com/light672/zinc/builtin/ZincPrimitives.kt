@@ -1,4 +1,4 @@
-package zinc.builtin
+package com.light672.zinc.builtin
 
 
 class ZincNumber(val value: Double) : ZincValue() {
@@ -22,7 +22,7 @@ class ZincChar(val value: Char) : ZincValue() {
 class ZincString(val value: String) : ZincValue() {
 	override val name = "string"
 	override fun toString() = value
-	
+
 }
 
 sealed class ZincBoolean(open val value: Boolean) : ZincValue() {

@@ -1,12 +1,11 @@
-package zinc.lang.compiler.parsing
+package com.light672.zinc.lang.compiler.parsing
 
-import zinc.Zinc
-import zinc.builtin.*
-import zinc.lang.compiler.CompilerError
-import zinc.lang.compiler.parsing.Token.Type.*
+import com.light672.zinc.builtin.*
+import com.light672.zinc.lang.compiler.CompilerError
+import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import java.lang.Double.parseDouble
 
-internal class Parser(source: String, private val instance: Zinc.Runtime) {
+internal class Parser(source: String, private val instance: com.light672.zinc.Zinc.Runtime) {
 	private val lexer: Lexer = Lexer(source)
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()

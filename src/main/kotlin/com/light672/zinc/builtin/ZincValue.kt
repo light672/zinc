@@ -1,4 +1,4 @@
-package zinc.builtin
+package com.light672.zinc.builtin
 
 abstract class ZincValue {
 	abstract val name: String

@@ -1,9 +1,9 @@
-package zinc
+package com.light672.zinc
 
-import zinc.builtin.ZincException
-import zinc.lang.compiler.Compiler
-import zinc.lang.compiler.CompilerError
-import zinc.lang.compiler.parsing.Lexer
+import com.light672.zinc.builtin.ZincException
+import com.light672.zinc.lang.compiler.Compiler
+import com.light672.zinc.lang.compiler.CompilerError
+import com.light672.zinc.lang.compiler.parsing.Lexer
 import kotlin.math.max
 
 object Zinc {
@@ -13,8 +13,8 @@ object Zinc {
 		private val stackSize: Int,
 		private val callStackSize: Int,
 		private val source: String,
-		internal val out: OutputStream,
-		private val err: OutputStream,
+		internal val out: com.light672.zinc.Zinc.OutputStream,
+		private val err: com.light672.zinc.Zinc.OutputStream,
 		internal val debug: Boolean,
 	) {
 		internal var hadError = false
@@ -145,7 +145,7 @@ object Zinc {
 	}
 
 
-	fun includeModule(module: ZincNativeModule) {
+	fun includeModule(module: com.light672.zinc.ZincNativeModule) {
 
 	}
 
@@ -155,13 +155,13 @@ object Zinc {
 		fun println(message: String) = print(message + "\n")
 	}
 
-	object SystemOutputStream : OutputStream() {
+	object SystemOutputStream : com.light672.zinc.Zinc.OutputStream() {
 		override fun print(message: String) {
 			kotlin.io.print(message)
 		}
 	}
 
-	object SystemErrorStream : OutputStream() {
+	object SystemErrorStream : com.light672.zinc.Zinc.OutputStream() {
 		override fun print(message: String) {
 			System.err.print(message)
 		}

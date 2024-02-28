@@ -1,6 +1,6 @@
-package zinc.lang.compiler
+package com.light672.zinc.lang.compiler
 
-import zinc.lang.compiler.parsing.Token
+import com.light672.zinc.lang.compiler.parsing.Token
 
 internal sealed class CompilerError(val message: String) {
 	class TokenError(val token: Token, message: String) : CompilerError(message)

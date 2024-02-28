@@ -1,6 +1,6 @@
-package zinc.lang.compiler
+package com.light672.zinc.lang.compiler
 
-import zinc.lang.compiler.parsing.Statement
+import com.light672.zinc.lang.compiler.parsing.Statement
 
 internal class Declaration(
 	val name: String,

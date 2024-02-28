@@ -1,6 +1,6 @@
-package zinc.lang.compiler.parsing
+package com.light672.zinc.lang.compiler.parsing
 
-import zinc.builtin.ZincValue
+import com.light672.zinc.builtin.ZincValue
 
 sealed class Expression {
 

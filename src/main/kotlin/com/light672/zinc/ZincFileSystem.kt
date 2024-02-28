@@ -1,4 +1,4 @@
-package zinc
+package com.light672.zinc
 
 class ZincDirectory private constructor(val name: String, val directory: ZincDirectory?) {
 	internal val directories = HashMap<String, ZincDirectory>()

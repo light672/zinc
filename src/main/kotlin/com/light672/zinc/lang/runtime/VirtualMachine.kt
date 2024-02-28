@@ -1,11 +1,10 @@
-package zinc.lang.runtime
+package com.light672.zinc.lang.runtime
 
-import zinc.Zinc
-import zinc.builtin.*
-import zinc.lang.Chunk
+import com.light672.zinc.builtin.*
+import com.light672.zinc.lang.Chunk
 
 class VirtualMachine(
-	private val instance: Zinc.Runtime,
+	private val instance: com.light672.zinc.Zinc.Runtime,
 	private val stack: Array<ZincValue?>,
 	private val callStack: Array<CallFrame?>,
 	private var stackSize: Int,
@@ -16,7 +15,7 @@ class VirtualMachine(
 
 	data class CallFrame(val bp: Int, val returnLocation: Int)
 
-	constructor(instance: Zinc.Runtime, stackMaxSize: Int, callStackMaxSize: Int, chunk: Chunk) : this(
+	constructor(instance: com.light672.zinc.Zinc.Runtime, stackMaxSize: Int, callStackMaxSize: Int, chunk: Chunk) : this(
 		instance,
 		arrayOfNulls<ZincValue>(stackMaxSize),
 		arrayOfNulls<CallFrame>(callStackMaxSize),

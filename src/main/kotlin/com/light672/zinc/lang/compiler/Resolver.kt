@@ -1,16 +1,15 @@
-package zinc.lang.compiler
+package com.light672.zinc.lang.compiler
 
-import zinc.Zinc
-import zinc.builtin.ZincBoolean
-import zinc.builtin.ZincChar
-import zinc.builtin.ZincNumber
-import zinc.builtin.ZincString
-import zinc.lang.compiler.parsing.Expression
-import zinc.lang.compiler.parsing.Statement
-import zinc.lang.compiler.parsing.Token
+import com.light672.zinc.builtin.ZincBoolean
+import com.light672.zinc.builtin.ZincChar
+import com.light672.zinc.builtin.ZincNumber
+import com.light672.zinc.builtin.ZincString
+import com.light672.zinc.lang.compiler.parsing.Expression
+import com.light672.zinc.lang.compiler.parsing.Statement
+import com.light672.zinc.lang.compiler.parsing.Token
 import java.util.*
 
-internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
+internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module: ZincModule) {
 	private val locals = Stack<HashMap<String, Declaration>>()
 	private val localTypes = Stack<HashMap<String, Type>>()
 

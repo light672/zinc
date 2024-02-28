@@ -1,9 +1,8 @@
-package zinc.lang.compiler
+package com.light672.zinc.lang.compiler
 
-import zinc.Zinc
-import zinc.lang.compiler.parsing.Parser
+import com.light672.zinc.lang.compiler.parsing.Parser
 
-internal class Compiler(val runtime: Zinc.Runtime, val source: String) {
+internal class Compiler(val runtime: com.light672.zinc.Zinc.Runtime, val source: String) {
 	fun compile() {
 		val (functions, variables) = Parser(source, runtime).parse()
 		if (runtime.hadError) return

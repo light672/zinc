@@ -1,5 +1,5 @@
-package zinc.lang
+package com.light672.zinc.lang
 
-import zinc.builtin.ZincValue
+import com.light672.zinc.builtin.ZincValue
 
 class Chunk(val code: Array<Byte>, val constants: Array<ZincValue>, val lines: Array<Int>)
