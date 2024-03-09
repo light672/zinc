@@ -5,6 +5,7 @@ import com.light672.zinc.lang.compiler.parsing.Statement
 internal class ZincModule(
 	runtime: com.light672.zinc.Zinc.Runtime,
 	val source: String,
+	val structs: ArrayList<Statement.Struct>,
 	val functions: ArrayList<Statement.Function>,
 	val variables: ArrayList<Statement.VariableDeclaration>
 ) {

@@ -16,16 +16,20 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 		NONE, UNIT, VALUE
 	}
 
-	internal fun parse(): Pair<ArrayList<Statement.Function>, ArrayList<Statement.VariableDeclaration>> {
+	internal fun parse(): Triple<ArrayList<Statement.Struct>, ArrayList<Statement.Function>, ArrayList<Statement.VariableDeclaration>> {
 		advance()
 		val functions = ArrayList<Statement.Function>()
 		val variables = ArrayList<Statement.VariableDeclaration>()
+		val structs = ArrayList<Statement.Struct>()
 		while (!end()) {
-			val declaration = parseDeclaration()
-			if (declaration is Statement.Function) functions.add(declaration)
-			else variables.add(declaration as Statement.VariableDeclaration)
+			when (val declaration = parseDeclaration()) {
+				is Statement.Function -> functions.add(declaration)
+				is Statement.VariableDeclaration -> variables.add(declaration)
+				is Statement.Struct -> structs.add(declaration)
+				else -> throw IllegalArgumentException()
+			}
 		}
-		return Pair(functions, variables)
+		return Triple(structs, functions, variables)
 	}
 
 
@@ -45,7 +49,7 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 	}
 
 	private fun declaration(): Statement? {
-		// if (match(STRUCT)) return structDeclaration()
+		if (match(STRUCT)) return structDeclaration()
 		if (match(FUNC)) return functionDeclaration()
 		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
 		errorAtCurrent("Expected declaration.")
@@ -56,6 +60,22 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 		if (match(FUNC)) return functionDeclaration()
 		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
 		return statement()
+	}
+
+	private fun structDeclaration(): Statement.Struct? {
+		val declaration = previous
+		expect(IDENTIFIER, "Expected struct name after 'struct'.") ?: return null
+		val name = previous
+		expect(LEFT_BRACE, "Expected '{' after 'struct'.")
+		val list = ArrayList<Pair<Token, Token>>()
+		if (!isNext(RIGHT_BRACE)) {
+			do {
+				val pair = getNameAndType("field") ?: return null
+				list.add(pair)
+			} while (match(COMMA))
+		}
+		expect(RIGHT_BRACE, "Expected '}' after struct fields.") ?: return null
+		return Statement.Struct(declaration, name, list.toTypedArray(), previous)
 	}
 
 	private fun functionDeclaration(): Statement.Function? {
@@ -70,7 +90,7 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 				list.add(pair)
 			} while (match(COMMA))
 		}
-		expect(RIGHT_PAREN, "Expected ')' after function arguments.") ?: return null
+		expect(RIGHT_PAREN, "Expected ')' after function parameters.") ?: return null
 		val rightParen = previous
 		var type: Token? = null
 		if (match(COLON)) {
@@ -125,6 +145,7 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 			val value = expression() ?: return null
 			return when (expression) {
 				is Expression.GetVariable -> Expression.SetVariable(expression.variable, value)
+				is Expression.GetField -> Expression.SetField(expression.obj, expression.field, value)
 				else -> {
 					instance.reportCompileError(CompilerError.OneRangeError(expression.getRange(), "Invalid assignment target."))
 					null
@@ -151,7 +172,13 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 
 	private fun call(): Expression? {
 		val callee = primary() ?: return null
-		while (match(LEFT_PAREN)) return finishFunctionCall(callee)
+		while (true) {
+			if (match(LEFT_PAREN))
+				return finishFunctionCall(callee)
+			if (match(DOT))
+				return finishFieldGet(callee)
+			break
+		}
 		return callee
 	}
 
@@ -167,6 +194,11 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 		return Expression.Call(callee, left, arguments.toTypedArray(), previous)
 	}
 
+	private fun finishFieldGet(callee: Expression): Expression? {
+		expect(IDENTIFIER, "Expected field name after '.'.") ?: return null
+		return Expression.GetField(callee, previous)
+	}
+
 	/**
 	 * Returns literals and groups.
 	 * Errors already handled, returns null if an error was found and processed.
@@ -176,7 +208,19 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 		if (match(TRUE)) return Expression.Literal(ZincTrue, previous)
 		if (match(NUMBER_VALUE)) return Expression.Literal(ZincNumber(parseDouble(previous.lexeme)), previous)
 		if (match(STRING_VALUE)) return Expression.Literal(ZincString(previous.lexeme), previous)
-		if (match(IDENTIFIER)) return Expression.GetVariable(previous)
+		if (match(IDENTIFIER)) {
+			val name = previous
+			if (!match(LEFT_BRACE)) return Expression.GetVariable(name)
+			val fields = ArrayList<Pair<Token, Expression>>()
+			if (!isNext(RIGHT_BRACE)) {
+				do {
+					val pair = getNameAndExpression("field") ?: return null
+					fields.add(pair)
+				} while (match(COMMA))
+			}
+			expect(RIGHT_BRACE, "Expected '}' after struct initialization.")
+			return Expression.InitializeStruct(name, fields.toTypedArray(), previous)
+		}
 		if (match(CHAR_VALUE)) {
 			return if (previous.lexeme.length != 1) {
 				error(
@@ -226,6 +270,14 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 		expect(COLON, "Expected ':' after $variableType name.") ?: return null
 		expect(IDENTIFIER, "Expected $variableType type after ':'.") ?: return null
 		return Pair(name, previous)
+	}
+
+	private fun getNameAndExpression(variableType: String): Pair<Token, Expression>? {
+		expect(IDENTIFIER, "Expected $variableType name.") ?: return null
+		val name = previous
+		expect(COLON, "Expected ':' after $variableType name.") ?: return null
+		val expression = expression() ?: return null
+		return Pair(name, expression)
 	}
 
 	/**

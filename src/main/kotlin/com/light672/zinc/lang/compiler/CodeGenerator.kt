@@ -26,6 +26,7 @@ class CodeGenerator {
 			is Statement.ExpressionStatement -> compile()
 			is Statement.Function -> compile()
 			is Statement.VariableDeclaration -> compile()
+			is Statement.Struct -> {}
 		}
 	}
 

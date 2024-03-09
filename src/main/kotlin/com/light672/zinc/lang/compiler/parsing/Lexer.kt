@@ -97,7 +97,7 @@ class Lexer(val s: String) {
 			when (source[start]) {
 				'a' -> if (current - start > 1)
 					when (source[start + 1]) {
-						's' -> return AS
+						's' -> return check(2, "", AS)
 						'n' -> return check(2, "d", AND)
 					}
 
@@ -110,9 +110,9 @@ class Lexer(val s: String) {
 
 				'i' -> if (current - start > 1)
 					when (source[start + 1]) {
-						's' -> return IS
-						'f' -> return IF
-						'n' -> return if (current - start > 2 && source[start + 2] == 't') INT else IN
+						's' -> return check(2, "", IS)
+						'f' -> return check(2, "", IF)
+						'n' -> return if (current - start > 2 && source[start + 2] == 't') check(3, "t", INT) else check(2, "", IN)
 					}
 
 				'l' -> return check("oop", LOOP)
@@ -120,8 +120,8 @@ class Lexer(val s: String) {
 				'r' -> return check("eturn", RETURN)
 				'v' -> if (current - start > 1 && source[start + 1] == 'a')
 					when (source[start + 2]) {
-						'r' -> return VAR
-						'l' -> return VAL
+						'r' -> return check(3, "", VAR)
+						'l' -> return check(3, "", VAL)
 					}
 
 				'w' -> return check("hile", WHILE)
@@ -134,7 +134,7 @@ class Lexer(val s: String) {
 					}
 
 				'p' -> return check("ub", PUB)
-				's' -> return check("ruct", STRUCT)
+				's' -> return check("truct", STRUCT)
 			}
 			return IDENTIFIER
 		}

@@ -14,7 +14,7 @@ fun main() {
 						string,
 						com.light672.zinc.Zinc.SystemOutputStream,
 						com.light672.zinc.Zinc.SystemErrorStream,
-						false
+						true
 					)
 				runtime.run()
 			}

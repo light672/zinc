@@ -1,5 +1,10 @@
+struct MyStruct {
+	a: num
+}
+
 func main() {
-	val a: str = add(3, 2);
+	val init = MyStruct {a: 3};
+	val a: str = init.a + add(init.a, 3);
 }
 
 func add(a: num, b: num): num {

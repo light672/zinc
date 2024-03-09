@@ -13,8 +13,8 @@ object Zinc {
 		private val stackSize: Int,
 		private val callStackSize: Int,
 		private val source: String,
-		internal val out: com.light672.zinc.Zinc.OutputStream,
-		private val err: com.light672.zinc.Zinc.OutputStream,
+		internal val out: OutputStream,
+		private val err: OutputStream,
 		internal val debug: Boolean,
 	) {
 		internal var hadError = false

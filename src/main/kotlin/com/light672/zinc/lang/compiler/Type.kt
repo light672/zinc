@@ -60,4 +60,8 @@ sealed class Type {
 			}
 		}
 	}
+
+	class Struct(val name: kotlin.String, val fields: HashMap<kotlin.String, Pair<IntRange, Type>>) : Type() {
+		override fun toString(): kotlin.String = name
+	}
 }

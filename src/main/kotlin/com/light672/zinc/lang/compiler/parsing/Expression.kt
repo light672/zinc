@@ -4,6 +4,10 @@ import com.light672.zinc.builtin.ZincValue
 
 sealed class Expression {
 
+	class InitializeStruct(val name: Token, val fields: Array<Pair<Token, Expression>>, val end: Token) : Expression() {
+		override fun getRange() = name.range.first..end.range.last
+	}
+
 	class Unary(val operator: Token, val right: Expression) : Expression() {
 		override fun getRange() = operator.range.first..right.getRange().last
 	}
@@ -26,6 +30,14 @@ sealed class Expression {
 
 	class SetVariable(val variable: Token, val value: Expression) : Expression() {
 		override fun getRange() = variable.range.first..value.getRange().last
+	}
+
+	class GetField(val obj: Expression, val field: Token) : Expression() {
+		override fun getRange() = obj.getRange().first..field.range.last
+	}
+
+	class SetField(val obj: Expression, val field: Token, val value: Expression) : Expression() {
+		override fun getRange() = obj.getRange().first..value.getRange().last
 	}
 
 	class Call(val callee: Expression, val leftParen: Token, val arguments: Array<Expression>, val rightParen: Token) : Expression() {

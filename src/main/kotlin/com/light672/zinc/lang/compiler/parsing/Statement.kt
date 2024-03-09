@@ -17,6 +17,15 @@ sealed class Statement {
 		override fun getRange() = declaration.range.first..(type?.range?.last ?: rightParen.range.last)
 	}
 
+	class Struct(
+		val declaration: Token,
+		val name: Token,
+		val fields: Array<Pair<Token, Token>>,
+		val closeToken: Token
+	) : Statement() {
+		override fun getRange() = declaration.range.first..closeToken.range.last
+	}
+
 	class VariableDeclaration(val declaration: Token, val name: Token, val type: Token?, val initializer: Expression?, val sc: Token) : Statement() {
 		override fun getRange() = declaration.range.first..sc.range.last
 	}

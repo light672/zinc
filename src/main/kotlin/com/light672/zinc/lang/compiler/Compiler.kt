@@ -4,11 +4,16 @@ import com.light672.zinc.lang.compiler.parsing.Parser
 
 internal class Compiler(val runtime: com.light672.zinc.Zinc.Runtime, val source: String) {
 	fun compile() {
-		val (functions, variables) = Parser(source, runtime).parse()
+		val (structs, functions, variables) = Parser(source, runtime).parse()
 		if (runtime.hadError) return
-		val module = ZincModule(runtime, source, functions, variables)
+		val module = ZincModule(runtime, source, structs, functions, variables)
 		module.types["num"] = Type.Number
 		module.types["str"] = Type.String
+		val structDeclarations = Array(structs.size) { i -> with(module.resolver) { structs[i].resolve() } }
+		for ((i, struct) in structDeclarations.withIndex()) {
+			struct ?: continue
+			with(module.resolver) { struct.resolveStructInside(structs[i].fields) }
+		}
 		val functionDeclarations = Array(functions.size) { i -> with(module.resolver) { functions[i].resolve() } }
 		if (runtime.hadError) return
 		for (variable in variables) with(module.resolver) { variable.resolve() }
