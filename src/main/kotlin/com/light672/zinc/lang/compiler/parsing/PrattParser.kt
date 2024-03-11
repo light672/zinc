@@ -24,6 +24,17 @@ internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
 		return Expr.Grouping(expression, p, previous)
 	}
 
+	fun returnExpr(u: Boolean): Expr.Return? {
+		return if (!isNext(RIGHT_PAREN, SEMICOLON, COMMA, RIGHT_BRACE, RIGHT_BRACKET, ELSE, ELIF))  // only tokens that can come after a return
+			Expr.Return(previous, expression() ?: return null)
+		else Expr.Return(previous, null)
+	}
+
+	fun breakExpr(u: Boolean): Expr? {
+		TODO("not yet implemented")
+	}
+
+
 	fun variable(canAssign: Boolean): Expr? {
 		val name = previous
 		if (!canAssign || !match(EQUAL)) return Expr.GetVariable(name)
