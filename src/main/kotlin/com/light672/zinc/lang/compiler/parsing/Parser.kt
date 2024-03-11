@@ -156,10 +156,10 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 	}
 
 	private fun equality() = parseBinaryExpression({ comparison() }, BANG_EQUAL, EQUAL_EQUAL)
-	private fun comparison() = parseBinaryExpression({ modulo() }, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)
-	private fun modulo() = parseBinaryExpression({ term() }, PERCENT)
+	private fun comparison() = parseBinaryExpression({ term() }, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)
 	private fun term() = parseBinaryExpression({ factor() }, MINUS, PLUS)
-	private fun factor() = parseBinaryExpression({ unary() }, SLASH, STAR)
+	private fun factor() = parseBinaryExpression({ exponent() }, SLASH, STAR, PERCENT)
+	private fun exponent() = parseBinaryExpression({ unary() }, CARET)
 
 	private fun unary(): Expr? {
 		if (match(arrayOf(BANG, MINUS))) {
@@ -255,11 +255,11 @@ internal class Parser(source: String, private val instance: com.light672.zinc.Zi
 	}
 
 	private fun parseBinaryExpression(next: () -> Expr?, vararg types: Token.Type): Expr? {
-		val expression = next() ?: return null
+		var expression = next() ?: return null
 		while (match(types)) {
 			val operator = previous
 			val right = next() ?: return null
-			return Expr.Binary(expression, right, operator)
+			expression = Expr.Binary(expression, right, operator)
 		}
 		return expression
 	}
