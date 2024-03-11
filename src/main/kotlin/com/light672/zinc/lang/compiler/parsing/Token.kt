@@ -1,7 +1,8 @@
 package com.light672.zinc.lang.compiler.parsing
 
 import com.light672.zinc.lang.compiler.parsing.PrattParser.ParseRule
-import com.light672.zinc.lang.compiler.parsing.PrattParser.Precedence
+import com.light672.zinc.lang.compiler.parsing.PrattParser.Precedence.NONE
+import com.light672.zinc.lang.compiler.parsing.PrattParser.Precedence.TERM
 
 internal data class Token(val type: Type, val line: Int, val range: IntRange, val lexeme: String = "") {
 	companion object {
@@ -10,8 +11,8 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		}
 	}
 
-	enum class Type(val rule: ParseRule = ParseRule(Precedence.NONE, null, null)) {
-		LEFT_PAREN(),
+	enum class Type(val rule: ParseRule = ParseRule(NONE, null, null)) {
+		LEFT_PAREN,
 		RIGHT_PAREN,
 		LEFT_BRACE,
 		RIGHT_BRACE,
@@ -22,7 +23,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		PLUS,
 		PLUS_EQUAL,
 		PLUS_PLUS,
-		MINUS,
+		MINUS(ParseRule(TERM, prefix = PrattParser::unary)),
 		MINUS_EQUAL,
 		MINUS_MINUS,
 		STAR,
@@ -36,7 +37,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		COLON,
 		SEMICOLON,
 		QUESTION,
-		BANG,
+		BANG(ParseRule(prefix = PrattParser::unary)),
 		BANG_EQUAL,
 		EQUAL,
 		EQUAL_EQUAL,
@@ -45,11 +46,11 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		LESS,
 		LESS_EQUAL,
 		IDENTIFIER,
-		STRING_VALUE,
-		CHAR_VALUE,
-		NUMBER_VALUE,
-		TRUE,
-		FALSE,
+		STRING_VALUE(ParseRule(prefix = PrattParser::stringLiteral)),
+		CHAR_VALUE(ParseRule(prefix = PrattParser::charLiteral)),
+		NUMBER_VALUE(ParseRule(prefix = PrattParser::numberLiteral)),
+		TRUE(ParseRule(prefix = PrattParser::trueLiteral)),
+		FALSE(ParseRule(prefix = PrattParser::falseLiteral)),
 		STRUCT,
 		FUNC,
 		VAR,

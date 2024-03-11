@@ -1,14 +1,26 @@
 package com.light672.zinc.lang.compiler.parsing
 
 import com.light672.zinc.Zinc
+import com.light672.zinc.builtin.*
 import com.light672.zinc.lang.compiler.CompilerError
 import com.light672.zinc.lang.compiler.parsing.Token.Type.*
+import java.lang.Double.parseDouble
 
 internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
 	private val lexer = Lexer(source)
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
 
+
+	fun unary(canAssign: Boolean): Expr.Unary? {
+		return Expr.Unary(previous, parsePrecedence(Precedence.UNARY) ?: return null)
+	}
+
+	fun stringLiteral(u: Boolean) = Expr.Literal(ZincString(previous.lexeme), previous)
+	fun charLiteral(u: Boolean) = Expr.Literal(ZincChar(previous.lexeme[0]), previous)
+	fun numberLiteral(u: Boolean) = Expr.Literal(ZincNumber(parseDouble(previous.lexeme)), previous)
+	fun trueLiteral(u: Boolean) = Expr.Literal(ZincTrue, previous)
+	fun falseLiteral(u: Boolean) = Expr.Literal(ZincFalse, previous)
 
 	private fun parsePrecedence(precedence: Precedence): Expr? {
 		advance()
@@ -18,11 +30,11 @@ internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
 			return null
 		}
 		val canAssign = precedence.ordinal <= Precedence.ASSIGNMENT.ordinal
-		var left = rule() ?: return null
+		var left = rule(canAssign) ?: return null
 		while (precedence.ordinal <= current.type.rule.precedence.ordinal) {
 			advance()
 			val infix = previous.type.rule.infix!!
-			left = infix(left) ?: return null
+			left = infix(left, canAssign) ?: return null
 		}
 		if (canAssign && match(EQUAL)) {
 			error("Invalid assignment target.")
@@ -57,7 +69,11 @@ internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
 	private fun errorAt(token: Token, message: String) = runtime.reportCompileError(CompilerError.TokenError(token, message))
 
 
-	class ParseRule(val precedence: Precedence, val prefix: (PrattParser.() -> Expr?)?, val infix: (PrattParser.(Expr) -> Expr?)?)
+	class ParseRule(
+		val precedence: Precedence = Precedence.NONE,
+		val prefix: (PrattParser.(Boolean) -> Expr?)? = null,
+		val infix: (PrattParser.(Expr, Boolean) -> Expr?)? = null
+	)
 
 	enum class Precedence {
 		NONE,
