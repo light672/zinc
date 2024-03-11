@@ -1,6 +1,6 @@
 package com.light672.zinc.lang.compiler.parsing
 
-sealed class Stmt {
+internal sealed class Stmt {
 	class ExpressionStatement(val expression: Expr, val sc: Token?) : Stmt() {
 		override fun getRange() = expression.getRange().first..(sc?.range?.last ?: expression.getRange().last)
 	}

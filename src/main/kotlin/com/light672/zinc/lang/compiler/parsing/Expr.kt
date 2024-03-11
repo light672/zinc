@@ -2,7 +2,7 @@ package com.light672.zinc.lang.compiler.parsing
 
 import com.light672.zinc.builtin.ZincValue
 
-sealed class Expr {
+internal sealed class Expr {
 
 	class InitializeStruct(val name: Token, val fields: Array<Pair<Token, Expr>>, val end: Token) : Expr() {
 		override fun getRange() = name.range.first..end.range.last
