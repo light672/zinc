@@ -34,7 +34,7 @@ fun recvsprattTest(source: String, comprehensiveErrors: Boolean) {
 	var string = source + " "
 	var avg = 0L
 	for (i in 0..100) {
-		val prattRuntime = Zinc.Runtime(256, 256, string, Zinc.SystemOutputStream, Zinc.SystemErrorStream, true, comprehensiveErrors, true)
+		val prattRuntime = Zinc.Runtime(256, 256, string, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, true)
 		avg += Zinc.time {
 			prattRuntime.run()
 		}
