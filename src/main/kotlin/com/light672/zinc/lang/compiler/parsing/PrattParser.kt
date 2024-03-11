@@ -11,6 +11,124 @@ internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
 
+	internal fun parse(): Triple<ArrayList<Stmt.Struct>, ArrayList<Stmt.Function>, ArrayList<Stmt.VariableDeclaration>> {
+		advance()
+		val functions = ArrayList<Stmt.Function>()
+		val variables = ArrayList<Stmt.VariableDeclaration>()
+		val structs = ArrayList<Stmt.Struct>()
+		while (!end()) {
+			when (val declaration = parseDeclaration()) {
+				is Stmt.Function -> functions.add(declaration)
+				is Stmt.VariableDeclaration -> variables.add(declaration)
+				is Stmt.Struct -> structs.add(declaration)
+				else -> throw IllegalArgumentException()
+			}
+		}
+		return Triple(structs, functions, variables)
+	}
+
+
+	private fun parseStatement() = declarationOrStatement() ?: throw RuntimeException()
+	private fun parseDeclaration() = declaration() ?: throw RuntimeException()
+
+	private fun block(startBracketError: String): Array<Stmt>? {
+		expect(LEFT_BRACE, startBracketError) ?: return null
+		val statements = ArrayList<Stmt>()
+		if (!isNext(RIGHT_BRACE)) {
+			do {
+				statements.add(parseStatement())
+			} while (!isNext(RIGHT_BRACE))
+		}
+		expect(RIGHT_BRACE, "Expected '}' after block.") ?: return null
+		return statements.toTypedArray()
+	}
+
+	private fun declaration(): Stmt? {
+		if (match(STRUCT)) return structDeclaration()
+		if (match(FUNC)) return functionDeclaration()
+		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
+		errorAtCurrent("Expected declaration.")
+		return null
+	}
+
+	private fun declarationOrStatement(): Stmt? {
+		if (match(FUNC)) return functionDeclaration()
+		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
+		return statement()
+	}
+
+	private fun structDeclaration(): Stmt.Struct? {
+		val declaration = previous
+		expect(IDENTIFIER, "Expected struct name after 'struct'.") ?: return null
+		val name = previous
+		expect(LEFT_BRACE, "Expected '{' after 'struct'.")
+		val list = ArrayList<Pair<Token, Token>>()
+		if (!isNext(RIGHT_BRACE)) {
+			do {
+				val pair = getNameAndType("field") ?: return null
+				list.add(pair)
+			} while (match(COMMA))
+		}
+		expect(RIGHT_BRACE, "Expected '}' after struct fields.") ?: return null
+		return Stmt.Struct(declaration, name, list.toTypedArray(), previous)
+	}
+
+	private fun functionDeclaration(): Stmt.Function? {
+		val declaration = previous
+		expect(IDENTIFIER, "Expected function name after 'func'.") ?: return null
+		val name = previous
+		expect(LEFT_PAREN, "Expected '(' after function name.") ?: return null
+		val list = ArrayList<Pair<Token, Token>>()
+		if (!isNext(RIGHT_PAREN)) {
+			do {
+				val pair = getNameAndType("parameter") ?: return null
+				list.add(pair)
+			} while (match(COMMA))
+		}
+		expect(RIGHT_PAREN, "Expected ')' after function parameters.") ?: return null
+		val rightParen = previous
+		var type: Token? = null
+		if (match(COLON)) {
+			expect(IDENTIFIER, "Expected function return type after ':'.") ?: return null
+			type = previous
+		}
+		val block = block("Expected function body.")
+		return block?.let { Stmt.Function(declaration, name, list.toTypedArray(), rightParen, type, it, previous) }
+	}
+
+	private fun variableDeclaration(): Stmt.VariableDeclaration? {
+		val declaration = previous
+		expect(IDENTIFIER, "Expected variable name after '${declaration.lexeme}'.") ?: return null
+		val name = previous
+
+		var type: Token? = null
+		var initializer: Expr? = null
+
+		if (match(COLON)) {
+			expect(IDENTIFIER, "Expected variable type after ':'.") ?: return null
+			type = previous
+		}
+		if (match(EQUAL)) {
+			initializer = expression() ?: return null
+		}
+		if (initializer == null && type == null) {
+			error("Variable '${name.lexeme}' must have either a type or an initializer.")
+			return null
+		}
+		expect(SEMICOLON, "Expected ';' after variable declaration.") ?: return null
+		return Stmt.VariableDeclaration(declaration, name, type, initializer, previous)
+	}
+
+	private fun statement(): Stmt? {
+		return expressionStatement();
+	}
+
+	private fun expressionStatement(): Stmt.ExpressionStatement? {
+		val expression = expression() ?: return null
+		expect(SEMICOLON, "Expected ';' after expression.") ?: return null
+		return Stmt.ExpressionStatement(expression, previous)
+	}
+
 	fun expression() = parsePrecedence(Precedence.ASSIGNMENT)
 
 	fun unary(u: Boolean): Expr.Unary? {
