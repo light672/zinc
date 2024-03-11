@@ -11,16 +11,86 @@ internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
 
+	fun expression() = parsePrecedence(Precedence.ASSIGNMENT)
 
-	fun unary(canAssign: Boolean): Expr.Unary? {
+	fun unary(u: Boolean): Expr.Unary? {
 		return Expr.Unary(previous, parsePrecedence(Precedence.UNARY) ?: return null)
 	}
+
+	fun grouping(u: Boolean): Expr.Grouping? {
+		val p = previous
+		val expression = expression() ?: return null
+		expect(RIGHT_PAREN, "Expected ')' after expression.") ?: return null
+		return Expr.Grouping(expression, p, previous)
+	}
+
+	fun variable(canAssign: Boolean): Expr? {
+		val name = previous
+		if (!canAssign || !match(EQUAL)) return Expr.GetVariable(name)
+		return Expr.SetVariable(name, expression() ?: return null)
+	}
+
 
 	fun stringLiteral(u: Boolean) = Expr.Literal(ZincString(previous.lexeme), previous)
 	fun charLiteral(u: Boolean) = Expr.Literal(ZincChar(previous.lexeme[0]), previous)
 	fun numberLiteral(u: Boolean) = Expr.Literal(ZincNumber(parseDouble(previous.lexeme)), previous)
 	fun trueLiteral(u: Boolean) = Expr.Literal(ZincTrue, previous)
 	fun falseLiteral(u: Boolean) = Expr.Literal(ZincFalse, previous)
+
+	fun or(left: Expr, u: Boolean) = logical(left, Precedence.OR)
+	fun and(left: Expr, u: Boolean) = logical(left, Precedence.AND)
+	fun equality(left: Expr, u: Boolean) = binary(left, Precedence.COMPARISON)
+	fun comparison(left: Expr, u: Boolean) = binary(left, Precedence.TERM)
+	fun term(left: Expr, u: Boolean) = binary(left, Precedence.FACTOR)
+	fun factor(left: Expr, u: Boolean) = binary(left, Precedence.EXPONENT)
+	fun exponent(left: Expr, u: Boolean) = binary(left, Precedence.UNARY)
+
+	fun call(callee: Expr, u: Boolean): Expr.Call? {
+		val left = previous
+		val arguments = ArrayList<Expr>()
+		if (!isNext(RIGHT_PAREN)) {
+			do {
+				arguments.add(expression() ?: return null)
+			} while (match(COMMA))
+		}
+		expect(RIGHT_PAREN, "Expected ')' after function arguments.") ?: return null
+		return Expr.Call(callee, left, arguments.toTypedArray(), previous)
+	}
+
+	fun dot(callee: Expr, canAssign: Boolean): Expr? {
+		expect(IDENTIFIER, "Expected field name after '.'.") ?: return null
+		val name = previous
+		if (!canAssign || !match(EQUAL)) return Expr.GetField(callee, name)
+		return Expr.SetField(callee, name, expression() ?: return null)
+	}
+
+	fun init(callee: Expr, u: Boolean): Expr.InitializeStruct? {
+		if (callee !is Expr.GetVariable) {
+			error("Invalid struct initialization target.")
+			return null
+		}
+		val fields = ArrayList<Pair<Token, Expr>>()
+		if (!isNext(RIGHT_BRACE)) {
+			do {
+				val pair = getNameAndExpression("field") ?: return null
+				fields.add(pair)
+			} while (match(COMMA))
+		}
+		expect(RIGHT_BRACE, "Expected '}' after struct initialization.")
+		return Expr.InitializeStruct(callee.variable, fields.toTypedArray(), previous)
+	}
+
+	private fun binary(left: Expr, next: Precedence): Expr.Binary? {
+		val operator = previous
+		val right = parsePrecedence(next) ?: return null
+		return Expr.Binary(left, right, operator)
+	}
+
+	private fun logical(left: Expr, next: Precedence): Expr.Logical? {
+		val operator = previous
+		val right = parsePrecedence(next) ?: return null
+		return Expr.Logical(left, right, operator)
+	}
 
 	private fun parsePrecedence(precedence: Precedence): Expr? {
 		advance()
@@ -41,6 +111,22 @@ internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
 			return null
 		}
 		return left
+	}
+
+	private fun getNameAndType(variableType: String): Pair<Token, Token>? {
+		expect(IDENTIFIER, "Expected $variableType name.") ?: return null
+		val name = previous
+		expect(COLON, "Expected ':' after $variableType name.") ?: return null
+		expect(IDENTIFIER, "Expected $variableType type after ':'.") ?: return null
+		return Pair(name, previous)
+	}
+
+	private fun getNameAndExpression(variableType: String): Pair<Token, Expr>? {
+		expect(IDENTIFIER, "Expected $variableType name.") ?: return null
+		val name = previous
+		expect(COLON, "Expected ':' after $variableType name.") ?: return null
+		val expression = expression() ?: return null
+		return Pair(name, expression)
 	}
 
 	private fun advance(): Unit? {

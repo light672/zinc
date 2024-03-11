@@ -1,8 +1,7 @@
 package com.light672.zinc.lang.compiler.parsing
 
 import com.light672.zinc.lang.compiler.parsing.PrattParser.ParseRule
-import com.light672.zinc.lang.compiler.parsing.PrattParser.Precedence.NONE
-import com.light672.zinc.lang.compiler.parsing.PrattParser.Precedence.TERM
+import com.light672.zinc.lang.compiler.parsing.PrattParser.Precedence.*
 
 internal data class Token(val type: Type, val line: Int, val range: IntRange, val lexeme: String = "") {
 	companion object {
@@ -12,40 +11,40 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 	}
 
 	enum class Type(val rule: ParseRule = ParseRule(NONE, null, null)) {
-		LEFT_PAREN,
+		LEFT_PAREN(ParseRule(CALL, PrattParser::grouping, PrattParser::call)),
 		RIGHT_PAREN,
-		LEFT_BRACE,
+		LEFT_BRACE(ParseRule(INIT, infix = PrattParser::init)),
 		RIGHT_BRACE,
 		LEFT_BRACKET,
 		RIGHT_BRACKET,
 		COMMA,
-		DOT,
-		PLUS,
+		DOT(ParseRule(CALL, infix = PrattParser::dot)),
+		PLUS(ParseRule(TERM, infix = PrattParser::term)),
 		PLUS_EQUAL,
 		PLUS_PLUS,
-		MINUS(ParseRule(TERM, prefix = PrattParser::unary)),
+		MINUS(ParseRule(TERM, PrattParser::unary, PrattParser::term)),
 		MINUS_EQUAL,
 		MINUS_MINUS,
-		STAR,
+		STAR(ParseRule(FACTOR, infix = PrattParser::factor)),
 		STAR_EQUAL,
-		SLASH,
+		SLASH(ParseRule(FACTOR, infix = PrattParser::factor)),
 		SLASH_EQUAL,
-		PERCENT,
+		PERCENT(ParseRule(FACTOR, infix = PrattParser::factor)),
 		PERCENT_EQUAL,
-		CARET,
+		CARET(ParseRule(EXPONENT, infix = PrattParser::exponent)),
 		CARET_EQUAL,
 		COLON,
 		SEMICOLON,
 		QUESTION,
 		BANG(ParseRule(prefix = PrattParser::unary)),
-		BANG_EQUAL,
+		BANG_EQUAL(ParseRule(COMPARISON, infix = PrattParser::equality)),
 		EQUAL,
-		EQUAL_EQUAL,
-		GREATER,
-		GREATER_EQUAL,
-		LESS,
-		LESS_EQUAL,
-		IDENTIFIER,
+		EQUAL_EQUAL(ParseRule(COMPARISON, infix = PrattParser::equality)),
+		GREATER(ParseRule(COMPARISON, infix = PrattParser::comparison)),
+		GREATER_EQUAL(ParseRule(COMPARISON, infix = PrattParser::comparison)),
+		LESS(ParseRule(COMPARISON, infix = PrattParser::comparison)),
+		LESS_EQUAL(ParseRule(COMPARISON, infix = PrattParser::comparison)),
+		IDENTIFIER(ParseRule(prefix = PrattParser::variable)),
 		STRING_VALUE(ParseRule(prefix = PrattParser::stringLiteral)),
 		CHAR_VALUE(ParseRule(prefix = PrattParser::charLiteral)),
 		NUMBER_VALUE(ParseRule(prefix = PrattParser::numberLiteral)),
@@ -65,8 +64,8 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		ELIF,
 		RETURN,
 		BREAK,
-		AND,
-		OR,
+		AND(ParseRule(PrattParser.Precedence.AND, infix = PrattParser::and)),
+		OR(ParseRule(PrattParser.Precedence.OR, infix = PrattParser::or)),
 		IS,
 		AS,
 		IN,
