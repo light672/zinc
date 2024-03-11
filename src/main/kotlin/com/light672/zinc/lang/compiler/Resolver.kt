@@ -4,8 +4,8 @@ import com.light672.zinc.builtin.ZincBoolean
 import com.light672.zinc.builtin.ZincChar
 import com.light672.zinc.builtin.ZincNumber
 import com.light672.zinc.builtin.ZincString
-import com.light672.zinc.lang.compiler.parsing.Expression
-import com.light672.zinc.lang.compiler.parsing.Statement
+import com.light672.zinc.lang.compiler.parsing.Expr
+import com.light672.zinc.lang.compiler.parsing.Stmt
 import com.light672.zinc.lang.compiler.parsing.Token
 import java.util.*
 
@@ -19,16 +19,16 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 
 	private var funReturnType: Type? = null
 
-	fun Statement.resolve(): Unit? {
+	fun Stmt.resolve(): Unit? {
 		return when (this) {
-			is Statement.Struct -> throw IllegalArgumentException("Struct should never be resolved from this function.")
-			is Statement.Function -> throw IllegalArgumentException("Function should never be resolved from this function.")
-			is Statement.VariableDeclaration -> resolve()
-			is Statement.ExpressionStatement -> expression.resolve()
+			is Stmt.Struct -> throw IllegalArgumentException("Struct should never be resolved from this function.")
+			is Stmt.Function -> throw IllegalArgumentException("Function should never be resolved from this function.")
+			is Stmt.VariableDeclaration -> resolve()
+			is Stmt.ExpressionStatement -> expression.resolve()
 		}
 	}
 
-	fun Statement.Struct.resolve(): Type.Struct? {
+	fun Stmt.Struct.resolve(): Type.Struct? {
 		if (currentTypes[name.lexeme] != null) {
 			runtime.reportCompileError(
 				CompilerError.TwoRangeError(
@@ -61,7 +61,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return Unit
 	}
 
-	fun Statement.VariableDeclaration.resolve(): Unit? {
+	fun Stmt.VariableDeclaration.resolve(): Unit? {
 		val mutable = declaration.type == Token.Type.VAR
 		if (initializer != null) initializer.resolve() ?: return null
 		if (inGlobal) initializer ?: runtime.reportCompileError(CompilerError.OneRangeError(getRange(), "Global variables must have an initializer."))
@@ -108,7 +108,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 
 	fun Declaration.resolveFunctionBlock() {
 		scope((type as Type.Function).returnType) {
-			statement as Statement.Function
+			statement as Stmt.Function
 			for ((index, paramType) in type.parameters.withIndex()) {
 				val pair = statement.arguments[index]
 				val name = pair.first.lexeme
@@ -131,7 +131,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		}
 	}
 
-	fun Statement.Function.resolve(): Declaration? {
+	fun Stmt.Function.resolve(): Declaration? {
 		val declaredType = if (type != null) getTypeFromName(type) else Type.Unit
 
 		var paramTypeError = false
@@ -175,23 +175,23 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return declaration
 	}
 
-	fun Expression.resolve(): Unit? {
+	fun Expr.resolve(): Unit? {
 		return when (this) {
-			is Expression.Literal, is Expression.Unit -> {}
-			is Expression.Grouping -> expression.resolve()
-			is Expression.Return -> resolve()
-			is Expression.Unary -> resolve()
-			is Expression.Binary -> resolve()
-			is Expression.GetVariable -> resolve()
-			is Expression.SetVariable -> resolve()
-			is Expression.GetField -> resolve()
-			is Expression.SetField -> resolve()
-			is Expression.Call -> resolve()
-			is Expression.InitializeStruct -> resolve()
+			is Expr.Literal, is Expr.Unit -> {}
+			is Expr.Grouping -> expression.resolve()
+			is Expr.Return -> resolve()
+			is Expr.Unary -> resolve()
+			is Expr.Binary -> resolve()
+			is Expr.GetVariable -> resolve()
+			is Expr.SetVariable -> resolve()
+			is Expr.GetField -> resolve()
+			is Expr.SetField -> resolve()
+			is Expr.Call -> resolve()
+			is Expr.InitializeStruct -> resolve()
 		}
 	}
 
-	fun Expression.Return.resolve(): Unit? {
+	fun Expr.Return.resolve(): Unit? {
 		if (expression != null) expression.resolve() ?: return null
 		val type = expression?.getType() ?: Type.Unit
 		funReturnType ?: throw IllegalArgumentException("Somehow top level return got past parsing.")
@@ -207,7 +207,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return Unit
 	}
 
-	fun Expression.Unary.resolve(): Unit? {
+	fun Expr.Unary.resolve(): Unit? {
 		right.resolve() ?: return null
 		return when (operator.type) {
 			Token.Type.BANG -> {
@@ -226,7 +226,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		}
 	}
 
-	fun Expression.Binary.resolve(): Unit? {
+	fun Expr.Binary.resolve(): Unit? {
 		left.resolve() ?: return null
 		right.resolve() ?: return null
 		if (left.getType() == Type.Number && right.getType() == Type.Number) return Unit
@@ -239,7 +239,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return null
 	}
 
-	fun Expression.GetVariable.resolve(): Unit? {
+	fun Expr.GetVariable.resolve(): Unit? {
 		val variable = findVariable(variable) ?: return null
 		if (variable.initRange == null) {
 			runtime.reportCompileError(
@@ -255,7 +255,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return Unit
 	}
 
-	fun Expression.SetVariable.resolve(): Unit? {
+	fun Expr.SetVariable.resolve(): Unit? {
 		val variable = findVariable(variable) ?: return null
 		value.resolve() ?: return null
 		val expressionType = value.getType()
@@ -274,7 +274,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return Unit
 	}
 
-	fun Expression.GetField.resolve(): Unit? {
+	fun Expr.GetField.resolve(): Unit? {
 		obj.resolve() ?: return null
 		val type = obj.getType()
 		if (type !is Type.Struct) {
@@ -288,7 +288,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return Unit
 	}
 
-	fun Expression.SetField.resolve(): Unit? {
+	fun Expr.SetField.resolve(): Unit? {
 		obj.resolve() ?: return null
 		value.resolve()
 		val type = obj.getType()
@@ -316,7 +316,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return Unit
 	}
 
-	fun Expression.Call.resolve(): Unit? {
+	fun Expr.Call.resolve(): Unit? {
 		callee.resolve() ?: return null
 		val calleeType = callee.getType()
 		if (calleeType is Type.Function) {
@@ -340,7 +340,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return null
 	}
 
-	fun Expression.InitializeStruct.resolve(): Unit? {
+	fun Expr.InitializeStruct.resolve(): Unit? {
 		val type = getTypeFromName(name) ?: return null
 		if (type !is Type.Struct) {
 			runtime.reportCompileError(
@@ -351,7 +351,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			)
 			return null
 		}
-		val map = type.fields.clone() as HashMap<String, Pair<IntRange, Expression>>
+		val map = type.fields.clone() as HashMap<String, Pair<IntRange, Expr>>
 		for ((name, expression) in fields) {
 			if (!type.fields.containsKey(name.lexeme)) {
 				runtime.reportCompileError(CompilerError.TokenError(name, "Struct '${type}' does not have field '${name.lexeme}'."))
@@ -398,25 +398,25 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return null
 	}
 
-	fun Expression.getType(): Type {
+	fun Expr.getType(): Type {
 		return when (this) {
-			is Expression.Return -> Type.Nothing
-			is Expression.Unit -> Type.Unit
-			is Expression.Unary -> when (operator.type) {
+			is Expr.Return -> Type.Nothing
+			is Expr.Unit -> Type.Unit
+			is Expr.Unary -> when (operator.type) {
 				Token.Type.MINUS -> Type.Number
 				Token.Type.BANG -> Type.Bool
 				else -> throw IllegalArgumentException("Should not be possible")
 			}
 
-			is Expression.InitializeStruct -> getTypeFromName(name)!!
-			is Expression.Binary -> Type.Number
-			is Expression.Grouping -> expression.getType()
-			is Expression.SetVariable -> value.getType()
-			is Expression.GetVariable -> findVariable(variable)!!.type
-			is Expression.SetField -> value.getType()
-			is Expression.GetField -> (obj.getType() as Type.Struct).fields[field.lexeme]!!.second
-			is Expression.Call -> (callee.getType() as Type.Function).returnType
-			is Expression.Literal -> {
+			is Expr.InitializeStruct -> getTypeFromName(name)!!
+			is Expr.Binary -> Type.Number
+			is Expr.Grouping -> expression.getType()
+			is Expr.SetVariable -> value.getType()
+			is Expr.GetVariable -> findVariable(variable)!!.type
+			is Expr.SetField -> value.getType()
+			is Expr.GetField -> (obj.getType() as Type.Struct).fields[field.lexeme]!!.second
+			is Expr.Call -> (callee.getType() as Type.Function).returnType
+			is Expr.Literal -> {
 				when (value) {
 					is ZincNumber -> Type.Number
 					is ZincBoolean -> Type.Bool

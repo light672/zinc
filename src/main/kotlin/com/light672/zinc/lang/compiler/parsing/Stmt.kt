@@ -1,7 +1,7 @@
 package com.light672.zinc.lang.compiler.parsing
 
-sealed class Statement {
-	class ExpressionStatement(val expression: Expression, val sc: Token?) : Statement() {
+sealed class Stmt {
+	class ExpressionStatement(val expression: Expr, val sc: Token?) : Stmt() {
 		override fun getRange() = expression.getRange().first..(sc?.range?.last ?: expression.getRange().last)
 	}
 
@@ -11,9 +11,9 @@ sealed class Statement {
 		val arguments: Array<Pair<Token, Token>>,
 		val rightParen: Token,
 		val type: Token?,
-		val body: Array<Statement>,
+		val body: Array<Stmt>,
 		val closeToken: Token,
-	) : Statement() {
+	) : Stmt() {
 		override fun getRange() = declaration.range.first..(type?.range?.last ?: rightParen.range.last)
 	}
 
@@ -22,11 +22,11 @@ sealed class Statement {
 		val name: Token,
 		val fields: Array<Pair<Token, Token>>,
 		val closeToken: Token
-	) : Statement() {
+	) : Stmt() {
 		override fun getRange() = declaration.range.first..closeToken.range.last
 	}
 
-	class VariableDeclaration(val declaration: Token, val name: Token, val type: Token?, val initializer: Expression?, val sc: Token) : Statement() {
+	class VariableDeclaration(val declaration: Token, val name: Token, val type: Token?, val initializer: Expr?, val sc: Token) : Stmt() {
 		override fun getRange() = declaration.range.first..sc.range.last
 	}
 

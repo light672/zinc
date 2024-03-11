@@ -4,8 +4,8 @@ import com.light672.zinc.builtin.ZincFalse
 import com.light672.zinc.builtin.ZincTrue
 import com.light672.zinc.builtin.ZincValue
 import com.light672.zinc.lang.Chunk
-import com.light672.zinc.lang.compiler.parsing.Expression
-import com.light672.zinc.lang.compiler.parsing.Statement
+import com.light672.zinc.lang.compiler.parsing.Expr
+import com.light672.zinc.lang.compiler.parsing.Stmt
 import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import com.light672.zinc.lang.runtime.*
 
@@ -13,7 +13,7 @@ class CodeGenerator {
 	private val code = ArrayList<Byte>()
 	private val constants = ArrayList<ZincValue>()
 	private val lines = ArrayList<Int>()
-	fun compile(ast: List<Statement>): Chunk {
+	fun compile(ast: List<Stmt>): Chunk {
 		for (statement in ast) {
 			statement.compile()
 		}
@@ -21,32 +21,32 @@ class CodeGenerator {
 		return Chunk(code.toTypedArray(), constants.toTypedArray(), lines.toTypedArray())
 	}
 
-	private fun Statement.compile() {
+	private fun Stmt.compile() {
 		when (this) {
-			is Statement.ExpressionStatement -> compile()
-			is Statement.Function -> compile()
-			is Statement.VariableDeclaration -> compile()
-			is Statement.Struct -> {}
+			is Stmt.ExpressionStatement -> compile()
+			is Stmt.Function -> compile()
+			is Stmt.VariableDeclaration -> compile()
+			is Stmt.Struct -> {}
 		}
 	}
 
-	private fun Statement.ExpressionStatement.compile() {}
+	private fun Stmt.ExpressionStatement.compile() {}
 
-	private fun Statement.Function.compile() {}
+	private fun Stmt.Function.compile() {}
 
-	private fun Statement.VariableDeclaration.compile() {}
+	private fun Stmt.VariableDeclaration.compile() {}
 
-	private fun Expression.compile() {
+	private fun Expr.compile() {
 		when (this) {
-			is Expression.Literal -> compile()
-			is Expression.Binary -> compile()
-			is Expression.Grouping -> expression.compile()
-			is Expression.GetVariable -> compile()
+			is Expr.Literal -> compile()
+			is Expr.Binary -> compile()
+			is Expr.Grouping -> expression.compile()
+			is Expr.GetVariable -> compile()
 			else -> TODO("Not yet implemented.")
 		}
 	}
 
-	private fun Expression.Literal.compile() {
+	private fun Expr.Literal.compile() {
 		when (value) {
 			is ZincTrue -> code.add(OP_TRUE)
 			is ZincFalse -> code.add(OP_FALSE)
@@ -58,7 +58,7 @@ class CodeGenerator {
 		}
 	}
 
-	private fun Expression.Binary.compile() {
+	private fun Expr.Binary.compile() {
 		left.compile()
 		right.compile()
 		when (operator.type) {
@@ -72,5 +72,5 @@ class CodeGenerator {
 		}
 	}
 
-	private fun Expression.GetVariable.compile() {}
+	private fun Expr.GetVariable.compile() {}
 }
