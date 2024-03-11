@@ -16,6 +16,10 @@ internal sealed class Expr {
 		override fun getRange() = left.getRange().first..right.getRange().last
 	}
 
+	class Logical(val left: Expr, val right: Expr, val operator: Token) : Expr() {
+		override fun getRange() = left.getRange().first..right.getRange().last
+	}
+
 	class Literal(val value: ZincValue, val token: Token) : Expr() {
 		override fun getRange() = token.range
 	}
