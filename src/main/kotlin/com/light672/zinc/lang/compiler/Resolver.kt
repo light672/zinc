@@ -188,6 +188,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			is Expr.SetField -> resolve()
 			is Expr.Call -> resolve()
 			is Expr.InitializeStruct -> resolve()
+			is Expr.Logical -> resolve()
 		}
 	}
 
@@ -234,6 +235,19 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			CompilerError.OneRangeError(
 				getRange(),
 				"Cannot perform binary '${operator.lexeme}' on '${left.getType()}' and '${right.getType()}'."
+			)
+		)
+		return null
+	}
+
+	fun Expr.Logical.resolve(): Unit? {
+		left.resolve() ?: return null
+		right.resolve() ?: return null
+		if (left.getType() == Type.Bool && right.getType() == Type.Bool) return Unit
+		runtime.reportCompileError(
+			CompilerError.OneRangeError(
+				getRange(),
+				"Cannot perform logical '${operator.lexeme}' on '${left.getType()}' and '${right.getType()}'."
 			)
 		)
 		return null
@@ -410,6 +424,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 
 			is Expr.InitializeStruct -> getTypeFromName(name)!!
 			is Expr.Binary -> Type.Number
+			is Expr.Logical -> Type.Bool
 			is Expr.Grouping -> expression.getType()
 			is Expr.SetVariable -> value.getType()
 			is Expr.GetVariable -> findVariable(variable)!!.type
