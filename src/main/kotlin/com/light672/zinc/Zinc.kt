@@ -16,12 +16,14 @@ object Zinc {
 		internal val out: OutputStream,
 		private val err: OutputStream,
 		internal val debug: Boolean,
+		internal val comprehensiveErrors: Boolean,
+		internal val prattParsing: Boolean
 	) {
 		internal var hadError = false
 
 		fun run() {
 			if (debug) println(Lexer(source).scanTokens())
-			Compiler(this, source).compile()
+			Compiler(this, source, prattParsing).compile()
 		}
 
 		private fun reportRuntimeError(error: ZincException) {
@@ -30,9 +32,7 @@ object Zinc {
 
 		internal fun reportCompileError(error: CompilerError) {
 			err.println(error.message)
-
-
-
+			if (!comprehensiveErrors) return
 			fun linesInRange(range: IntRange) = ArrayList<Triple<Int, String, IntRange>>().also {
 				var len = 0
 				val lines = source.replace("\t", "    ").split("\n")
