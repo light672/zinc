@@ -5,7 +5,7 @@ import com.light672.zinc.lang.compiler.CompilerError
 import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import java.lang.Double.parseDouble
 
-internal class Parser(source: String, private val instance: com.light672.zinc.Zinc.Runtime) {
+internal class RecursiveParser(source: String, private val instance: com.light672.zinc.Zinc.Runtime) {
 	private val lexer: Lexer = Lexer(source)
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
