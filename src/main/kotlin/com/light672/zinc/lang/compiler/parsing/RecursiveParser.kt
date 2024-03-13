@@ -1,11 +1,12 @@
 package com.light672.zinc.lang.compiler.parsing
 
+import com.light672.zinc.Zinc
 import com.light672.zinc.builtin.*
 import com.light672.zinc.lang.compiler.CompilerError
 import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import java.lang.Double.parseDouble
 
-internal class RecursiveParser(source: String, private val instance: com.light672.zinc.Zinc.Runtime) {
+internal class RecursiveParser(source: String, instance: Zinc.Runtime) : Parser(source, instance) {
 	private val lexer: Lexer = Lexer(source)
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
@@ -128,7 +129,7 @@ internal class RecursiveParser(source: String, private val instance: com.light67
 		return Stmt.ExpressionStatement(expression, previous)
 	}
 
-	private fun expression() = assignment()
+	override fun expression() = assignment()
 
 	private fun assignment(): Expr? {
 		val expression = or() ?: return null
@@ -138,7 +139,7 @@ internal class RecursiveParser(source: String, private val instance: com.light67
 				is Expr.GetVariable -> Expr.SetVariable(expression.variable, value)
 				is Expr.GetField -> Expr.SetField(expression.obj, expression.field, value)
 				else -> {
-					instance.reportCompileError(CompilerError.OneRangeError(expression.getRange(), "Invalid assignment target."))
+					runtime.reportCompileError(CompilerError.OneRangeError(expression.getRange(), "Invalid assignment target."))
 					null
 				}
 			}
@@ -257,87 +258,5 @@ internal class RecursiveParser(source: String, private val instance: com.light67
 			expression = Expr.Binary(expression, right, operator)
 		}
 		return expression
-	}
-
-	private fun getNameAndType(variableType: String): Pair<Token, Token>? {
-		expect(IDENTIFIER, "Expected $variableType name.") ?: return null
-		val name = previous
-		expect(COLON, "Expected ':' after $variableType name.") ?: return null
-		expect(IDENTIFIER, "Expected $variableType type after ':'.") ?: return null
-		return Pair(name, previous)
-	}
-
-	private fun getNameAndExpression(variableType: String): Pair<Token, Expr>? {
-		expect(IDENTIFIER, "Expected $variableType name.") ?: return null
-		val name = previous
-		expect(COLON, "Expected ':' after $variableType name.") ?: return null
-		val expression = expression() ?: return null
-		return Pair(name, expression)
-	}
-
-	/**
-	 * Advances the lexer by one token.
-	 * Errors already handled, returns null if an error was found and processed.
-	 */
-	private fun advance(): Unit? {
-		previous = current
-		current = lexer.scanToken()
-		if (current.type == ERROR) {
-			errorAtCurrent(current.lexeme)
-			return null
-		}
-
-		return Unit
-	}
-
-	/**
-	 * Expects a specific token or handles an error.
-	 * Errors already handled, returns null if an error was found and processed.
-	 */
-	private fun expect(type: Token.Type, message: String): Unit? {
-		if (!match(type)) {
-			errorAtCurrent(message)
-			return null
-		}
-		return Unit
-	}
-
-	/**
-	 * Checks if the next token matches the given token, and advances if they do match.
-	 */
-	private fun match(type: Token.Type) =
-		if (isNext(type)) {
-			advance()
-			true
-		} else false
-
-	/**
-	 * Checks if the next token matches one of the given tokens, and advances if they do match.
-	 */
-	private fun match(types: Array<out Token.Type>) =
-		if (current.type in types) {
-			advance()
-			true
-		} else false
-
-	/**
-	 * Checks if the lexer has reached the end of the file.
-	 */
-	private fun end() = current.type == EOF
-
-	/**
-	 * Checks if the next token matches the given token.
-	 */
-	private fun isNext(type: Token.Type) = current.type == type
-
-	/**
-	 * Checks if the next token matches one of the given tokens.
-	 */
-	private fun isNext(vararg types: Token.Type) = current.type in types
-
-	private fun error(message: String) = errorAt(previous, message)
-	private fun errorAtCurrent(message: String) = errorAt(current, message)
-	private fun errorAt(token: Token, message: String) {
-		instance.reportCompileError(CompilerError.TokenError(token, message))
 	}
 }

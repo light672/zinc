@@ -1,7 +1,6 @@
 package com.light672.zinc.lang.compiler.parsing
 
-import com.light672.zinc.lang.compiler.parsing.PrattParser.ParseRule
-import com.light672.zinc.lang.compiler.parsing.PrattParser.Precedence.*
+import com.light672.zinc.lang.compiler.parsing.Precedence.*
 
 internal data class Token(val type: Type, val line: Int, val range: IntRange, val lexeme: String = "") {
 	companion object {
@@ -64,8 +63,8 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		ELIF,
 		RETURN(ParseRule(prefix = PrattParser::returnExpr)),
 		BREAK(ParseRule(prefix = PrattParser::breakExpr)),
-		AND(ParseRule(PrattParser.Precedence.AND, infix = PrattParser::and)),
-		OR(ParseRule(PrattParser.Precedence.OR, infix = PrattParser::or)),
+		AND(ParseRule(Precedence.AND, infix = PrattParser::and)),
+		OR(ParseRule(Precedence.OR, infix = PrattParser::or)),
 		IS,
 		AS,
 		IN,

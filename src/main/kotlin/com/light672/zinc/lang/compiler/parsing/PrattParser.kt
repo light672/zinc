@@ -2,11 +2,10 @@ package com.light672.zinc.lang.compiler.parsing
 
 import com.light672.zinc.Zinc
 import com.light672.zinc.builtin.*
-import com.light672.zinc.lang.compiler.CompilerError
 import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import java.lang.Double.parseDouble
 
-internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
+internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(source, runtime) {
 	private val lexer = Lexer(source)
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
@@ -129,7 +128,7 @@ internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
 		return Stmt.ExpressionStatement(expression, previous)
 	}
 
-	fun expression() = parsePrecedence(Precedence.ASSIGNMENT)
+	override fun expression() = parsePrecedence(Precedence.ASSIGNMENT)
 
 	fun unary(u: Boolean): Expr.Unary? {
 		return Expr.Unary(previous, parsePrecedence(Precedence.UNARY) ?: return null)
@@ -242,67 +241,5 @@ internal class PrattParser(source: String, private val runtime: Zinc.Runtime) {
 		return left
 	}
 
-	private fun getNameAndType(variableType: String): Pair<Token, Token>? {
-		expect(IDENTIFIER, "Expected $variableType name.") ?: return null
-		val name = previous
-		expect(COLON, "Expected ':' after $variableType name.") ?: return null
-		expect(IDENTIFIER, "Expected $variableType type after ':'.") ?: return null
-		return Pair(name, previous)
-	}
 
-	private fun getNameAndExpression(variableType: String): Pair<Token, Expr>? {
-		expect(IDENTIFIER, "Expected $variableType name.") ?: return null
-		val name = previous
-		expect(COLON, "Expected ':' after $variableType name.") ?: return null
-		val expression = expression() ?: return null
-		return Pair(name, expression)
-	}
-
-	private fun advance(): Unit? {
-		previous = current; current = lexer.scanToken(); return if (current.type == ERROR) {
-			errorAtCurrent(current.lexeme); null
-		} else Unit
-	}
-
-	private fun expect(type: Token.Type, message: String) = if (!match(type)) {
-		errorAtCurrent(message); null
-	} else Unit
-
-	private fun match(type: Token.Type) = if (isNext(type)) {
-		advance(); true
-	} else false
-
-	private fun match(types: Array<out Token.Type>) = if (current.type in types) {
-		advance(); true
-	} else false
-
-	private fun end() = current.type == EOF
-	private fun isNext(type: Token.Type) = current.type == type
-	private fun isNext(vararg types: Token.Type) = current.type in types
-	private fun error(message: String) = errorAt(previous, message)
-	private fun errorAtCurrent(message: String) = errorAt(current, message)
-	private fun errorAt(token: Token, message: String) = runtime.reportCompileError(CompilerError.TokenError(token, message))
-
-
-	class ParseRule(
-		val precedence: Precedence = Precedence.NONE,
-		val prefix: (PrattParser.(Boolean) -> Expr?)? = null,
-		val infix: (PrattParser.(Expr, Boolean) -> Expr?)? = null
-	)
-
-	enum class Precedence {
-		NONE,
-		ASSIGNMENT,
-		TERNARY,
-		OR,
-		AND,
-		EQUALITY,
-		COMPARISON,
-		TERM,
-		FACTOR,
-		EXPONENT,
-		UNARY,
-		INIT,
-		CALL
-	}
 }
