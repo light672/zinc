@@ -6,7 +6,7 @@ import com.light672.zinc.lang.compiler.CompilerError
 import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import java.lang.Double.parseDouble
 
-internal class RecursiveReorderParser(source: String, private val instance: Zinc.Runtime) {
+internal class ReorderParser(source: String, private val instance: Zinc.Runtime) {
 	private val lexer: Lexer = Lexer(source)
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
