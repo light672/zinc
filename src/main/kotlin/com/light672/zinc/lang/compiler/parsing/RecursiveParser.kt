@@ -140,7 +140,7 @@ internal class RecursiveParser(source: String, private val instance: com.light67
 	private fun expression() = assignment()
 
 	private fun assignment(): Expr? {
-		val expression = equality() ?: return null
+		val expression = or() ?: return null
 		if (match(EQUAL)) {
 			val value = expression() ?: return null
 			return when (expression) {
@@ -155,6 +155,8 @@ internal class RecursiveParser(source: String, private val instance: com.light67
 		return expression
 	}
 
+	private fun or() = parseLogicalExpression({ and() }, OR)
+	private fun and() = parseLogicalExpression({ equality() }, AND)
 	private fun equality() = parseBinaryExpression({ comparison() }, BANG_EQUAL, EQUAL_EQUAL)
 	private fun comparison() = parseBinaryExpression({ term() }, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)
 	private fun term() = parseBinaryExpression({ factor() }, MINUS, PLUS)
@@ -257,6 +259,16 @@ internal class RecursiveParser(source: String, private val instance: com.light67
 	private fun parseBinaryExpression(next: () -> Expr?, vararg types: Token.Type): Expr? {
 		var expression = next() ?: return null
 		while (match(types)) {
+			val operator = previous
+			val right = next() ?: return null
+			expression = Expr.Binary(expression, right, operator)
+		}
+		return expression
+	}
+
+	private fun parseLogicalExpression(next: () -> Expr?, type: Token.Type): Expr? {
+		var expression = next() ?: return null
+		while (match(type)) {
 			val operator = previous
 			val right = next() ?: return null
 			expression = Expr.Binary(expression, right, operator)
