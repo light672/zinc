@@ -10,12 +10,6 @@ internal class RecursiveParser(source: String, private val instance: com.light67
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
 
-	private var inFunction = FunctionType.NONE
-
-	enum class FunctionType {
-		NONE, UNIT, VALUE
-	}
-
 	internal fun parse(): Triple<ArrayList<Stmt.Struct>, ArrayList<Stmt.Function>, ArrayList<Stmt.VariableDeclaration>> {
 		advance()
 		val functions = ArrayList<Stmt.Function>()
@@ -97,10 +91,7 @@ internal class RecursiveParser(source: String, private val instance: com.light67
 			expect(IDENTIFIER, "Expected function return type after ':'.") ?: return null
 			type = previous
 		}
-		val wasInFunction = inFunction
-		inFunction = type?.let { FunctionType.VALUE } ?: FunctionType.UNIT
 		val block = block("Expected function body.")
-		inFunction = wasInFunction
 		return block?.let { Stmt.Function(declaration, name, list.toTypedArray(), rightParen, type, it, previous) }
 	}
 
@@ -240,17 +231,9 @@ internal class RecursiveParser(source: String, private val instance: com.light67
 			return Expr.Grouping(expression, leftParen, previous)
 		}
 		if (match(RETURN)) {
-			val returnToken = previous
-			val expression = when (inFunction) {
-				FunctionType.NONE -> {
-					error("Cannot return from top level code.")
-					return null
-				}
-
-				FunctionType.UNIT -> null
-				FunctionType.VALUE -> expression() ?: return null
-			}
-			return Expr.Return(returnToken, expression)
+			return if (!isNext(RIGHT_PAREN, SEMICOLON, COMMA, RIGHT_BRACE, RIGHT_BRACKET, ELSE, ELIF))  // only tokens that can come after a return
+				Expr.Return(previous, expression() ?: return null)
+			else Expr.Return(previous, null)
 		}
 		errorAtCurrent("Expected expression.")
 		return null
