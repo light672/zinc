@@ -2,6 +2,6 @@ package com.light672.zinc.lang.compiler.parsing
 
 internal class ParseRule(
 	val precedence: Precedence = Precedence.NONE,
-	val prefix: (Parser.(Boolean) -> Expr?)? = null,
-	val infix: (Parser.(Expr, Boolean) -> Expr?)? = null
+	val prefix: (PrattParser.(Boolean) -> Expr?)? = null,
+	val infix: (PrattParser.(Expr, Boolean) -> Expr?)? = null
 )

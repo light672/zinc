@@ -5,8 +5,8 @@ import com.light672.zinc.lang.compiler.CompilerError
 
 internal sealed class Parser(source: String, val runtime: Zinc.Runtime) {
 	private val lexer = Lexer(source)
-	private var current: Token = Token.empty()
-	private var previous: Token = Token.empty()
+	var current: Token = Token.empty()
+	var previous: Token = Token.empty()
 
 	abstract fun expression(): Expr?
 

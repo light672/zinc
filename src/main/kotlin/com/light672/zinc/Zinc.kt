@@ -8,6 +8,11 @@ import kotlin.math.max
 
 object Zinc {
 
+	enum class ParseType {
+		PRATT,
+		RECURSIVE,
+		REORDER
+	}
 
 	class Runtime internal constructor(
 		private val stackSize: Int,
@@ -17,13 +22,14 @@ object Zinc {
 		private val err: OutputStream,
 		internal val debug: Boolean,
 		internal val comprehensiveErrors: Boolean,
-		internal val prattParsing: Boolean
+		internal val parseType: ParseType
 	) {
+
 		internal var hadError = false
 
 		fun run() {
 			if (debug) println(Lexer(source).scanTokens())
-			Compiler(this, source, prattParsing).compile()
+			Compiler(this, source, parseType).compile()
 		}
 
 		private fun reportRuntimeError(error: ZincException) {

@@ -3,6 +3,8 @@ package com.light672.zinc.lang.compiler.parsing
 import com.light672.zinc.lang.compiler.parsing.Precedence.*
 
 internal data class Token(val type: Type, val line: Int, val range: IntRange, val lexeme: String = "") {
+	val prec get() = type.rule.precedence
+
 	companion object {
 		fun empty(): Token {
 			return Token(Type.NA, 0, 0..0)

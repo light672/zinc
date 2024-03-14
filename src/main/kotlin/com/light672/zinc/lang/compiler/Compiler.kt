@@ -1,11 +1,17 @@
 package com.light672.zinc.lang.compiler
 
+import com.light672.zinc.Zinc
 import com.light672.zinc.lang.compiler.parsing.PrattParser
 import com.light672.zinc.lang.compiler.parsing.RecursiveParser
+import com.light672.zinc.lang.compiler.parsing.ReorderParser
 
-internal class Compiler(val runtime: com.light672.zinc.Zinc.Runtime, val source: String, val prattParsing: Boolean) {
+internal class Compiler(val runtime: Zinc.Runtime, val source: String, val parseType: Zinc.ParseType) {
 	fun compile() {
-		val (structs, functions, variables) = if (prattParsing) PrattParser(source, runtime).parse() else RecursiveParser(source, runtime).parse()
+		val (structs, functions, variables) = when (parseType) {
+			Zinc.ParseType.PRATT -> PrattParser(source, runtime).parse()
+			Zinc.ParseType.RECURSIVE -> RecursiveParser(source, runtime).parse()
+			Zinc.ParseType.REORDER -> ReorderParser(source, runtime).parse()
+		}
 		if (runtime.hadError) return
 		val module = ZincModule(runtime, source, structs, functions, variables)
 		module.types["num"] = Type.Number

@@ -12,8 +12,13 @@ internal sealed class Expr {
 		override fun getRange() = operator.range.first..right.getRange().last
 	}
 
-	class Binary(val left: Expr, val right: Expr, val operator: Token) : Expr() {
+	class Binary(var left: Expr, var right: Expr, val operator: Token) : Expr() {
 		override fun getRange() = left.getRange().first..right.getRange().last
+
+		init {
+			left.owner = this
+			right.owner = this
+		}
 	}
 
 	class Logical(val left: Expr, val right: Expr, val operator: Token) : Expr() {
@@ -58,4 +63,5 @@ internal sealed class Expr {
 
 
 	abstract fun getRange(): IntRange
+	var owner: Binary? = null
 }

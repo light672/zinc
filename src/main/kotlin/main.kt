@@ -24,33 +24,33 @@ fun main() {
 		} ms"
 	)*/
 
-	recvsprattTest(string, true)
+	parserTest(string, true)
 }
 
-fun recvsprattTest(source: String, comprehensiveErrors: Boolean) {
-
-
-	println("pratt parsing\n")
-	var string = source + " "
-	var avg = 0L
-	for (i in 0..100) {
-		val prattRuntime = Zinc.Runtime(256, 256, string, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, true)
-		avg += Zinc.time {
-			prattRuntime.run()
-		}
-		string += " "
+fun parserTest(source: String, comprehensiveErrors: Boolean) {
+	val prattRuntime =
+		Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.PRATT)
+	val recursiveRuntime =
+		Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.RECURSIVE)
+	val reorderRuntime =
+		Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.REORDER)
+	run {
+		println("pratt parsing")
+		var avg = 0L
+		for (i in 0..100) avg += Zinc.time { prattRuntime.run() }
+		println("average: ${avg / 100}ms")
 	}
-	println(avg / 100)
-	println("\nrecursive parsing\n")
-
-	var string2 = source + " "
-	var avg2 = 0L
-	for (i in 0..100) {
-		val recursiveRuntime = Zinc.Runtime(256, 256, string2, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, false)
-		avg2 += Zinc.time {
-			recursiveRuntime.run()
-		}
-		string2 += " "
+	run {
+		println("recursive parsing")
+		var avg = 0L
+		for (i in 0..100) avg += Zinc.time { recursiveRuntime.run() }
+		println("average: ${avg / 100}ms")
 	}
-	println(avg2 / 100)
+	run {
+		println("reorder parsing")
+		var avg = 0L
+		for (i in 0..100) avg += Zinc.time { reorderRuntime.run() }
+		println("average: ${avg / 100}ms")
+	}
+
 }
