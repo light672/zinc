@@ -64,10 +64,14 @@ fun allEqualTest(source: String, comprehensiveErrors: Boolean) {
 	val reorder = ReorderParser(source, runtime).parse()
 	for (i in 0..<pratt.second.size) {
 		val pf = pratt.second[i]
-		val rf = reorder.second[i]
-		println(pf.body.toList())
-		println(rf.body.toList())
+		val recf = recursive.second[i]
+		val reof = reorder.second[i]
+		println("pratt ast : ${pf.body.toList()}")
+		println("recursive ast : ${recf.body.toList()}")
+		println("reorder ast : ${reof.body.toList()}")
 	}
+	println()
 	println("pratt == recursive: ${pratt.first == recursive.first && pratt.second == recursive.second && pratt.third == recursive.third}")
 	println("pratt == reorder: ${pratt.first == reorder.first && pratt.second == reorder.second && pratt.third == reorder.third}")
+	println("reorder == recursive: ${reorder.first == recursive.first && reorder.second == recursive.second && reorder.third == recursive.third}")
 }
