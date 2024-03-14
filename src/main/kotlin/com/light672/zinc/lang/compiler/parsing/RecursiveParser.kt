@@ -251,7 +251,7 @@ internal class RecursiveParser(source: String, instance: Zinc.Runtime) : Parser(
 		while (match(type)) {
 			val operator = previous
 			val right = next() ?: return null
-			expression = Expr.Binary(expression, right, operator)
+			expression = Expr.Logical(expression, right, operator)
 		}
 		return expression
 	}
