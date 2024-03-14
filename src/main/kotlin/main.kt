@@ -66,9 +66,9 @@ fun allEqualTest(source: String, comprehensiveErrors: Boolean) {
 		val pf = pratt.second[i]
 		val recf = recursive.second[i]
 		val reof = reorder.second[i]
-		println("pratt ast : ${pf.body.toList()}")
+		println("pratt ast     : ${pf.body.toList()}")
 		println("recursive ast : ${recf.body.toList()}")
-		println("reorder ast : ${reof.body.toList()}")
+		println("reorder ast   : ${reof.body.toList()}")
 	}
 	println()
 	println("pratt == recursive: ${pratt.first == recursive.first && pratt.second == recursive.second && pratt.third == recursive.third}")
