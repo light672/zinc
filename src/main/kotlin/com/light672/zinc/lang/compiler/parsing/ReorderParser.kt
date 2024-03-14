@@ -285,16 +285,18 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 	private fun Expr.Binary.rotate(): Expr.Binary {
 		val left = left as Expr.Binary
 		this.left = left.right
-		if (owner is Expr.Binary) (owner!! as Expr.Binary).left = left
 		left.right = this
+		left.owner = owner
+		owner = left
 		return left
 	}
 
 	private fun Expr.Logical.rotate(): Expr.Logical {
 		val left = left as Expr.Logical
 		this.left = left.right
-		if (owner is Expr.Logical) (owner!! as Expr.Logical).left = left
 		left.right = this
+		left.owner = owner
+		owner = left
 		return left
 	}
 }

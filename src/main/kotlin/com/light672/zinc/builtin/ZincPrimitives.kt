@@ -1,7 +1,7 @@
 package com.light672.zinc.builtin
 
 
-class ZincNumber(val value: Double) : ZincValue() {
+data class ZincNumber(val value: Double) : ZincValue() {
 	override val name = "number"
 	override fun toString() = value.toString()
 
@@ -12,14 +12,14 @@ class ZincNumber(val value: Double) : ZincValue() {
 	override operator fun rem(b: ZincValue) = ZincNumber(value % (b as ZincNumber).value)
 }
 
-class ZincChar(val value: Char) : ZincValue() {
+data class ZincChar(val value: Char) : ZincValue() {
 	override val name = "char"
 	override fun toString() = value.toString()
 
 	fun toNumber() = ZincNumber((value.code).toDouble())
 }
 
-class ZincString(val value: String) : ZincValue() {
+data class ZincString(val value: String) : ZincValue() {
 	override val name = "string"
 	override fun toString() = value
 
