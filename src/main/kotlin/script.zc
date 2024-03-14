@@ -1,4 +1,5 @@
 func main() {
-	3 + 6 * 4 or 3 + 6 and false;
-	true or false * 5;
+	8 + 6 * 19 + 6 ^ 15 * 11 / 19 - 4 + -4 / 6;
+	true or true or false or true or true or true;
+	8*8*8*8*8*8*8*8;
 }

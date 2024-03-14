@@ -161,8 +161,8 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 	fun trueLiteral(u: Boolean) = Expr.Literal(ZincTrue, previous)
 	fun falseLiteral(u: Boolean) = Expr.Literal(ZincFalse, previous)
 
-	fun or(left: Expr, u: Boolean) = logical(left, Precedence.OR)
-	fun and(left: Expr, u: Boolean) = logical(left, Precedence.AND)
+	fun or(left: Expr, u: Boolean) = logical(left, Precedence.AND)
+	fun and(left: Expr, u: Boolean) = logical(left, Precedence.EQUALITY)
 	fun equality(left: Expr, u: Boolean) = binary(left, Precedence.COMPARISON)
 	fun comparison(left: Expr, u: Boolean) = binary(left, Precedence.TERM)
 	fun term(left: Expr, u: Boolean) = binary(left, Precedence.FACTOR)
