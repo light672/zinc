@@ -128,7 +128,7 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 	override fun expression() = assignment()
 
 	private fun assignment(): Expr? {
-		val expression = or() ?: return null
+		val expression = logical() ?: return null
 		if (match(EQUAL)) {
 			val value = expression() ?: return null
 			return when (expression) {
@@ -143,8 +143,7 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 		return expression
 	}
 
-	private fun or() = parseLogicalExpression({ and() }, OR)
-	private fun and() = parseLogicalExpression({ binary() }, AND)
+	private fun logical() = parseLogicalExpression({ binary() }, OR, AND)
 	private fun binary() = parseBinaryExpression(
 		{ unary() },
 		BANG_EQUAL, EQUAL,
@@ -249,12 +248,12 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 		return expression
 	}
 
-	private fun parseLogicalExpression(next: () -> Expr?, type: Token.Type): Expr? {
+	private fun parseLogicalExpression(next: () -> Expr?, vararg types: Token.Type): Expr? {
 		var expression = next() ?: return null
-		while (match(type)) {
+		while (match(types)) {
 			val operator = previous
 			val right = next() ?: return null
-			expression = Expr.Logical(expression, right, operator)
+			expression = sortByPrecedence(Expr.Logical(expression, right, operator))
 		}
 		return expression
 	}
@@ -267,14 +266,34 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 				expr.rotate()
 			else left
 		}
-		while (expr.owner is Expr.Binary) expr = expr.owner!!
+		while (expr.owner is Expr.Binary) expr = expr.owner!! as Expr.Binary
+		return expr
+	}
+
+	private fun sortByPrecedence(bin: Expr.Logical): Expr.Logical {
+		var expr = bin
+		while (expr.left is Expr.Logical) {
+			val left = expr.left as Expr.Logical
+			expr = if (expr.operator.prec.ordinal > left.operator.prec.ordinal)
+				expr.rotate()
+			else left
+		}
+		while (expr.owner is Expr.Logical) expr = expr.owner!! as Expr.Logical
 		return expr
 	}
 
 	private fun Expr.Binary.rotate(): Expr.Binary {
 		val left = left as Expr.Binary
 		this.left = left.right
-		if (owner is Expr.Binary) owner!!.left = left
+		if (owner is Expr.Binary) (owner!! as Expr.Binary).left = left
+		left.right = this
+		return left
+	}
+
+	private fun Expr.Logical.rotate(): Expr.Logical {
+		val left = left as Expr.Logical
+		this.left = left.right
+		if (owner is Expr.Logical) (owner!! as Expr.Logical).left = left
 		left.right = this
 		return left
 	}
