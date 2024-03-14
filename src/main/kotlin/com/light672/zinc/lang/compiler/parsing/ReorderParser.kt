@@ -262,9 +262,12 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 		var expr = bin
 		while (expr.left is Expr.Binary) {
 			val left = expr.left as Expr.Binary
-			expr = if (expr.operator.prec.ordinal > left.operator.prec.ordinal)
-				expr.rotate()
-			else left
+			if (expr.operator.prec.ordinal > left.operator.prec.ordinal)
+				expr = expr.rotate()
+			else {
+				expr = left
+				break
+			}
 		}
 		while (expr.owner is Expr.Binary) expr = expr.owner!! as Expr.Binary
 		return expr
@@ -274,9 +277,12 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 		var expr = bin
 		while (expr.left is Expr.Logical) {
 			val left = expr.left as Expr.Logical
-			expr = if (expr.operator.prec.ordinal > left.operator.prec.ordinal)
-				expr.rotate()
-			else left
+			if (expr.operator.prec.ordinal > left.operator.prec.ordinal)
+				expr = expr.rotate()
+			else {
+				expr = left
+				break
+			}
 		}
 		while (expr.owner is Expr.Logical) expr = expr.owner!! as Expr.Logical
 		return expr
