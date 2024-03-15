@@ -260,32 +260,20 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 
 	private fun sortByPrecedence(bin: Expr.Binary): Expr.Binary {
 		var expr = bin
-		while (expr.left is Expr.Binary) {
+		if (expr.left is Expr.Binary) {
 			val left = expr.left as Expr.Binary
-			if (expr.operator.prec.ordinal > left.operator.prec.ordinal)
-				expr = expr.rotate()
-			else {
-				expr = left
-				break
-			}
+			expr = if (expr.operator.prec.ordinal > left.operator.prec.ordinal) expr.rotate() else left
 		}
-		while (expr.owner is Expr.Binary) expr = expr.owner!! as Expr.Binary
-		return expr
+		return expr.owner as Expr.Binary? ?: expr
 	}
 
 	private fun sortByPrecedence(bin: Expr.Logical): Expr.Logical {
 		var expr = bin
-		while (expr.left is Expr.Logical) {
+		if (expr.left is Expr.Logical) {
 			val left = expr.left as Expr.Logical
-			if (expr.operator.prec.ordinal > left.operator.prec.ordinal)
-				expr = expr.rotate()
-			else {
-				expr = left
-				break
-			}
+			expr = if (expr.operator.prec.ordinal > left.operator.prec.ordinal) expr.rotate() else left
 		}
-		while (expr.owner is Expr.Logical) expr = expr.owner!! as Expr.Logical
-		return expr
+		return expr.owner as Expr.Logical? ?: expr
 	}
 
 	private fun Expr.Binary.rotate(): Expr.Binary {
@@ -293,7 +281,6 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 		this.left = left.right
 		left.right = this
 		left.owner = owner
-		owner = left
 		return left
 	}
 
@@ -302,7 +289,6 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 		this.left = left.right
 		left.right = this
 		left.owner = owner
-		owner = left
 		return left
 	}
 }

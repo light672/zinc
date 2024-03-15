@@ -27,6 +27,7 @@ fun main() {
 		} ms"
 	)*/
 	allEqualTest(string, true)
+	parserTest(string, true)
 }
 
 fun parserTest(source: String, comprehensiveErrors: Boolean) {
