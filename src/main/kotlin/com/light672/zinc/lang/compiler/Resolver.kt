@@ -7,17 +7,10 @@ import com.light672.zinc.builtin.ZincString
 import com.light672.zinc.lang.compiler.parsing.Expr
 import com.light672.zinc.lang.compiler.parsing.Stmt
 import com.light672.zinc.lang.compiler.parsing.Token
-import java.util.*
 
 internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module: ZincModule) {
-	private val locals = Stack<HashMap<String, Declaration>>()
-	private val localTypes = Stack<HashMap<String, Type>>()
 
-	private val currentVars get() = if (locals.empty()) module.globals else locals.peek()
-	private val currentTypes get() = if (localTypes.empty()) module.types else localTypes.peek()
-	private val inGlobal get() = locals.empty()
-
-	private var funReturnType: Type? = null
+	private var currentScope = module.globals
 
 	fun Stmt.resolve(): Unit? {
 		return when (this) {
@@ -29,19 +22,20 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 	}
 
 	fun Stmt.Struct.resolve(): Type.Struct? {
-		if (currentTypes[name.lexeme] != null) {
+		if (currentScope.structs[name.lexeme] != null || currentScope.types[name.lexeme] != null) {
 			runtime.reportCompileError(
 				CompilerError.TwoRangeError(
-					currentVars[name.lexeme]!!.statement.getRange(), getRange(),
-					"Struct '${currentVars[name.lexeme]!!.name}' first declared here.",
+					currentScope.structs[name.lexeme]!!.statement.getRange(), getRange(),
+					"Type '${currentScope.structs[name.lexeme]!!.type.name}' first declared here.",
 					"'${name.lexeme}' declared here again.",
-					"Struct '${name.lexeme}' declared with same name as other function in the same scope."
+					"Type '${name.lexeme}' declared with same name as other type in the same scope."
 				)
 			)
 			return null
 		}
-		val type = Type.Struct(name.lexeme, HashMap<String, Pair<IntRange, Type>>())
-		currentTypes[name.lexeme] = type
+		val type = Type.Struct(name.lexeme, HashMap())
+		currentScope.structs[name.lexeme] = Struct(type, this)
+		currentScope.types[name.lexeme] = type
 		return type
 	}
 
@@ -64,7 +58,12 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 	fun Stmt.VariableDeclaration.resolve(): Unit? {
 		val mutable = declaration.type == Token.Type.VAR
 		if (initializer != null) initializer.resolve() ?: return null
-		if (inGlobal) initializer ?: runtime.reportCompileError(CompilerError.OneRangeError(getRange(), "Global variables must have an initializer."))
+		if (currentScope.parent == null) initializer ?: runtime.reportCompileError(
+			CompilerError.OneRangeError(
+				getRange(),
+				"Global variables must have an initializer."
+			)
+		)
 		val declaredType = if (type != null) getTypeFromName(type) ?: return null else null
 		val initializerType = initializer?.getType()
 
@@ -79,21 +78,10 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		}
 
 		val type = declaredType ?: initializerType!!
-		if (currentVars[name.lexeme]?.function == true) {
+		if (currentScope.parent == null && currentScope.variables[name.lexeme] != null) {
 			runtime.reportCompileError(
 				CompilerError.TwoRangeError(
-					currentVars[name.lexeme]!!.statement.getRange(), getRange(),
-					"Function '${currentVars[name.lexeme]!!.name}' first declared here.",
-					"'${name.lexeme}' declared here again.",
-					"Variable '${name.lexeme}' declared with same name as function in the same scope."
-				)
-			)
-			return null
-		}
-		if (inGlobal && currentVars[name.lexeme] != null) {
-			runtime.reportCompileError(
-				CompilerError.TwoRangeError(
-					currentVars[name.lexeme]!!.statement.getRange(), getRange(),
+					currentScope.variables[name.lexeme]!!.statement.getRange(), getRange(),
 					"'${name.lexeme}' first declared here in top level scope.",
 					"'${name.lexeme}' declared again in top level scope.",
 					"'${name.lexeme} can only be declared once in top level scope."
@@ -102,7 +90,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			return null
 		}
 
-		currentVars[name.lexeme] = Declaration(name.lexeme, type, mutable, this, initializer?.getRange(), false)
+		currentScope.variables[name.lexeme] = Declaration(name.lexeme, type, mutable, this, initializer?.getRange(), false)
 		return Unit
 	}
 
@@ -113,8 +101,8 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 				val pair = statement.arguments[index]
 				val name = pair.first.lexeme
 				val range = pair.first.range.first..pair.second.range.last
-				if (currentVars[name] != null) {
-					val current = currentVars[name]!!
+				if (currentScope.variables[name] != null) {
+					val current = currentScope.variables[name]!!
 					runtime.reportCompileError(
 						CompilerError.TwoRangeError(
 							current.initRange!!, range,
@@ -125,7 +113,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 					)
 					return
 				}
-				currentVars[name] = Declaration(name, paramType, false, statement, range, false)
+				currentScope.variables[name] = Declaration(name, paramType, false, statement, range, false)
 			}
 			for (stmt in statement.body) stmt.resolve()
 		}
@@ -145,21 +133,10 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 
 		if (paramTypeError) return null
 		val params = Array(paramTypes.size) { i -> paramTypes[i]!! }
-		if (currentVars[name.lexeme]?.function == true) {
+		if (currentScope.parent == null && currentScope.variables[name.lexeme] != null) {
 			runtime.reportCompileError(
 				CompilerError.TwoRangeError(
-					currentVars[name.lexeme]!!.statement.getRange(), getRange(),
-					"Function '${currentVars[name.lexeme]!!.name}' first declared here.",
-					"'${name.lexeme}' declared here again.",
-					"Function '${name.lexeme}' declared with same name as other function in the same scope."
-				)
-			)
-			return null
-		}
-		if (inGlobal && currentVars[name.lexeme] != null) {
-			runtime.reportCompileError(
-				CompilerError.TwoRangeError(
-					currentVars[name.lexeme]!!.statement.getRange(), getRange(),
+					currentScope.variables[name.lexeme]!!.statement.getRange(), getRange(),
 					"'${name.lexeme}' first declared here in top level scope.",
 					"'${name.lexeme}' declared again in top level scope.",
 					"'${name.lexeme} can only be declared once in top level scope."
@@ -171,7 +148,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		declaredType ?: return null
 
 		val declaration = Declaration(name.lexeme, Type.Function(params, declaredType), false, this, getRange(), true)
-		currentVars[name.lexeme] = declaration
+		currentScope.variables[name.lexeme] = declaration
 		return declaration
 	}
 
@@ -195,12 +172,12 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 	fun Expr.Return.resolve(): Unit? {
 		if (expression != null) expression.resolve() ?: return null
 		val type = expression?.getType() ?: Type.Unit
-		funReturnType ?: throw IllegalArgumentException("Somehow top level return got past parsing.")
-		if (funReturnType != type) {
+		currentScope.funReturnType ?: throw IllegalArgumentException("Somehow top level return got past parsing.")
+		if (currentScope.funReturnType != type) {
 			runtime.reportCompileError(
 				CompilerError.OneRangeError(
 					getRange(),
-					"Return type '$type' does not match function return type of '$funReturnType'."
+					"Return type '$type' does not match function return type of '${currentScope.funReturnType}'."
 				)
 			)
 			return null
@@ -355,30 +332,21 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 	}
 
 	fun Expr.InitializeStruct.resolve(): Unit? {
-		val type = getTypeFromName(name) ?: return null
-		if (type !is Type.Struct) {
-			runtime.reportCompileError(
-				CompilerError.TokenError(
-					name,
-					"Struct or variant '${name.lexeme}' does not exist in the current scope."
-				)
-			)
-			return null
-		}
-		val map = type.fields.clone() as HashMap<String, Pair<IntRange, Expr>>
+		val struct = findStruct(name) ?: return null
+		val map = struct.type.fields.clone() as HashMap<String, Pair<IntRange, Expr>>
 		for ((name, expression) in fields) {
-			if (!type.fields.containsKey(name.lexeme)) {
-				runtime.reportCompileError(CompilerError.TokenError(name, "Struct '${type}' does not have field '${name.lexeme}'."))
+			if (!struct.type.fields.containsKey(name.lexeme)) {
+				runtime.reportCompileError(CompilerError.TokenError(name, "Struct '${struct}' does not have field '${name.lexeme}'."))
 				return null
 			}
 			expression.resolve()
-			if (expression.getType() != type.fields[name.lexeme]!!.second) {
+			if (expression.getType() != struct.type.fields[name.lexeme]!!.second) {
 				runtime.reportCompileError(
 					CompilerError.TwoRangeError(
-						type.fields[name.lexeme]!!.first, name.range.first..expression.getRange().last,
-						"Declared with type '${type.fields[name.lexeme]!!.second}'.",
+						struct.type.fields[name.lexeme]!!.first, name.range.first..expression.getRange().last,
+						"Declared with type '${struct.type.fields[name.lexeme]!!.second}'.",
 						"Set with type '${expression.getType()}'.",
-						"Value being set to '$type::${name.lexeme}' has type '${expression.getType()}', while '$type::${name.lexeme}' is type '${type.fields[name.lexeme]!!.second}'."
+						"Value being set to '$struct::${name.lexeme}' has type '${expression.getType()}', while '$struct::${name.lexeme}' is type '${struct.type.fields[name.lexeme]!!.second}'."
 					)
 				)
 				return null
@@ -406,9 +374,27 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 
 
 	fun findVariable(name: Token): Declaration? {
-		for (map in locals) if (map[name.lexeme] != null) return map[name.lexeme]
-		if (module.globals[name.lexeme] != null) return module.globals[name.lexeme]
+		var scope: Scope? = currentScope
+		while (scope != null) {
+			if (scope.variables[name.lexeme] != null) return scope.variables[name.lexeme]
+			scope = scope.parent
+		}
 		runtime.reportCompileError(CompilerError.TokenError(name, "Variable '${name.lexeme}' does not exist in the current scope."))
+		return null
+	}
+
+	fun findStruct(name: Token): Struct? {
+		var scope: Scope? = currentScope
+		while (scope != null) {
+			if (scope.structs[name.lexeme] != null) return scope.structs[name.lexeme]
+			scope = scope.parent
+		}
+		runtime.reportCompileError(
+			CompilerError.TokenError(
+				name,
+				"Struct or variant '${name.lexeme}' does not exist in the current scope."
+			)
+		)
 		return null
 	}
 
@@ -422,7 +408,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 				else -> throw IllegalArgumentException("Should not be possible")
 			}
 
-			is Expr.InitializeStruct -> getTypeFromName(name)!!
+			is Expr.InitializeStruct -> findStruct(name)!!.type
 			is Expr.Binary -> Type.Number
 			is Expr.Logical -> Type.Bool
 			is Expr.Grouping -> expression.getType()
@@ -444,20 +430,19 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 	}
 
 	fun getTypeFromName(name: Token): Type? {
-		for (map in localTypes) if (map[name.lexeme] != null) return map[name.lexeme]
-		if (module.types[name.lexeme] != null) return module.types[name.lexeme]
+		var scope: Scope? = currentScope
+		while (scope != null) {
+			if (scope.types[name.lexeme] != null) return scope.types[name.lexeme]
+			scope = scope.parent
+		}
 		runtime.reportCompileError(CompilerError.TokenError(name, "Type '${name.lexeme}' does not exist in the current scope."))
 		return null
 	}
 
-	private inline fun scope(functionType: Type? = funReturnType, block: () -> Unit) {
-		val prevReturnType = funReturnType
-		funReturnType = functionType
-		locals.push(HashMap())
-		localTypes.push(HashMap())
+
+	private inline fun scope(functionType: Type? = currentScope.funReturnType, block: () -> Unit) {
+		currentScope = Scope(currentScope, functionType)
 		block()
-		locals.pop()
-		localTypes.pop()
-		funReturnType = prevReturnType
+		currentScope = currentScope.parent!!
 	}
 }

@@ -1,6 +1,6 @@
 package com.light672.zinc.lang.compiler
 
-sealed class Type {
+internal sealed class Type {
 	data object Number : Type() {
 		override fun toString() = "num"
 	}

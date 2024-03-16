@@ -14,20 +14,21 @@ internal class Compiler(val runtime: Zinc.Runtime, val source: String, val parse
 		}
 		if (runtime.hadError) return
 		val module = ZincModule(runtime, source, structs, functions, variables)
-		module.types["num"] = Type.Number
-		module.types["str"] = Type.String
-		val structDeclarations = Array(structs.size) { i -> with(module.resolver) { structs[i].resolve() } }
+		val resolver = Resolver(runtime, module)
+		module.globals.types["num"] = Type.Number
+		module.globals.types["str"] = Type.String
+		val structDeclarations = Array(structs.size) { i -> with(resolver) { structs[i].resolve() } }
 		for ((i, struct) in structDeclarations.withIndex()) {
 			struct ?: continue
-			with(module.resolver) { struct.resolveStructInside(structs[i].fields) }
+			with(resolver) { struct.resolveStructInside(structs[i].fields) }
 		}
-		val functionDeclarations = Array(functions.size) { i -> with(module.resolver) { functions[i].resolve() } }
+		val functionDeclarations = Array(functions.size) { i -> with(resolver) { functions[i].resolve() } }
 		if (runtime.hadError) return
-		for (variable in variables) with(module.resolver) { variable.resolve() }
+		for (variable in variables) with(resolver) { variable.resolve() }
 		if (runtime.hadError) return
 		for (function in functionDeclarations) {
 			function ?: continue
-			with(module.resolver) { function.resolveFunctionBlock() }
+			with(resolver) { function.resolveFunctionBlock() }
 		}
 	}
 }

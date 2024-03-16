@@ -7,54 +7,83 @@ import java.nio.charset.Charset
 
 
 fun main() {
+	val warmupString = """
+		struct MyStruct {
+			a: num
+		}
+
+		func main() {
+			val init = MyStruct {a: 3};
+			val a = init.a + add(init.a, 3);
+		}
+
+		func add(a: num, b: num): num {
+			return a + b;
+		}
+	""".trimIndent()
 	val string = File("src/main/kotlin/script.zc").readBytes().toString(Charset.defaultCharset())
-	/*println(
-		"${
-			Zinc.time {
-				val runtime =
-					Zinc.Runtime(
-						256,
-						256,
-						string,
-						Zinc.SystemOutputStream,
-						Zinc.SystemErrorStream,
-						true,
-						false,
-						false
-					)
-				runtime.run()
-			}
-		} ms"
-	)*/
-	allEqualTest(string, true)
-	parserTest(string, true)
+	run {
+		print("[PRATT] warmup: ")
+		val warmupRuntime =
+			Zinc.Runtime(256, 256, warmupString, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, false, Zinc.ParseType.PRATT)
+		for (i in 0..<100000) {
+			warmupRuntime.run()
+			if (i % 1000 == 0)
+				print("#")
+		}
+	}
+	println()
+	run {
+		print("[REORDER] warmup: ")
+		val warmupRuntime =
+			Zinc.Runtime(256, 256, warmupString, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, false, Zinc.ParseType.REORDER)
+		for (i in 0..<100000) {
+			warmupRuntime.run()
+			if (i % 1000 == 0)
+				print("#")
+		}
+	}
+	println()
+	run {
+		print("[RECURSIVE] warmup: ")
+		val warmupRuntime =
+			Zinc.Runtime(256, 256, warmupString, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, false, Zinc.ParseType.RECURSIVE)
+		for (i in 0..<100000) {
+			warmupRuntime.run()
+			if (i % 1000 == 0)
+				print("#")
+		}
+	}
+	println()
+	parserTest(string, true, Zinc.ParseType.RECURSIVE)
+	parserTest(string, true, Zinc.ParseType.REORDER)
+	parserTest(string, true, Zinc.ParseType.PRATT)
 }
 
-fun parserTest(source: String, comprehensiveErrors: Boolean) {
-	val prattRuntime =
-		Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.PRATT)
-	val recursiveRuntime =
-		Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.RECURSIVE)
-	val reorderRuntime =
-		Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.REORDER)
-	run {
-		println("pratt parsing")
-		var avg = 0L
-		for (i in 0..100) avg += Zinc.time { prattRuntime.run() }
-		println("average: ${avg / 100}ms")
+fun parserTest(source: String, comprehensiveErrors: Boolean, type: Zinc.ParseType) {
+	when (type) {
+		Zinc.ParseType.PRATT -> {
+			val prattRuntime =
+				Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.PRATT)
+			println("pratt parsing")
+			println("time: ${Zinc.time { prattRuntime.run() }}ms")
+		}
+
+		Zinc.ParseType.RECURSIVE -> {
+			val recursiveRuntime =
+				Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.RECURSIVE)
+			println("recursive parsing")
+			println("time: ${Zinc.time { recursiveRuntime.run() }}ms")
+		}
+
+		Zinc.ParseType.REORDER -> {
+			val reorderRuntime =
+				Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.REORDER)
+			println("reorder parsing")
+			println("time: ${Zinc.time { reorderRuntime.run() }}ms")
+		}
 	}
-	run {
-		println("recursive parsing")
-		var avg = 0L
-		for (i in 0..100) avg += Zinc.time { recursiveRuntime.run() }
-		println("average: ${avg / 100}ms")
-	}
-	run {
-		println("reorder parsing")
-		var avg = 0L
-		for (i in 0..100) avg += Zinc.time { reorderRuntime.run() }
-		println("average: ${avg / 100}ms")
-	}
+
 
 }
 
@@ -75,4 +104,25 @@ fun allEqualTest(source: String, comprehensiveErrors: Boolean) {
 	println("pratt == recursive: ${pratt.first == recursive.first && pratt.second == recursive.second && pratt.third == recursive.third}")
 	println("pratt == reorder: ${pratt.first == reorder.first && pratt.second == reorder.second && pratt.third == reorder.third}")
 	println("reorder == recursive: ${reorder.first == recursive.first && reorder.second == recursive.second && reorder.third == recursive.third}")
+}
+
+fun normalTest(source: String, comprehensiveErrors: Boolean) {
+	val runtime =
+		Zinc.Runtime(
+			256,
+			256,
+			source,
+			Zinc.SystemOutputStream,
+			Zinc.SystemErrorStream,
+			false,
+			comprehensiveErrors,
+			Zinc.ParseType.REORDER
+		)
+	println(
+		"${
+			Zinc.time {
+				runtime.run()
+			}
+		} ms"
+	)
 }

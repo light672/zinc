@@ -9,7 +9,5 @@ internal class ZincModule(
 	val functions: ArrayList<Stmt.Function>,
 	val variables: ArrayList<Stmt.VariableDeclaration>
 ) {
-	val globals = HashMap<String, Declaration>()
-	val types = HashMap<String, Type>()
-	val resolver = Resolver(runtime, this)
+	val globals = Scope()
 }
