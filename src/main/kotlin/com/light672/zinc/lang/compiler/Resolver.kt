@@ -17,7 +17,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			is Stmt.Struct -> throw IllegalArgumentException("Struct should never be resolved from this function.")
 			is Stmt.Function -> throw IllegalArgumentException("Function should never be resolved from this function.")
 			is Stmt.VariableDeclaration -> resolve()
-			is Stmt.ExpressionStatement -> expression.resolve()
+			is Stmt.ExpressionStatement -> expression.resolve()?.let { Unit }
 		}
 	}
 
@@ -57,7 +57,6 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 
 	fun Stmt.VariableDeclaration.resolve(): Unit? {
 		val mutable = declaration.type == Token.Type.VAR
-		if (initializer != null) initializer.resolve() ?: return null
 		if (currentScope.parent == null) initializer ?: runtime.reportCompileError(
 			CompilerError.OneRangeError(
 				getRange(),
@@ -65,7 +64,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			)
 		)
 		val declaredType = if (type != null) getTypeFromName(type) ?: return null else null
-		val initializerType = initializer?.getType()
+		val initializerType = initializer?.let { it.resolve() ?: return null }
 
 		if (declaredType != null && initializerType != null && declaredType != initializerType) {
 			runtime.reportCompileError(
@@ -152,9 +151,19 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return declaration
 	}
 
-	fun Expr.resolve(): Unit? {
+	fun Expr.resolve(): Type? {
 		return when (this) {
-			is Expr.Literal, is Expr.Unit -> {}
+			is Expr.Literal -> {
+				when (value) {
+					is ZincNumber -> Type.Number
+					is ZincBoolean -> Type.Bool
+					is ZincChar -> Type.Char
+					is ZincString -> Type.String
+					else -> throw IllegalArgumentException("how did you even mess this up")
+				}
+			}
+
+			is Expr.Unit -> Type.Unit
 			is Expr.Grouping -> expression.resolve()
 			is Expr.Return -> resolve()
 			is Expr.Unary -> resolve()
@@ -169,9 +178,8 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		}
 	}
 
-	fun Expr.Return.resolve(): Unit? {
-		if (expression != null) expression.resolve() ?: return null
-		val type = expression?.getType() ?: Type.Unit
+	fun Expr.Return.resolve(): Type? {
+		val type = expression?.let { it.resolve() ?: return null } ?: Type.Unit
 		currentScope.funReturnType ?: throw IllegalArgumentException("Somehow top level return got past parsing.")
 		if (currentScope.funReturnType != type) {
 			runtime.reportCompileError(
@@ -182,21 +190,21 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			)
 			return null
 		}
-		return Unit
+		return Type.Nothing
 	}
 
-	fun Expr.Unary.resolve(): Unit? {
-		right.resolve() ?: return null
+	fun Expr.Unary.resolve(): Type? {
+		val type = right.resolve() ?: return null
 		return when (operator.type) {
 			Token.Type.BANG -> {
-				if (right.getType() == Type.Bool) return Unit
-				runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '!' on ${right.getType()}"))
+				if (type == Type.Bool) return Type.Bool
+				runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '!' on $type"))
 				null
 			}
 
 			Token.Type.MINUS -> {
-				if (right.getType() == Type.Number) return Unit
-				runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '-' on ${right.getType()}"))
+				if (type == Type.Number) return Type.Number
+				runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '-' on $type"))
 				null
 			}
 
@@ -204,33 +212,33 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		}
 	}
 
-	fun Expr.Binary.resolve(): Unit? {
-		left.resolve() ?: return null
-		right.resolve() ?: return null
-		if (left.getType() == Type.Number && right.getType() == Type.Number) return Unit
+	fun Expr.Binary.resolve(): Type? {
+		val leftType = left.resolve() ?: return null
+		val rightType = right.resolve() ?: return null
+		if (leftType == Type.Number && rightType == Type.Number) return Type.Number
 		runtime.reportCompileError(
 			CompilerError.OneRangeError(
 				getRange(),
-				"Cannot perform binary '${operator.lexeme}' on '${left.getType()}' and '${right.getType()}'."
+				"Cannot perform binary '${operator.lexeme}' on '$leftType' and '$rightType'."
 			)
 		)
 		return null
 	}
 
-	fun Expr.Logical.resolve(): Unit? {
-		left.resolve() ?: return null
-		right.resolve() ?: return null
-		if (left.getType() == Type.Bool && right.getType() == Type.Bool) return Unit
+	fun Expr.Logical.resolve(): Type? {
+		val leftType = left.resolve() ?: return null
+		val rightType = right.resolve() ?: return null
+		if (leftType == Type.Bool && rightType == Type.Bool) return Type.Bool
 		runtime.reportCompileError(
 			CompilerError.OneRangeError(
 				getRange(),
-				"Cannot perform logical '${operator.lexeme}' on '${left.getType()}' and '${right.getType()}'."
+				"Cannot perform logical '${operator.lexeme}' on '$leftType' and '$rightType'."
 			)
 		)
 		return null
 	}
 
-	fun Expr.GetVariable.resolve(): Unit? {
+	fun Expr.GetVariable.resolve(): Type? {
 		val variable = findVariable(variable) ?: return null
 		if (variable.initRange == null) {
 			runtime.reportCompileError(
@@ -243,13 +251,12 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			)
 			return null
 		}
-		return Unit
+		return variable.type
 	}
 
-	fun Expr.SetVariable.resolve(): Unit? {
+	fun Expr.SetVariable.resolve(): Type? {
 		val variable = findVariable(variable) ?: return null
-		value.resolve() ?: return null
-		val expressionType = value.getType()
+		val expressionType = value.resolve() ?: return null
 		if (variable.type != expressionType) {
 			runtime.reportCompileError(
 				CompilerError.TwoRangeError(
@@ -262,12 +269,11 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			return null
 		}
 		if (variable.initRange == null) variable.initRange = getRange()
-		return Unit
+		return expressionType
 	}
 
-	fun Expr.GetField.resolve(): Unit? {
-		obj.resolve() ?: return null
-		val type = obj.getType()
+	fun Expr.GetField.resolve(): Type? {
+		val type = obj.resolve() ?: return null
 		if (type !is Type.Struct) {
 			runtime.reportCompileError(CompilerError.OneRangeError(obj.getRange(), "Cannot get field using '.' on type '$type'."))
 			return null
@@ -276,13 +282,12 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			runtime.reportCompileError(CompilerError.TokenError(field, "Field '${field.lexeme}' does not exist in struct '$type'."))
 			return null
 		}
-		return Unit
+		return type.fields[field.lexeme]!!.second
 	}
 
-	fun Expr.SetField.resolve(): Unit? {
-		obj.resolve() ?: return null
-		value.resolve()
-		val type = obj.getType()
+	fun Expr.SetField.resolve(): Type? {
+		val type = obj.resolve() ?: return null
+		val setType = value.resolve()
 		if (type !is Type.Struct) {
 			runtime.reportCompileError(CompilerError.OneRangeError(obj.getRange(), "Cannot get field using '.' on type '$type'."))
 			return null
@@ -291,7 +296,6 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			runtime.reportCompileError(CompilerError.TokenError(field, "Field '${field.lexeme}' does not exist in struct '$type'."))
 			return null
 		}
-		val setType = value.getType()
 		val declaredType = type.fields[field.lexeme]!!.second
 		if (setType != declaredType) {
 			runtime.reportCompileError(
@@ -304,14 +308,13 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			)
 			return null
 		}
-		return Unit
+		return setType
 	}
 
-	fun Expr.Call.resolve(): Unit? {
-		callee.resolve() ?: return null
-		val calleeType = callee.getType()
+	fun Expr.Call.resolve(): Type? {
+		val calleeType = callee.resolve() ?: return null
 		if (calleeType is Type.Function) {
-			val argTypes = Array(calleeType.parameters.size) { i -> arguments[i].getType() }
+			val argTypes = Array(calleeType.parameters.size) { i -> arguments[i].resolve() ?: return null }
 			if (!argTypes.contentEquals(calleeType.parameters)) {
 				runtime.reportCompileError(
 					CompilerError.OneRangeError(
@@ -325,13 +328,13 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 				)
 				return null
 			}
-			return Unit
+			return calleeType.returnType
 		}
 		runtime.reportCompileError(CompilerError.OneRangeError(callee.getRange(), "Can only call callable types, instead got '$calleeType'."))
 		return null
 	}
 
-	fun Expr.InitializeStruct.resolve(): Unit? {
+	fun Expr.InitializeStruct.resolve(): Type? {
 		val struct = findStruct(name) ?: return null
 		val map = struct.type.fields.clone() as HashMap<String, Pair<IntRange, Expr>>
 		for ((name, expression) in fields) {
@@ -339,14 +342,14 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 				runtime.reportCompileError(CompilerError.TokenError(name, "Struct '${struct}' does not have field '${name.lexeme}'."))
 				return null
 			}
-			expression.resolve()
-			if (expression.getType() != struct.type.fields[name.lexeme]!!.second) {
+			val exprType = expression.resolve() ?: return null
+			if (exprType != struct.type.fields[name.lexeme]!!.second) {
 				runtime.reportCompileError(
 					CompilerError.TwoRangeError(
 						struct.type.fields[name.lexeme]!!.first, name.range.first..expression.getRange().last,
 						"Declared with type '${struct.type.fields[name.lexeme]!!.second}'.",
-						"Set with type '${expression.getType()}'.",
-						"Value being set to '$struct::${name.lexeme}' has type '${expression.getType()}', while '$struct::${name.lexeme}' is type '${struct.type.fields[name.lexeme]!!.second}'."
+						"Set with type '$exprType'.",
+						"Value being set to '$struct::${name.lexeme}' has type '$exprType', while '$struct::${name.lexeme}' is type '${struct.type.fields[name.lexeme]!!.second}'."
 					)
 				)
 				return null
@@ -354,7 +357,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			}
 			map.remove(name.lexeme)
 		}
-		if (map.isEmpty()) return Unit
+		if (map.isEmpty()) return struct.type
 		runtime.reportCompileError(
 			CompilerError.OneRangeError(getRange(), "Struct declaration is missing fields ${
 				run {
@@ -398,36 +401,6 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return null
 	}
 
-	fun Expr.getType(): Type {
-		return when (this) {
-			is Expr.Return -> Type.Nothing
-			is Expr.Unit -> Type.Unit
-			is Expr.Unary -> when (operator.type) {
-				Token.Type.MINUS -> Type.Number
-				Token.Type.BANG -> Type.Bool
-				else -> throw IllegalArgumentException("Should not be possible")
-			}
-
-			is Expr.InitializeStruct -> findStruct(name)!!.type
-			is Expr.Binary -> Type.Number
-			is Expr.Logical -> Type.Bool
-			is Expr.Grouping -> expression.getType()
-			is Expr.SetVariable -> value.getType()
-			is Expr.GetVariable -> findVariable(variable)!!.type
-			is Expr.SetField -> value.getType()
-			is Expr.GetField -> (obj.getType() as Type.Struct).fields[field.lexeme]!!.second
-			is Expr.Call -> (callee.getType() as Type.Function).returnType
-			is Expr.Literal -> {
-				when (value) {
-					is ZincNumber -> Type.Number
-					is ZincBoolean -> Type.Bool
-					is ZincChar -> Type.Char
-					is ZincString -> Type.String
-					else -> throw IllegalArgumentException("how did you even mess this up")
-				}
-			}
-		}
-	}
 
 	fun getTypeFromName(name: Token): Type? {
 		var scope: Scope? = currentScope
