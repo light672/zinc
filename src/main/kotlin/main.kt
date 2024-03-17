@@ -4,9 +4,14 @@ import com.light672.zinc.lang.compiler.parsing.RecursiveParser
 import com.light672.zinc.lang.compiler.parsing.ReorderParser
 import java.io.File
 import java.nio.charset.Charset
+import kotlin.concurrent.thread
 
 
 fun main() {
+	val string = File("src/main/kotlin/script.zc").readBytes().toString(Charset.defaultCharset())
+}
+
+fun parserTimingTest(string: String) {
 	val warmupString = """
 		struct MyStruct {
 			a: num
@@ -21,7 +26,6 @@ fun main() {
 			return a + b;
 		}
 	""".trimIndent()
-	val string = File("src/main/kotlin/script.zc").readBytes().toString(Charset.defaultCharset())
 	run {
 		print("[PRATT] warmup: ")
 		val warmupRuntime =
@@ -55,9 +59,15 @@ fun main() {
 		}
 	}
 	println()
-	parserTest(string, true, Zinc.ParseType.RECURSIVE)
-	parserTest(string, true, Zinc.ParseType.REORDER)
-	parserTest(string, true, Zinc.ParseType.PRATT)
+	thread(true) {
+		parserTest(string, true, Zinc.ParseType.REORDER)
+	}
+	thread(true) {
+		parserTest(string, true, Zinc.ParseType.RECURSIVE)
+	}
+	thread(true) {
+		parserTest(string, true, Zinc.ParseType.PRATT)
+	}
 }
 
 fun parserTest(source: String, comprehensiveErrors: Boolean, type: Zinc.ParseType) {
@@ -65,22 +75,19 @@ fun parserTest(source: String, comprehensiveErrors: Boolean, type: Zinc.ParseTyp
 		Zinc.ParseType.PRATT -> {
 			val prattRuntime =
 				Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.PRATT)
-			println("pratt parsing")
-			println("time: ${Zinc.time { prattRuntime.run() }}ms")
+			println("pratt parsing\ntime: ${Zinc.time { prattRuntime.run() }}ms")
 		}
 
 		Zinc.ParseType.RECURSIVE -> {
 			val recursiveRuntime =
 				Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.RECURSIVE)
-			println("recursive parsing")
-			println("time: ${Zinc.time { recursiveRuntime.run() }}ms")
+			println("recursive parsing\ntime: ${Zinc.time { recursiveRuntime.run() }}ms")
 		}
 
 		Zinc.ParseType.REORDER -> {
 			val reorderRuntime =
 				Zinc.Runtime(256, 256, source, Zinc.SystemOutputStream, Zinc.SystemErrorStream, false, comprehensiveErrors, Zinc.ParseType.REORDER)
-			println("reorder parsing")
-			println("time: ${Zinc.time { reorderRuntime.run() }}ms")
+			println("reorder parsing\ntime: ${Zinc.time { reorderRuntime.run() }}ms")
 		}
 	}
 
