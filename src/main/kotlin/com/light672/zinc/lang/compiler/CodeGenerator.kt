@@ -84,10 +84,11 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 		}
 
 		val type = declaredType ?: initializerType!!
-		if (currentScope.parent == null && currentScope.variables[name.lexeme] != null) {
+		val declaration = currentScope.variables[name.lexeme]?.first
+		if (currentScope.parent == null && declaration != null) {
 			runtime.reportCompileError(
 				CompilerError.TwoRangeError(
-					currentScope.variables[name.lexeme]!!.statement.getRange(), getRange(),
+					declaration.statement.getRange(), getRange(),
 					"'${name.lexeme}' first declared here in top level scope.",
 					"'${name.lexeme}' declared again in top level scope.",
 					"'${name.lexeme} can only be declared once in top level scope."
@@ -96,8 +97,7 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 			return null
 		}
 
-		currentScope.variables[name.lexeme] = Declaration(name.lexeme, type, mutable, this, initializer?.getRange(), false)
-		return Unit
+		return currentScope.addVariable(name.lexeme, Declaration(name.lexeme, type, mutable, this, initializer?.getRange(), false))
 	}
 
 	fun Declaration.resolveFunctionBlock() {
@@ -107,19 +107,19 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 				val pair = statement.arguments[index]
 				val name = pair.first.lexeme
 				val range = pair.first.range.first..pair.second.range.last
-				if (currentScope.variables[name] != null) {
-					val current = currentScope.variables[name]!!
+				val declaration = currentScope.variables[name]?.first
+				if (declaration != null) {
 					runtime.reportCompileError(
 						CompilerError.TwoRangeError(
-							current.initRange!!, range,
-							"Function parameter '${current.name}' first declared here.",
+							declaration.initRange!!, range,
+							"Function parameter '${declaration.name}' first declared here.",
 							"'$name' declared here again in the same function.",
 							"Function parameter '$name' declared twice in the function parameters."
 						)
 					)
 					return
 				}
-				currentScope.variables[name] = Declaration(name, paramType, false, statement, range, false)
+				currentScope.addVariable(name, Declaration(name, paramType, false, statement, range, false))
 			}
 			for (stmt in statement.body) stmt.resolve()
 		}
@@ -139,10 +139,11 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 
 		if (paramTypeError) return null
 		val params = Array(paramTypes.size) { i -> paramTypes[i]!! }
-		if (currentScope.parent == null && currentScope.variables[name.lexeme] != null) {
+		val og = currentScope.variables[name.lexeme]?.first
+		if (currentScope.parent == null && og != null) {
 			runtime.reportCompileError(
 				CompilerError.TwoRangeError(
-					currentScope.variables[name.lexeme]!!.statement.getRange(), getRange(),
+					og.statement.getRange(), getRange(),
 					"'${name.lexeme}' first declared here in top level scope.",
 					"'${name.lexeme}' declared again in top level scope.",
 					"'${name.lexeme}' can only be declared once in top level scope."
@@ -154,7 +155,7 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 		declaredType ?: return null
 
 		val declaration = Declaration(name.lexeme, Type.Function(params, declaredType), false, this, getRange(), true)
-		currentScope.variables[name.lexeme] = declaration
+		currentScope.addVariable(name.lexeme, declaration)
 		return declaration
 	}
 
@@ -222,7 +223,7 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 			)
 			return null
 		}
-		code.add(OP_RETURN)
+		code.add(expression?.let { OP_RETURN_VALUE } ?: OP_RETURN)
 		return Type.Nothing
 	}
 
@@ -309,7 +310,7 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 	}
 
 	fun Expr.GetVariable.resolve(): Type? {
-		val variable = findVariable(variable) ?: return null
+		val (variable, index) = findVariable(variable) ?: return null
 		if (variable.initRange == null) {
 			runtime.reportCompileError(
 				CompilerError.TwoRangeError(
@@ -322,12 +323,14 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 			return null
 		}
 		code.add(OP_GET_STACK)
-		code.add()
+		val (a, b) = toBytes(index)
+		code.add(a)
+		code.add(b)
 		return variable.type
 	}
 
 	fun Expr.SetVariable.resolve(): Type? {
-		val variable = findVariable(variable) ?: return null
+		val (variable, index) = findVariable(variable) ?: return null
 		val expressionType = value.resolve() ?: return null
 		if (variable.type != expressionType) {
 			runtime.reportCompileError(
@@ -341,6 +344,8 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 			return null
 		}
 		if (variable.initRange == null) variable.initRange = getRange()
+		code.add(OP_SET_STACK)
+		code.add(index.toByte())
 		return expressionType
 	}
 
@@ -354,6 +359,8 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 			runtime.reportCompileError(CompilerError.TokenError(field, "Field '${field.lexeme}' does not exist in struct '$type'."))
 			return null
 		}
+		code.add(OP_GET_IND)
+		code.add(type.fields.keys.indexOf(field.lexeme).toByte())
 		return type.fields[field.lexeme]!!.second
 	}
 
@@ -380,6 +387,8 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 			)
 			return null
 		}
+		code.add(OP_SET_IND)
+		code.add(type.fields.keys.indexOf(field.lexeme).toByte())
 		return setType
 	}
 
@@ -400,6 +409,8 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 				)
 				return null
 			}
+			code.add(OP_CALL)
+			code.add(argTypes.size.toByte())
 			return calleeType.returnType
 		}
 		runtime.reportCompileError(CompilerError.OneRangeError(callee.getRange(), "Can only call callable types, instead got '$calleeType'."))
@@ -429,7 +440,11 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 			}
 			map.remove(name.lexeme)
 		}
-		if (map.isEmpty()) return struct.type
+		if (map.isEmpty()) {
+			code.add(OP_ALLOC)
+			code.add(struct.type.fields.size.toByte())
+			return struct.type
+		}
 		runtime.reportCompileError(
 			CompilerError.OneRangeError(getRange(), "Struct declaration is missing fields ${
 				run {
@@ -475,7 +490,7 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 	}
 
 
-	fun findVariable(name: Token): Declaration? {
+	fun findVariable(name: Token): Pair<Declaration, Int>? {
 		var scope: Scope? = currentScope
 		while (scope != null) {
 			if (scope.variables[name.lexeme] != null) return scope.variables[name.lexeme]
