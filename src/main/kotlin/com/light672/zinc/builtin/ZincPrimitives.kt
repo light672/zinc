@@ -1,34 +1,38 @@
 package com.light672.zinc.builtin
 
+import kotlin.math.pow
+
 
 data class ZincNumber(val value: Double) : ZincValue() {
-	override val name = "number"
 	override fun toString() = value.toString()
 
-	override operator fun plus(b: ZincValue) = ZincNumber(value + (b as ZincNumber).value)
-	override operator fun minus(b: ZincValue) = ZincNumber(value - (b as ZincNumber).value)
-	override operator fun times(b: ZincValue) = ZincNumber(value * (b as ZincNumber).value)
-	override operator fun div(b: ZincValue) = ZincNumber(value / (b as ZincNumber).value)
-	override operator fun rem(b: ZincValue) = ZincNumber(value % (b as ZincNumber).value)
+	operator fun plus(b: ZincNumber) = ZincNumber(value + b.value)
+	operator fun minus(b: ZincNumber) = ZincNumber(value - b.value)
+	operator fun times(b: ZincNumber) = ZincNumber(value * b.value)
+	operator fun div(b: ZincNumber) = ZincNumber(value / b.value)
+	operator fun rem(b: ZincNumber) = ZincNumber(value % b.value)
+	fun pow(b: ZincNumber) = ZincNumber(value.pow(b.value))
 }
 
 data class ZincChar(val value: Char) : ZincValue() {
-	override val name = "char"
 	override fun toString() = value.toString()
 
 	fun toNumber() = ZincNumber((value.code).toDouble())
+
+	operator fun plus(b: ZincChar) = ZincString(value.toString() + b)
+	operator fun plus(b: ZincString) = ZincString(value.toString() + b)
 }
 
 data class ZincString(val value: String) : ZincValue() {
-	override val name = "string"
 	override fun toString() = value
-
+	operator fun plus(b: ZincChar) = ZincString(value + b)
+	operator fun plus(b: ZincString) = ZincString(value + b)
 }
 
 sealed class ZincBoolean(open val value: Boolean) : ZincValue() {
-	override val name = "bool"
 	override fun toString() = value.toString()
 }
 
 data object ZincTrue : ZincBoolean(true)
 data object ZincFalse : ZincBoolean(false)
+

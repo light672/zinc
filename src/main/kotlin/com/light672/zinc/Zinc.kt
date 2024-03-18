@@ -1,6 +1,5 @@
 package com.light672.zinc
 
-import com.light672.zinc.builtin.ZincException
 import com.light672.zinc.lang.compiler.Compiler
 import com.light672.zinc.lang.compiler.CompilerError
 import com.light672.zinc.lang.compiler.parsing.Lexer
@@ -32,8 +31,8 @@ object Zinc {
 			Compiler(this, source, parseType).compile()
 		}
 
-		private fun reportRuntimeError(error: ZincException) {
-			err.println("${error.javaClass}: ${error.message}")
+		private fun reportRuntimeError(error: String) {
+			err.println("Panicked: $error")
 		}
 
 		internal fun reportCompileError(error: CompilerError) {

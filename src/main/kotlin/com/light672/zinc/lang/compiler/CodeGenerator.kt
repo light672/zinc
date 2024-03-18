@@ -1,23 +1,30 @@
 package com.light672.zinc.lang.compiler
 
-import com.light672.zinc.builtin.ZincBoolean
-import com.light672.zinc.builtin.ZincChar
-import com.light672.zinc.builtin.ZincNumber
-import com.light672.zinc.builtin.ZincString
+import com.light672.zinc.Zinc
+import com.light672.zinc.builtin.*
 import com.light672.zinc.lang.compiler.parsing.Expr
 import com.light672.zinc.lang.compiler.parsing.Stmt
 import com.light672.zinc.lang.compiler.parsing.Token
+import com.light672.zinc.lang.runtime.opcodes.*
 
-internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module: ZincModule) {
+internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) {
 
 	private var currentScope = module.globals
+
+	val code = ArrayList<Byte>()
+	val constants = ArrayList<ZincValue>()
+	val ranges = ArrayList<IntRange>()
 
 	fun Stmt.resolve(): Unit? {
 		return when (this) {
 			is Stmt.Struct -> throw IllegalArgumentException("Struct should never be resolved from this function.")
 			is Stmt.Function -> throw IllegalArgumentException("Function should never be resolved from this function.")
 			is Stmt.VariableDeclaration -> resolve()
-			is Stmt.ExpressionStatement -> expression.resolve()?.let { Unit }
+			is Stmt.ExpressionStatement -> {
+				val r = expression.resolve()?.let { Unit }
+				code.add(OP_POP)
+				r
+			}
 		}
 	}
 
@@ -138,7 +145,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 					currentScope.variables[name.lexeme]!!.statement.getRange(), getRange(),
 					"'${name.lexeme}' first declared here in top level scope.",
 					"'${name.lexeme}' declared again in top level scope.",
-					"'${name.lexeme} can only be declared once in top level scope."
+					"'${name.lexeme}' can only be declared once in top level scope."
 				)
 			)
 			return null
@@ -155,10 +162,35 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		return when (this) {
 			is Expr.Literal -> {
 				when (value) {
-					is ZincNumber -> Type.Number
-					is ZincBoolean -> Type.Bool
-					is ZincChar -> Type.Char
-					is ZincString -> Type.String
+					is ZincNumber -> {
+						val number = value.value
+						val int = number.toInt()
+						if (int.toDouble() == number && int in 0..Short.MAX_VALUE) {
+							val (a, b) = toBytes(int)
+							code.add(OP_CREATE_NUM)
+							code.add(a)
+							code.add(b)
+						} else {
+							emitConstant(value)
+						}
+						Type.Number
+					}
+
+					is ZincBoolean -> {
+						code.add(if (value.value) OP_TRUE else OP_FALSE)
+						Type.Bool
+					}
+
+					is ZincChar -> {
+						emitConstant(value)
+						Type.Char
+					}
+
+					is ZincString -> {
+						emitConstant(value)
+						Type.String
+					}
+
 					else -> throw IllegalArgumentException("how did you even mess this up")
 				}
 			}
@@ -190,6 +222,7 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			)
 			return null
 		}
+		code.add(OP_RETURN)
 		return Type.Nothing
 	}
 
@@ -197,15 +230,23 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 		val type = right.resolve() ?: return null
 		return when (operator.type) {
 			Token.Type.BANG -> {
-				if (type == Type.Bool) return Type.Bool
-				runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '!' on $type"))
-				null
+				if (type == Type.Bool) {
+					code.add(OP_NOT)
+					Type.Bool
+				} else {
+					runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '!' on $type"))
+					null
+				}
 			}
 
 			Token.Type.MINUS -> {
-				if (type == Type.Number) return Type.Number
-				runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '-' on $type"))
-				null
+				if (type == Type.Number) {
+					code.add(OP_NEG)
+					Type.Number
+				} else {
+					runtime.reportCompileError(CompilerError.OneRangeError(right.getRange(), "Cannot perform unary '-' on $type"))
+					null
+				}
 			}
 
 			else -> throw IllegalArgumentException("should not happen")
@@ -215,7 +256,19 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 	fun Expr.Binary.resolve(): Type? {
 		val leftType = left.resolve() ?: return null
 		val rightType = right.resolve() ?: return null
-		if (leftType == Type.Number && rightType == Type.Number) return Type.Number
+		if (leftType == Type.Number && rightType == Type.Number) {
+			code.add(
+				when (operator.type) {
+					Token.Type.PLUS -> OP_ADD
+					Token.Type.MINUS -> OP_SUB
+					Token.Type.SLASH -> OP_DIV
+					Token.Type.STAR -> OP_MUL
+					Token.Type.CARET -> OP_POW
+					else -> throw IllegalArgumentException()
+				}
+			)
+			return Type.Number
+		}
 		runtime.reportCompileError(
 			CompilerError.OneRangeError(
 				getRange(),
@@ -227,7 +280,24 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 
 	fun Expr.Logical.resolve(): Type? {
 		val leftType = left.resolve() ?: return null
-		val rightType = right.resolve() ?: return null
+		val rightType: Type
+		when (operator.type) {
+			Token.Type.AND -> {
+				val endJump = emitJump(OP_JIF)
+				code.add(OP_POP)
+				rightType = right.resolve() ?: return null
+				patchJump(endJump, getRange())
+			}
+
+			Token.Type.OR -> {
+				val endJump = emitJump(OP_JIT)
+				code.add(OP_POP)
+				rightType = right.resolve() ?: return null
+				patchJump(endJump, getRange())
+			}
+
+			else -> throw IllegalArgumentException()
+		}
 		if (leftType == Type.Bool && rightType == Type.Bool) return Type.Bool
 		runtime.reportCompileError(
 			CompilerError.OneRangeError(
@@ -251,6 +321,8 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			)
 			return null
 		}
+		code.add(OP_GET_STACK)
+		code.add()
 		return variable.type
 	}
 
@@ -373,6 +445,33 @@ internal class Resolver(val runtime: com.light672.zinc.Zinc.Runtime, val module:
 			}.")
 		)
 		return null
+	}
+
+	fun emitConstant(value: ZincValue) {
+		constants.add(value)
+		val (a, b) = toBytes(constants.size - 1)
+		code.add(OP_CONST)
+		code.add(a)
+		code.add(b)
+	}
+
+	fun emitJump(instruction: Byte): Int {
+		code.add(instruction)
+		code.add(0xFF.toByte())
+		code.add(0xFF.toByte())
+		return code.size - 2
+	}
+
+	fun patchJump(offset: Int, range: IntRange): Unit? {
+		val jump = code.size - offset - 2
+		if (jump > Short.MAX_VALUE) {
+			runtime.reportCompileError(CompilerError.OneRangeError(range, "Too much code to jump over."))
+			return null
+		}
+		val (a, b) = toBytes(jump)
+		code[offset] = a
+		code[offset + 1] = b
+		return Unit
 	}
 
 

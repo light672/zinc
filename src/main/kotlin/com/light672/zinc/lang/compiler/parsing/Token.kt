@@ -12,7 +12,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 	}
 
 	enum class Type(val rule: ParseRule = ParseRule(NONE, null, null)) {
-		LEFT_PAREN(ParseRule(CALL, PrattParser::grouping, PrattParser::call)),
+		LEFT_PAREN(ParseRule(CALL, PrattParser::parenthesis, PrattParser::call)),
 		RIGHT_PAREN,
 		LEFT_BRACE(ParseRule(INIT, infix = PrattParser::init)),
 		RIGHT_BRACE,

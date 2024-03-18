@@ -2,6 +2,7 @@ package com.light672.zinc.lang.runtime
 
 import com.light672.zinc.builtin.*
 import com.light672.zinc.lang.Chunk
+import com.light672.zinc.lang.runtime.opcodes.*
 
 class VirtualMachine(
 	private val instance: com.light672.zinc.Zinc.Runtime,
@@ -110,7 +111,7 @@ class VirtualMachine(
 	}
 
 	private fun readByte() = chunk.code[pc++]
-	private fun line() = chunk.lines[pc]
+	private fun range() = chunk.ranges[pc]
 	private fun bp() = callStack[callStackSize - 1]!!.bp
 
 	private fun pushStack(value: ZincValue?) {

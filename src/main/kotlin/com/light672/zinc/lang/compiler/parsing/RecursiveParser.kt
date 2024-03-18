@@ -222,7 +222,6 @@ internal class RecursiveParser(source: String, instance: Zinc.Runtime) : Parser(
 		}
 		if (match(LEFT_PAREN)) {
 			val leftParen = previous
-			if (match(RIGHT_PAREN)) return Expr.Unit(leftParen, previous)
 			val expression = expression() ?: return null
 			expect(RIGHT_PAREN, "Expect ')' after expression.") ?: return null
 			return Expr.Grouping(expression, leftParen, previous)

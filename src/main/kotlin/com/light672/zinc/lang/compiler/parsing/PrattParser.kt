@@ -130,8 +130,9 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 		return Expr.Unary(previous, parsePrecedence(Precedence.UNARY) ?: return null)
 	}
 
-	fun grouping(u: Boolean): Expr.Grouping? {
+	fun parenthesis(u: Boolean): Expr? {
 		val p = previous
+		if (match(RIGHT_PAREN)) return Expr.Unit(p, previous)
 		val expression = expression() ?: return null
 		expect(RIGHT_PAREN, "Expected ')' after expression.") ?: return null
 		return Expr.Grouping(expression, p, previous)

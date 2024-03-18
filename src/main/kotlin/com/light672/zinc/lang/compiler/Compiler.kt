@@ -14,21 +14,21 @@ internal class Compiler(val runtime: Zinc.Runtime, val source: String, val parse
 		}
 		if (runtime.hadError) return
 		val module = ZincModule(runtime, source, structs, functions, variables)
-		val resolver = Resolver(runtime, module)
+		val codeGenerator = CodeGenerator(runtime, module)
 		module.globals.types["num"] = Type.Number
 		module.globals.types["str"] = Type.String
-		val structDeclarations = Array(structs.size) { i -> with(resolver) { structs[i].resolve() } }
+		val structDeclarations = Array(structs.size) { i -> with(codeGenerator) { structs[i].resolve() } }
 		for ((i, struct) in structDeclarations.withIndex()) {
 			struct ?: continue
-			with(resolver) { struct.resolveStructInside(structs[i].fields) }
+			with(codeGenerator) { struct.resolveStructInside(structs[i].fields) }
 		}
-		val functionDeclarations = Array(functions.size) { i -> with(resolver) { functions[i].resolve() } }
+		val functionDeclarations = Array(functions.size) { i -> with(codeGenerator) { functions[i].resolve() } }
 		if (runtime.hadError) return
-		for (variable in variables) with(resolver) { variable.resolve() }
+		for (variable in variables) with(codeGenerator) { variable.resolve() }
 		if (runtime.hadError) return
 		for (function in functionDeclarations) {
 			function ?: continue
-			with(resolver) { function.resolveFunctionBlock() }
+			with(codeGenerator) { function.resolveFunctionBlock() }
 		}
 	}
 }
