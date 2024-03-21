@@ -3,6 +3,7 @@ package com.light672.zinc
 import com.light672.zinc.lang.compiler.Compiler
 import com.light672.zinc.lang.compiler.CompilerError
 import com.light672.zinc.lang.compiler.parsing.Lexer
+import com.light672.zinc.lang.runtime.VirtualMachine
 import kotlin.math.max
 
 object Zinc {
@@ -28,7 +29,8 @@ object Zinc {
 
 		fun run() {
 			if (debug) println(Lexer(source).scanTokens())
-			Compiler(this, source, parseType).compile()
+			val chunk = Compiler(this, source, parseType).compile() ?: return
+			VirtualMachine(this, stackSize, callStackSize, chunk).interpret()
 		}
 
 		private fun reportRuntimeError(error: String) {
@@ -52,6 +54,7 @@ object Zinc {
 			}
 
 			when (error) {
+				is CompilerError.SimpleError -> {}
 				is CompilerError.TokenError -> {
 					val (_, content, range) = linesInRange(error.token.range)[0]
 

@@ -2,6 +2,7 @@ package com.light672.zinc.lang.runtime
 
 import com.light672.zinc.builtin.*
 import com.light672.zinc.lang.Chunk
+import com.light672.zinc.lang.compiler.toShort
 import com.light672.zinc.lang.runtime.opcodes.*
 
 class VirtualMachine(
@@ -23,13 +24,12 @@ class VirtualMachine(
 		0,
 		0,
 		chunk,
-		0,
+		chunk.start,
 	)
 
 	private var stopQueued = false
 	fun interpret() {
 		reset()
-		pushFirstFrame()
 		run()
 	}
 
@@ -38,16 +38,26 @@ class VirtualMachine(
 		stackSize = 0
 		callStackSize = 0
 		stopQueued = false
+		pushFirstFrame()
 	}
 
 	private fun run() {
 		while (!stopQueued) {
 			when (readByte()) {
-				OP_CONST -> pushStack(chunk.constants[readByte().toInt()]) // change to readShort
+				OP_CONST -> pushStack(chunk.constants[readShort().toInt()])
+				OP_CREATE_NUM -> pushStack(ZincNumber(toShort(readByte(), readByte()).toDouble()))
+				OP_ALLOC -> {
+					val size = readByte().toInt()
+					val array = Array(size) { i -> stack[stackSize - size + i] }
+					stackSize - size
+					pushStack(ZincGroup(array))
+				}
+
+				OP_NONE -> pushStack(null)
 				OP_TRUE -> pushStack(ZincTrue)
 				OP_FALSE -> pushStack(ZincFalse)
 				OP_POP -> {
-					instance.out.print("${popStack()}\n")
+					instance.out.println(popStack().toString())
 				}
 
 				OP_ADD -> {
@@ -86,6 +96,40 @@ class VirtualMachine(
 					pushStack(a.pow(b))
 				}
 
+				OP_NOT -> pushStack(ZincNumber(-((popStack() as ZincNumber).value)))
+
+				OP_NEG -> pushStack(ZincBoolean(!((popStack() as ZincBoolean).value)))
+
+				OP_JMP -> pc = toShort(readByte(), readByte()) + pc // do not replace with operator assignment
+
+				OP_JIF -> {
+					val short = toShort(readByte(), readByte())
+					if (!(popStack() as ZincBoolean).value) pc += short
+				}
+
+				OP_JIT -> {
+					val short = toShort(readByte(), readByte())
+					if ((popStack() as ZincBoolean).value) pc += short
+				}
+
+				OP_GET_STACK -> pushStack(stack[bp + readByte()])
+				OP_SET_STACK -> {
+					stack[bp + readByte()] = peekStack()
+				}
+
+				OP_GET_IND -> pushStack((popStack() as ZincGroup).array[readByte().toInt()])
+				OP_SET_IND -> {
+					(popStack() as ZincGroup).array[readByte().toInt()] = peekStack()
+				}
+
+				OP_CREATE_FUNCTION -> {
+					val arity = readByte().toInt()
+					val captureSize = readByte().toInt()
+					val captures = Array(captureSize) { i -> stack[stackSize - captureSize + i] }
+					stackSize - captureSize
+					pushStack(ZincFunction(arity, captures))
+				}
+
 				OP_CALL -> {
 					var arity = readByte().toInt()
 					pushCallFrame(arity)
@@ -98,21 +142,35 @@ class VirtualMachine(
 				}
 
 				OP_RETURN -> {
+					if (callStackSize == 1) return
+					val frame = callStack[--callStackSize]!!
+					pc = frame.returnLocation
+					stackSize = frame.bp
+				}
+
+				OP_RETURN_VALUE -> {
+					if (callStackSize == 1) return
 					val returnValue = popStack()
-					returnToPreviousFrame()
+					val frame = callStack[--callStackSize]!!
+					pc = frame.returnLocation
+					stackSize = frame.bp
 					pushStack(returnValue)
 				}
 
 				OP_END -> {
 					return
 				}
+
+				else -> TODO("not implemented")
 			}
 		}
 	}
 
 	private fun readByte() = chunk.code[pc++]
-	private fun range() = chunk.ranges[pc]
-	private fun bp() = callStack[callStackSize - 1]!!.bp
+	private fun readShort() = toShort(readByte(), readByte())
+
+	// private fun range() = chunk.ranges[pc]
+	private val bp get() = callStack[callStackSize - 1]!!.bp
 
 	private fun pushStack(value: ZincValue?) {
 		if (stackSize > stack.size) throw StackOverflowError()
@@ -120,7 +178,7 @@ class VirtualMachine(
 	}
 
 	private fun popStack() = if (stackSize == 0) throw StackOverflowError() else stack[--stackSize]!!
-
+	private fun peekStack() = stack[stackSize - 1]
 	private fun pushCallFrame(arity: Int) {
 		if (callStackSize > callStack.size) throw StackOverflowError()
 		callStack[callStackSize++] = CallFrame(stackSize - arity, pc)
@@ -128,11 +186,7 @@ class VirtualMachine(
 
 	private fun pushFirstFrame() {
 		callStack[0] = CallFrame(0, 0)
+		callStackSize++
 	}
 
-	private fun returnToPreviousFrame() {
-		val frame = callStack[--callStackSize]!!
-		pc = frame.returnLocation
-		stackSize = frame.bp
-	}
 }

@@ -29,7 +29,22 @@ data class ZincString(val value: String) : ZincValue() {
 	operator fun plus(b: ZincString) = ZincString(value + b)
 }
 
-sealed class ZincBoolean(open val value: Boolean) : ZincValue() {
+data class ZincGroup(val array: Array<ZincValue?>) : ZincValue() {
+	override fun equals(other: Any?): Boolean {
+		if (this === other) return true
+		if (javaClass != other?.javaClass) return false
+
+		other as ZincGroup
+		return array.contentEquals(other.array)
+
+	}
+
+	override fun hashCode(): Int {
+		return array.contentHashCode()
+	}
+}
+
+open class ZincBoolean(open val value: Boolean) : ZincValue() {
 	override fun toString() = value.toString()
 }
 

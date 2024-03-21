@@ -8,7 +8,9 @@ import kotlin.concurrent.thread
 
 
 fun main() {
-	val string = File("src/main/kotlin/script.zc").readBytes().toString(Charset.defaultCharset())
+	val benchmark = File("src/main/kotlin/benchmark.zc").readBytes().toString(Charset.defaultCharset())
+	val script = File("src/main/kotlin/script.zc").readBytes().toString(Charset.defaultCharset())
+	normalTest(script, true)
 }
 
 fun parserTimingTest(string: String) {

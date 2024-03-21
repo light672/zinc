@@ -31,7 +31,7 @@ fun main() {
 		OP_GET_IND
 		OP_SET_IND
 		
-		OP_CREATE_FUNCTION /*[byte]*/
+		OP_CREATE_FUNCTION /*[byte][byte]*/
 		
 		OP_CALL
 		OP_CALL_NATIVE

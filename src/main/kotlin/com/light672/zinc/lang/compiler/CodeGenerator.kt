@@ -122,6 +122,7 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 				currentScope.addVariable(name, Declaration(name, paramType, false, statement, range, false))
 			}
 			for (stmt in statement.body) stmt.resolve()
+			code.add(OP_RETURN)
 		}
 	}
 
@@ -156,6 +157,9 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 
 		val declaration = Declaration(name.lexeme, Type.Function(params, declaredType), false, this, getRange(), true)
 		currentScope.addVariable(name.lexeme, declaration)
+		code.add(OP_CREATE_FUNCTION)
+		code.add(arguments.size.toByte())
+		code.add(0)
 		return declaration
 	}
 
@@ -323,9 +327,7 @@ internal class CodeGenerator(val runtime: Zinc.Runtime, val module: ZincModule) 
 			return null
 		}
 		code.add(OP_GET_STACK)
-		val (a, b) = toBytes(index)
-		code.add(a)
-		code.add(b)
+		code.add(index.toByte())
 		return variable.type
 	}
 

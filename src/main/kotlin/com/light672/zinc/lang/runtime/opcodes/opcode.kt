@@ -27,7 +27,7 @@ internal const val OP_SET_STACK /*[byte]*/: Byte = 19
 internal const val OP_GET_IND: Byte = 20
 internal const val OP_SET_IND: Byte = 21
 
-internal const val OP_CREATE_FUNCTION /*[byte]*/: Byte = 22
+internal const val OP_CREATE_FUNCTION /*[byte][byte]*/: Byte = 22
 
 internal const val OP_CALL: Byte = 23
 internal const val OP_CALL_NATIVE: Byte = 24

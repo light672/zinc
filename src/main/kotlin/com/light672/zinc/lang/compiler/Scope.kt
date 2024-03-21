@@ -7,6 +7,6 @@ internal class Scope(val parent: Scope? = null, val funReturnType: Type? = null)
 	val base: Int = parent?.let { it.base + it.variables.size } ?: 0
 
 	fun addVariable(name: String, declaration: Declaration) {
-		variables[name] = Pair(declaration, variables.size - 1)
+		variables[name] = Pair(declaration, variables.size)
 	}
 }
