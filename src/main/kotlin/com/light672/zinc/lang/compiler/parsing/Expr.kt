@@ -5,7 +5,7 @@ import com.light672.zinc.builtin.ZincValue
 internal sealed class Expr() {
 
 	data class InitializeStruct(val name: Token, val fields: Array<Pair<Token, Expr>>, val end: Token) : Expr() {
-		override fun getRange() = name.range.first..end.range.last
+		override val range = name.range.first..end.range.last
 		override fun toString(): String {
 			val builder = StringBuilder("${name.lexeme}{")
 			for ((name, expr) in fields) {
@@ -40,12 +40,12 @@ internal sealed class Expr() {
 	}
 
 	data class Unary(val operator: Token, val right: Expr) : Expr() {
-		override fun getRange() = operator.range.first..right.getRange().last
+		override val range = operator.range.first..right.range.last
 		override fun toString() = "${operator.lexeme}$right"
 	}
 
 	data class Binary(var left: Expr, var right: Expr, val operator: Token) : Expr() {
-		override fun getRange() = left.getRange().first..right.getRange().last
+		override val range = left.range.first..right.range.last
 		override fun toString() = "($left ${operator.lexeme} $right)"
 
 		init {
@@ -55,7 +55,7 @@ internal sealed class Expr() {
 	}
 
 	data class Logical(var left: Expr, var right: Expr, val operator: Token) : Expr() {
-		override fun getRange() = left.getRange().first..right.getRange().last
+		override val range = left.range.first..right.range.last
 		override fun toString() = "($left ${operator.lexeme} $right)"
 
 		init {
@@ -65,37 +65,37 @@ internal sealed class Expr() {
 	}
 
 	data class Literal(val value: ZincValue, val token: Token) : Expr() {
-		override fun getRange() = token.range
+		override val range = token.range
 		override fun toString() = "$value"
 	}
 
 	data class Grouping(val expression: Expr, val beginning: Token, val end: Token) : Expr() {
-		override fun getRange() = beginning.range.first..end.range.last
+		override val range = beginning.range.first..end.range.last
 		override fun toString() = "($expression)"
 	}
 
 	data class GetVariable(val variable: Token) : Expr() {
-		override fun getRange() = variable.range
+		override val range = variable.range
 		override fun toString() = variable.lexeme
 	}
 
 	data class SetVariable(val variable: Token, val value: Expr) : Expr() {
-		override fun getRange() = variable.range.first..value.getRange().last
+		override val range = variable.range.first..value.range.last
 		override fun toString() = "${variable.lexeme} = $value"
 	}
 
 	data class GetField(val obj: Expr, val field: Token) : Expr() {
-		override fun getRange() = obj.getRange().first..field.range.last
+		override val range = obj.range.first..field.range.last
 		override fun toString() = "$obj.${field.lexeme}"
 	}
 
 	data class SetField(val obj: Expr, val field: Token, val value: Expr) : Expr() {
-		override fun getRange() = obj.getRange().first..value.getRange().last
+		override val range = obj.range.first..value.range.last
 		override fun toString() = "$obj.${field.lexeme} = $value"
 	}
 
 	data class Call(val callee: Expr, val leftParen: Token, val arguments: Array<Expr>, val rightParen: Token) : Expr() {
-		override fun getRange() = callee.getRange().first..rightParen.range.last
+		override val range = callee.range.first..rightParen.range.last
 		override fun equals(other: Any?): Boolean {
 			if (this === other) return true
 			if (javaClass != other?.javaClass) return false
@@ -132,16 +132,16 @@ internal sealed class Expr() {
 	}
 
 	data class Unit(val beginning: Token, val end: Token) : Expr() {
-		override fun getRange() = beginning.range.first..end.range.last
+		override val range = beginning.range.first..end.range.last
 		override fun toString() = "()"
 	}
 
 	data class Return(val token: Token, val expression: Expr?) : Expr() {
-		override fun getRange() = token.range.first..(expression?.getRange()?.last ?: token.range.last)
+		override val range = token.range.first..(expression?.range?.last ?: token.range.last)
 		override fun toString() = "return${expression?.let { " $it" } ?: ""}"
 	}
 
 
-	abstract fun getRange(): IntRange
+	abstract val range: IntRange
 	var owner: Expr? = null
 }

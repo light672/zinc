@@ -2,7 +2,7 @@ package com.light672.zinc.lang.compiler.parsing
 
 internal sealed class Stmt {
 	data class ExpressionStatement(val expression: Expr, val sc: Token?) : Stmt() {
-		override fun getRange() = expression.getRange().first..(sc?.range?.last ?: expression.getRange().last)
+		override val range = expression.range.first..(sc?.range?.last ?: expression.range.last)
 		override fun toString() = "$expression;"
 	}
 
@@ -15,7 +15,7 @@ internal sealed class Stmt {
 		val body: Array<Stmt>,
 		val closeToken: Token,
 	) : Stmt() {
-		override fun getRange() = declaration.range.first..(type?.range?.last ?: rightParen.range.last)
+		override val range = declaration.range.first..(type?.range?.last ?: rightParen.range.last)
 		override fun equals(other: Any?): Boolean {
 			if (this === other) return true
 			if (javaClass != other?.javaClass) return false
@@ -51,7 +51,7 @@ internal sealed class Stmt {
 		val fields: Array<Pair<Token, Token>>,
 		val closeToken: Token
 	) : Stmt() {
-		override fun getRange() = declaration.range.first..closeToken.range.last
+		override val range = declaration.range.first..closeToken.range.last
 		override fun equals(other: Any?): Boolean {
 			if (this === other) return true
 			if (javaClass != other?.javaClass) return false
@@ -76,8 +76,8 @@ internal sealed class Stmt {
 	}
 
 	data class VariableDeclaration(val declaration: Token, val name: Token, val type: Token?, val initializer: Expr?, val sc: Token) : Stmt() {
-		override fun getRange() = declaration.range.first..sc.range.last
+		override val range = declaration.range.first..sc.range.last
 	}
 
-	abstract fun getRange(): IntRange
+	abstract val range: IntRange
 }

@@ -15,24 +15,25 @@ internal class Compiler(val runtime: Zinc.Runtime, val source: String, val parse
 		}
 		if (runtime.hadError) return null
 		val module = ZincModule(runtime, source, structs, functions, variables)
-		val codeGenerator = CodeGenerator(runtime, module)
+		val codeGenerator = CodeGenerator(runtime)
+		val resolver = Resolver(runtime, module, codeGenerator)
 		module.globals.types["num"] = Type.Number
 		module.globals.types["str"] = Type.String
-		val structDeclarations = Array(structs.size) { i -> with(codeGenerator) { structs[i].resolve() } }
+		val structDeclarations = Array(structs.size) { i -> with(resolver) { structs[i].resolve() } }
 		for ((i, struct) in structDeclarations.withIndex()) {
 			struct ?: continue
-			with(codeGenerator) { struct.resolveStructInside(structs[i].fields) }
+			with(resolver) { struct.resolveStructInside(structs[i].fields) }
 		}
-		val functionDeclarations = Array(functions.size) { i -> with(codeGenerator) { functions[i].resolve() } }
+		val functionDeclarations = Array(functions.size) { i -> with(resolver) { functions[i].resolve() } }
 		if (runtime.hadError) return null
-		for (variable in variables) with(codeGenerator) { variable.resolve() }
+		for (variable in variables) with(resolver) { variable.resolve() }
 		if (runtime.hadError) return null
 		for (function in functionDeclarations) {
 			function ?: continue
-			with(codeGenerator) { function.resolveFunctionBlock() }
+			with(resolver) { function.resolveFunctionBlock() }
 		}
-		val byteArray = codeGenerator.code.toByteArray()
-		val constantArray = codeGenerator.constants.toTypedArray()
+		val byteArray = resolver.code.toByteArray()
+		val constantArray = resolver.constants.toTypedArray()
 		val main = module.globals.variables["main"]
 		if (main == null || !main.first.function) {
 			runtime.reportCompileError(CompilerError.SimpleError("Could not find main function."))

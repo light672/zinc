@@ -9,4 +9,5 @@ internal class Declaration(
 	val statement: Stmt,
 	var initRange: IntRange?,
 	val function: Boolean,
+	val locationInStack: Int
 )
