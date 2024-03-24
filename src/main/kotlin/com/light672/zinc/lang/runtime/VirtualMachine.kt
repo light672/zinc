@@ -123,11 +123,11 @@ class VirtualMachine(
 				}
 
 				OP_CREATE_FUNCTION -> {
-					val arity = readByte().toInt()
+					val location = readByte().toInt()
 					val captureSize = readByte().toInt()
 					val captures = Array(captureSize) { i -> stack[stackSize - captureSize + i] }
 					stackSize - captureSize
-					pushStack(ZincFunction(arity, captures))
+					pushStack(ZincFunction(location, captures))
 				}
 
 				OP_CALL -> {
