@@ -2,6 +2,9 @@ package com.light672.zinc.lang.compiler
 
 import com.light672.zinc.Zinc
 import com.light672.zinc.builtin.*
+import com.light672.zinc.lang.compiler.CompilerError.Companion.badArgs
+import com.light672.zinc.lang.compiler.CompilerError.Companion.badCall
+import com.light672.zinc.lang.compiler.CompilerError.Companion.badDot
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badFieldSetType
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingGlobal
 import com.light672.zinc.lang.compiler.CompilerError.Companion.missingFields
@@ -243,51 +246,19 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 
 	fun Expr.SetField.resolve(): Type? {
 		val type = obj.resolve() ?: return null
-		val setType = value.resolve()
-		if (type !is Type.Struct) {
-			runtime.reportCompileError(CompilerError.OneRangeError(obj.getRange(), "Cannot get field using '.' on type '$type'."))
-			return null
-		}
-		if (!type.fields.containsKey(field.lexeme)) {
-			runtime.reportCompileError(CompilerError.TokenError(field, "Field '${field.lexeme}' does not exist in struct '$type'."))
-			return null
-		}
-		val declaredType = type.fields[field.lexeme]!!.second
-		if (setType != declaredType) {
-			runtime.reportCompileError(
-				CompilerError.TwoRangeError(
-					type.fields[field.lexeme]!!.first, getRange(),
-					"Declared with type '$declaredType'.",
-					"Set with type '$setType'.",
-					"Value being set to '$type::${field.lexeme}' has type '$setType', while '$type::${field.lexeme}' is type '$declaredType'."
-				)
-			)
-			return null
-		}
+		val setType = value.resolve() ?: return null
+		if (type !is Type.Struct) return error(badDot(obj, type))
+		val field = type.fields[field.lexeme] ?: return error(noFieldCalled(type, field))
+		if (setType != field.second) return error(badFieldSetType(field, setType, this.field, value, type))
 		return setType
 	}
 
 	fun Expr.Call.resolve(): Type? {
 		val calleeType = callee.resolve() ?: return null
-		if (calleeType is Type.Function) {
-			val argTypes = Array(calleeType.parameters.size) { i -> arguments[i].resolve() ?: return null }
-			if (!argTypes.contentEquals(calleeType.parameters)) {
-				runtime.reportCompileError(
-					CompilerError.OneRangeError(
-						callee.getRange(),
-						"Function expected argument types '${Type.Function.typeArrayToString(calleeType.parameters)}', but got ${
-							Type.Function.typeArrayToString(
-								argTypes
-							)
-						}'."
-					)
-				)
-				return null
-			}
-			return calleeType.returnType
-		}
-		runtime.reportCompileError(CompilerError.OneRangeError(callee.getRange(), "Can only call callable types, instead got '$calleeType'."))
-		return null
+		if (calleeType !is Type.Function) return error(badCall(callee, calleeType))
+		val argTypes = Array(calleeType.parameters.size) { i -> arguments[i].resolve() ?: return null }
+		if (!argTypes.contentEquals(calleeType.parameters)) return error(badArgs(this, calleeType, argTypes))
+		return calleeType.returnType
 	}
 
 	fun Expr.InitializeStruct.resolve(): Type? {
@@ -296,11 +267,11 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule) {
 		for ((name, expression) in fields) {
 			val field = struct.type.fields[name.lexeme] ?: return error(noFieldCalled(struct.type, name))
 			val exprType = expression.resolve() ?: return null
-			if (exprType != field.second) return error(badFieldSetType(field, exprType, name, expression, struct))
+			if (exprType != field.second) return error(badFieldSetType(field, exprType, name, expression, struct.type))
 			map.remove(name.lexeme)
 		}
-		if (map.isEmpty()) return struct.type
-		return error(missingFields(range, map, struct))
+		if (map.isNotEmpty()) return error(missingFields(range, map, struct))
+		return struct.type
 	}
 
 

@@ -31,10 +31,10 @@ internal sealed class CompilerError(val message: String) {
 		fun noGlobalInit(r: IntRange, n: String) = OneRangeError(r, "Global variable '$n' must have an initializer.")
 
 		fun noFieldCalled(s: Type.Struct, f: Token) = TokenError(f, "Field '${f.lexeme}' does not exist in struct '$s'.")
-		fun badFieldSetType(field: Pair<IntRange, Type>, exprType: Type, name: Token, expression: Expr, struct: Struct) =
+		fun badFieldSetType(field: Pair<IntRange, Type>, exprType: Type, name: Token, expression: Expr, struct: Type.Struct) =
 			TwoRangeError(
 				field.first, name.range.first..expression.range.last,
-				"Declared with type '${struct.type.fields[name.lexeme]!!.second}'.",
+				"Declared with type '${struct.fields[name.lexeme]!!.second}'.",
 				"Set with type '$exprType'.",
 				"Value being set to '$struct::${name.lexeme}' has type '$exprType', while '$struct::${name.lexeme}' is type '${field.second}'."
 			)
@@ -52,5 +52,18 @@ internal sealed class CompilerError(val message: String) {
 					builder.toString()
 				}
 			}.")
+
+		fun badCall(callee: Expr, calleeType: Type) = OneRangeError(callee.range, "Cannot call on '$calleeType'.")
+		fun badArgs(expr: Expr, calleeType: Type.Function, argTypes: Array<Type>) =
+			OneRangeError(
+				expr.range,
+				"Function expected argument types '${Type.Function.typeArrayToString(calleeType.parameters)}', but got ${
+					Type.Function.typeArrayToString(
+						argTypes
+					)
+				}'."
+			)
+
+		fun badDot(expr: Expr, type: Type) = OneRangeError(expr.range, "Cannot get field using '.' on type '$type'.")
 	}
 }
