@@ -7,7 +7,7 @@ internal class Declaration(
 	val type: Type,
 	val mutable: Boolean,
 	val statement: Stmt,
-	var initRange: IntRange?,
+	var initialized: Boolean,
 	val function: Boolean,
 	val locationInStack: Int
 )
