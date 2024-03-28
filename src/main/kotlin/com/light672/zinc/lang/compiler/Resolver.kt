@@ -234,7 +234,7 @@ internal class Resolver(val runtime: Zinc.Runtime, module: ZincModule) {
 		scope = scope.parent!!
 	}
 
-	fun Stmt.resolve() =
+	private fun Stmt.resolve() =
 		when (this) {
 			is Stmt.Struct -> null
 			is Stmt.Function -> null
@@ -242,7 +242,7 @@ internal class Resolver(val runtime: Zinc.Runtime, module: ZincModule) {
 			is Stmt.ExpressionStatement -> expression.resolve()?.let { Unit }
 		}
 
-	fun Expr.resolve(): Type? {
+	private fun Expr.resolve(): Type? {
 		return when (this) {
 			is Expr.Literal -> {
 				when (value) {
