@@ -69,7 +69,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 
 	private fun Stmt.Struct.resolve(): Type.Struct? {
 		if (scope.hasLocalType(name.lexeme)) return error(matchingType(range, name.lexeme))
-		val type = Type.Struct(name.lexeme, HashMap())
+		val type = Type.Struct(name.lexeme, LinkedHashMap())
 		scope.structs[name.lexeme] = Struct(type, this)
 		scope.types[name.lexeme] = type
 		return type
@@ -214,7 +214,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 
 	private fun Expr.InitializeStruct.resolve(): Type? {
 		val struct = findStruct(name) ?: return null
-		val map = struct.type.fields.clone() as HashMap<String, Pair<IntRange, Expr>>
+		val map = struct.type.fields.clone() as LinkedHashMap<String, Pair<IntRange, Expr>>
 		for ((name, expression) in fields) {
 			val field = struct.type.fields[name.lexeme] ?: return error(noFieldCalled(struct.type, name))
 			val exprType = expression.resolve() ?: return null

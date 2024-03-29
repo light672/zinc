@@ -3,5 +3,18 @@ func add(a: num, b: num): num {
 }
 
 func main() {
+	createPlayer("e", 3);
+	return ();
+}
 
+func createPlayer(name: str, max_health: num): Player {
+	val player = Player { name: name, cooldown: false, health: max_health, max_health: max_health };
+	return player;
+}
+
+struct Player {
+	name: str,
+	health: num,
+	max_health: num,
+	cooldown: bool
 }
