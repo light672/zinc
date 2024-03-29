@@ -6,7 +6,7 @@ import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import java.lang.Double.parseDouble
 
 internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(source, runtime) {
-	internal fun parse(): Triple<ArrayList<Stmt.Struct>, ArrayList<Stmt.Function>, ArrayList<Stmt.VariableDeclaration>> {
+	override fun parse(): Triple<ArrayList<Stmt.Struct>, ArrayList<Stmt.Function>, ArrayList<Stmt.VariableDeclaration>> {
 		advance()
 		val functions = ArrayList<Stmt.Function>()
 		val variables = ArrayList<Stmt.VariableDeclaration>()

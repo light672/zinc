@@ -7,7 +7,7 @@ import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import java.lang.Double.parseDouble
 
 internal class RecursiveParser(source: String, instance: Zinc.Runtime) : Parser(source, instance) {
-	internal fun parse(): Triple<ArrayList<Stmt.Struct>, ArrayList<Stmt.Function>, ArrayList<Stmt.VariableDeclaration>> {
+	override fun parse(): Triple<ArrayList<Stmt.Struct>, ArrayList<Stmt.Function>, ArrayList<Stmt.VariableDeclaration>> {
 		advance()
 		val functions = ArrayList<Stmt.Function>()
 		val variables = ArrayList<Stmt.VariableDeclaration>()
@@ -135,7 +135,7 @@ internal class RecursiveParser(source: String, instance: Zinc.Runtime) : Parser(
 				is Expr.GetVariable -> Expr.SetVariable(expression.variable, value)
 				is Expr.GetField -> Expr.SetField(expression.obj, expression.field, value)
 				else -> {
-					runtime.reportCompileError(CompilerError.OneRangeError(expression.getRange(), "Invalid assignment target."))
+					runtime.reportCompileError(CompilerError.OneRangeError(expression.range, "Invalid assignment target."))
 					null
 				}
 			}

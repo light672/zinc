@@ -18,9 +18,8 @@ internal class Scope(
 		mutable: Boolean,
 		statement: Stmt,
 		initialized: Boolean,
-		function: Boolean,
 	): Declaration {
-		val declaration = Declaration(name, type, mutable, statement, initialized, function, variables.size + base)
+		val declaration = Declaration(name, type, mutable, statement, initialized, variables.size + base)
 		variables[name] = Pair(declaration, variables.size)
 		return declaration
 	}

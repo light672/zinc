@@ -8,6 +8,5 @@ internal class Declaration(
 	val mutable: Boolean,
 	val statement: Stmt,
 	var initialized: Boolean,
-	val function: Boolean,
 	val locationInStack: Int
 )

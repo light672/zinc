@@ -1,7 +1,7 @@
 func add(a: num, b: num): num {
-	return a + b;
+	return a + a;
 }
 
 func main() {
-	3 + 4;
+
 }

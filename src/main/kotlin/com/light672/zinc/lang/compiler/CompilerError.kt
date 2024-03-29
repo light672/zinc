@@ -92,5 +92,7 @@ internal sealed class CompilerError(val message: String) {
 
 		fun badUnaryOperator(expression: Expr.Unary, rightType: Type) =
 			OneRangeError(expression.range, "Cannot perform '${expression.operator.lexeme}' on '$rightType'.")
+
+		val noMain = SimpleError("No main function found in file being ran.")
 	}
 }
