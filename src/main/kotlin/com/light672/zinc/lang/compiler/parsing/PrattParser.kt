@@ -55,6 +55,7 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 	}
 
 	private fun declarationOrStatement(): Stmt? {
+		if (match(STRUCT)) return structDeclaration()
 		if (match(FUNC)) return functionDeclaration()
 		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
 		return statement()

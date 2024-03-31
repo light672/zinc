@@ -125,7 +125,7 @@ fun normalTest(source: String, comprehensiveErrors: Boolean) {
 			Zinc.SystemErrorStream,
 			false,
 			comprehensiveErrors,
-			Zinc.ParseType.REORDER
+			Zinc.ParseType.PRATT
 		)
 	println(
 		"${

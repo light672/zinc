@@ -56,6 +56,7 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 	}
 
 	private fun declarationOrStatement(): Stmt? {
+		if (match(STRUCT)) return structDeclaration()
 		if (match(FUNC)) return functionDeclaration()
 		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
 		return statement()
