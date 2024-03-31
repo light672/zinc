@@ -28,8 +28,8 @@ internal sealed class CompilerError(val message: String) {
 		fun matchingType(a: IntRange, name: String) = OneRangeError(a, "Type '$name' declared twice in the same scope.")
 		fun matchingFunctionParameter(a: IntRange, name: String) = OneRangeError(a, "Function parameter '$name' declared twice.")
 
-		fun notMatchingReturnType(expr: Expr, expected: Type, got: Type) =
-			OneRangeError(expr.range, "Return type of '$got' does not match expected type '$expected'.")
+		fun notMatchingReturnType(a: IntRange, expected: Type, got: Type) =
+			OneRangeError(a, "Return type of '$got' does not match expected type '$expected'.")
 
 		fun notMatchingDeclaredType(r: IntRange, a: Type, b: Type) =
 			OneRangeError(r, "Declared type of '$a' does not match initializer type of '$b'.")

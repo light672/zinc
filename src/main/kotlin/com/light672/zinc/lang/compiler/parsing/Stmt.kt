@@ -12,7 +12,7 @@ internal sealed class Stmt {
 		val arguments: Array<Pair<Token, Token>>,
 		val rightParen: Token,
 		val type: Token?,
-		val body: Array<Stmt>,
+		val body: Expr.Block,
 		val closeToken: Token,
 	) : Stmt() {
 		override val range = declaration.range.first..(type?.range?.last ?: rightParen.range.last)
@@ -27,7 +27,7 @@ internal sealed class Stmt {
 			if (!arguments.contentEquals(other.arguments)) return false
 			if (rightParen != other.rightParen) return false
 			if (type != other.type) return false
-			if (!body.contentEquals(other.body)) return false
+			if (body != other.body) return false
 			if (closeToken != other.closeToken) return false
 
 			return true
@@ -39,7 +39,7 @@ internal sealed class Stmt {
 			result = 31 * result + arguments.contentHashCode()
 			result = 31 * result + rightParen.hashCode()
 			result = 31 * result + (type?.hashCode() ?: 0)
-			result = 31 * result + body.contentHashCode()
+			result = 31 * result + body.hashCode()
 			result = 31 * result + closeToken.hashCode()
 			return result
 		}

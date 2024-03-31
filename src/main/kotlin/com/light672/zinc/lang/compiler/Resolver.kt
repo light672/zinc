@@ -36,7 +36,6 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 	private val global get() = scope.parent == null
 
 	fun resolve(): Unit? {
-
 		var err = false
 		val structTypes = Array(module.structs.size) { i ->
 			val resolved = module.structs[i].resolve()
@@ -50,7 +49,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		if (err) return null
 
 		val funcDeclarations = Array(module.functions.size) { i ->
-			val resolved = module.functions[i].resolve()
+			val resolved = module.functions[i].declare()
 			if (resolved == null) err = true
 			resolved
 		}
@@ -109,7 +108,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		return Unit
 	}
 
-	private fun Stmt.Function.resolve(): Declaration? {
+	private fun Stmt.Function.declare(): Declaration? {
 		val declaredType = if (type != null) getTypeFromName(type) else Type.Unit
 		var paramTypeError = false
 		val paramTypes = Array(arguments.size) { i ->
@@ -127,8 +126,8 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		return scope.addVariable(name.lexeme, Type.Function(params, declaredType), false, this, true)
 	}
 
-	private fun Declaration.resolveFunctionBlock() {
-		scope((type as Type.Function).returnType) {
+	private fun Declaration.resolveFunctionBlock(): Unit? {
+		return scope((type as Type.Function).returnType) scope@{
 			statement as Stmt.Function
 			for ((index, paramType) in type.parameters.withIndex()) {
 				val pair = statement.arguments[index]
@@ -136,19 +135,28 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 				val declaration = scope.variables[name]?.first
 				if (declaration != null) {
 					error<Unit>(matchingFunctionParameter(statement.range, declaration.name))
-					return
+					return@scope null
 				}
 				scope.addVariable(name, paramType, false, statement, true)
 			}
-			for (stmt in statement.body) stmt.resolve()
+			val finalType = statement.body.resolveAlreadyInScope() ?: return@scope null
+			if (!(scope.type == finalType || scope.type == Type.Unit)) error(
+				notMatchingReturnType(
+					statement.body.block.second.last().range,
+					scope.type!!,
+					finalType
+				)
+			) else Unit
 		}
 	}
+
+	private fun Stmt.Function.resolve() = declare()?.resolveFunctionBlock()
 
 
 	private fun Expr.Return.resolve(): Type? {
 		val type = expression?.let { it.resolve() ?: return null } ?: Type.Unit
-		return if (scope.type != type) error(notMatchingReturnType(this, scope.type!!, type)) else
-			Type.Nothing
+		return if (scope.type != type) error(notMatchingReturnType(range, scope.type!!, type)) else
+			Type.Never
 	}
 
 	private fun Expr.Unary.resolve(): Type? {
@@ -225,8 +233,38 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		return struct.type
 	}
 
+	private fun Expr.Block.resolve(): Type? {
+		var type: Type? = null
+		scope {
+			type = resolveAlreadyInScope()
+			Unit
+		}
+		return type
+	}
 
-	fun findVariable(name: Token): Pair<Declaration, Int>? {
+	private fun Expr.Block.resolveAlreadyInScope(): Type? {
+		var err = false
+		val structTypes = Array(block.first.size) { i ->
+			val resolved = block.first[i].resolve()
+			if (resolved == null) err = true
+			resolved
+		}
+		if (err) return null
+
+		for ((i, struct) in structTypes.withIndex())
+			if (struct!!.resolveStructInside(block.first[i].fields) == null) err = true
+		if (err) return null
+		for (stmt in block.second) {
+			if (block.second.last() === stmt) {
+				if (stmt !is Stmt.ExpressionStatement) return Type.Unit
+				return stmt.expression.resolve()
+			} else stmt.resolve()
+		}
+		return null // not possible
+	}
+
+
+	private fun findVariable(name: Token): Pair<Declaration, Int>? {
 		var scope: Scope? = scope
 		while (scope != null) {
 			if (scope.variables[name.lexeme] != null) return scope.variables[name.lexeme]
@@ -235,7 +273,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		return error(noVariable(name))
 	}
 
-	fun findStruct(name: Token): Struct? {
+	private fun findStruct(name: Token): Struct? {
 		var scope: Scope? = scope
 		while (scope != null) {
 			if (scope.structs[name.lexeme] != null) return scope.structs[name.lexeme]
@@ -255,16 +293,18 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 	}
 
 
-	private inline fun scope(functionType: Type? = scope.type, block: () -> Unit) {
+	private fun scope(functionType: Type? = scope.type, block: () -> Unit?): Unit? {
 		scope = Scope(scope, functionType, 0)
-		block()
+		val value = block()
 		scope = scope.parent!!
+		return value
 	}
 
-	private inline fun scope(block: () -> Unit) {
+	private fun scope(block: () -> Unit?): Unit? {
 		scope = Scope(scope)
-		block()
+		val value = block()
 		scope = scope.parent!!
+		return value
 	}
 
 	private fun Stmt.resolve() =
@@ -299,6 +339,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 			is Expr.Call -> resolve()
 			is Expr.InitializeStruct -> resolve()
 			is Expr.Logical -> resolve()
+			is Expr.Block -> resolve()
 		}
 	}
 

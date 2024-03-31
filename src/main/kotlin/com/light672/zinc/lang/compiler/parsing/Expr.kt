@@ -2,7 +2,11 @@ package com.light672.zinc.lang.compiler.parsing
 
 import com.light672.zinc.builtin.ZincValue
 
-internal sealed class Expr() {
+internal sealed class Expr {
+
+	data class Block(val open: Token, val block: Pair<ArrayList<Stmt.Struct>, ArrayList<Stmt>>, val close: Token) : Expr() {
+		override val range = open.range.first..close.range.last
+	}
 
 	data class InitializeStruct(val name: Token, val fields: Array<Pair<Token, Expr>>, val end: Token) : Expr() {
 		override val range = name.range.first..end.range.last

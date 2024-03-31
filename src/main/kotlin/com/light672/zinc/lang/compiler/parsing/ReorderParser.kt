@@ -27,16 +27,24 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 	private fun parseStatement() = declarationOrStatement() ?: throw RuntimeException()
 	private fun parseDeclaration() = declaration() ?: throw RuntimeException()
 
-	private fun block(startBracketError: String): Array<Stmt>? {
-		expect(LEFT_BRACE, startBracketError) ?: return null
-		val statements = ArrayList<Stmt>()
+	private fun block(): Expr.Block? {
+		val open = previous
+		val stmts = ArrayList<Stmt>()
+		val structs = ArrayList<Stmt.Struct>()
 		if (!isNext(RIGHT_BRACE)) {
 			do {
-				statements.add(parseStatement())
+				when (val stmt = parseStatement()) {
+					is Stmt.Struct -> {
+						structs.add(stmt)
+						stmts.add(stmt)
+					}
+
+					else -> stmts.add(stmt)
+				}
 			} while (!isNext(RIGHT_BRACE))
 		}
 		expect(RIGHT_BRACE, "Expected '}' after block.") ?: return null
-		return statements.toTypedArray()
+		return Expr.Block(open, Pair(structs, stmts), previous)
 	}
 
 	private fun declaration(): Stmt? {
@@ -88,7 +96,8 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 			expect(IDENTIFIER, "Expected function return type after ':'.") ?: return null
 			type = previous
 		}
-		val block = block("Expected function body.")
+		expect(LEFT_BRACE, "Expected function body.")
+		val block = block()
 		return block?.let { Stmt.Function(declaration, name, list.toTypedArray(), rightParen, type, it, previous) }
 	}
 
@@ -229,6 +238,7 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 			expect(RIGHT_PAREN, "Expect ')' after expression.") ?: return null
 			return Expr.Grouping(expression, leftParen, previous)
 		}
+		if (match(LEFT_BRACE)) return block()
 		if (match(RETURN)) {
 			return if (!isNext(RIGHT_PAREN, SEMICOLON, COMMA, RIGHT_BRACE, RIGHT_BRACKET, ELSE, ELIF))  // only tokens that can come after a return
 				Expr.Return(previous, expression() ?: return null)

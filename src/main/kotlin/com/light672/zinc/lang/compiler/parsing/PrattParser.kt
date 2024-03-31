@@ -26,16 +26,24 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 	private fun parseStatement() = declarationOrStatement() ?: throw RuntimeException()
 	private fun parseDeclaration() = declaration() ?: throw RuntimeException()
 
-	private fun block(startBracketError: String): Array<Stmt>? {
-		expect(LEFT_BRACE, startBracketError) ?: return null
-		val statements = ArrayList<Stmt>()
+	fun block(u: Boolean = true): Expr.Block? {
+		val open = previous
+		val stmts = ArrayList<Stmt>()
+		val structs = ArrayList<Stmt.Struct>()
 		if (!isNext(RIGHT_BRACE)) {
 			do {
-				statements.add(parseStatement())
+				when (val stmt = parseStatement()) {
+					is Stmt.Struct -> {
+						structs.add(stmt)
+						stmts.add(stmt)
+					}
+
+					else -> stmts.add(stmt)
+				}
 			} while (!isNext(RIGHT_BRACE))
 		}
 		expect(RIGHT_BRACE, "Expected '}' after block.") ?: return null
-		return statements.toTypedArray()
+		return Expr.Block(open, Pair(structs, stmts), previous)
 	}
 
 	private fun declaration(): Stmt? {
@@ -87,7 +95,8 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 			expect(IDENTIFIER, "Expected function return type after ':'.") ?: return null
 			type = previous
 		}
-		val block = block("Expected function body.")
+		expect(LEFT_BRACE, "Expected function body.")
+		val block = block()
 		return block?.let { Stmt.Function(declaration, name, list.toTypedArray(), rightParen, type, it, previous) }
 	}
 

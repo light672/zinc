@@ -1,28 +1,34 @@
 package com.light672.zinc.lang.compiler
 
 internal sealed class Type {
-	data object Number : Type() {
+	object Number : Type() {
 		override fun toString() = "num"
+		override fun equals(other: Any?) = other is Number || other is Never
 	}
 
-	data object Char : Type() {
+	object Char : Type() {
 		override fun toString() = "char"
+		override fun equals(other: Any?) = other is Char || other is Never
 	}
 
-	data object Bool : Type() {
+	object Bool : Type() {
 		override fun toString() = "bool"
+		override fun equals(other: Any?) = other is Bool || other is Never
 	}
 
-	data object String : Type() {
+	object String : Type() {
 		override fun toString() = "str"
+		override fun equals(other: Any?) = other is String || other is Never
 	}
 
-	data object Unit : Type() {
+	object Unit : Type() {
 		override fun toString() = "()"
+		override fun equals(other: Any?) = other is Unit || other is Never
 	}
 
-	data object Nothing : Type() {
+	object Never : Type() {
 		override fun toString() = "nothing"
+		override fun equals(other: Any?) = other is Type
 	}
 
 	data class Function(val parameters: Array<Type>, val returnType: Type) : Type() {
@@ -30,6 +36,7 @@ internal sealed class Type {
 
 		override fun equals(other: Any?): Boolean {
 			if (this === other) return true
+			if (other === Never) return true
 			if (javaClass != other?.javaClass) return false
 
 			other as Function
@@ -63,5 +70,6 @@ internal sealed class Type {
 
 	class Struct(val name: kotlin.String, val fields: LinkedHashMap<kotlin.String, Pair<IntRange, Type>>) : Type() {
 		override fun toString(): kotlin.String = name
+		override fun equals(other: Any?) = this === other || other is Never
 	}
 }
