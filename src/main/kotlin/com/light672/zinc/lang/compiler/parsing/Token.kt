@@ -52,7 +52,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		TRUE(ParseRule(prefix = PrattParser::trueLiteral)),
 		FALSE(ParseRule(prefix = PrattParser::falseLiteral)),
 		STRUCT,
-		FUNC,
+		DEF,
 		VAR,
 		VAL,
 		PUB,

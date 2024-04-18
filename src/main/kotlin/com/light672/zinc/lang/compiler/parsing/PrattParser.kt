@@ -48,7 +48,7 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 
 	private fun declaration(): Stmt? {
 		if (match(STRUCT)) return structDeclaration()
-		if (match(FUNC)) return functionDeclaration()
+		if (match(DEF)) return functionDeclaration()
 		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
 		errorAtCurrent("Expected declaration.")
 		return null
@@ -56,7 +56,7 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 
 	private fun declarationOrStatement(): Stmt? {
 		if (match(STRUCT)) return structDeclaration()
-		if (match(FUNC)) return functionDeclaration()
+		if (match(DEF)) return functionDeclaration()
 		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
 		return statement()
 	}

@@ -91,8 +91,8 @@ internal class Lexer(val s: String) {
 		fun identifierToken(): Token.Type {
 			when (source[start]) {
 				'a' -> check("s", AS)
-
 				'b' -> return check("reak", BREAK)
+				'd' -> return check("ef", DEF)
 				'e' -> if (current - start > 1 && source[start + 1] == 'l')
 					when (source[start + 2]) {
 						'i' -> return check(3, "f", ELIF)
@@ -120,7 +120,6 @@ internal class Lexer(val s: String) {
 					when (source[start + 1]) {
 						'a' -> return check(2, "lse", FALSE)
 						'o' -> return check(2, "r", FOR)
-						'u' -> return check(2, "nc", FUNC)
 					}
 
 				'p' -> return check("ub", PUB)

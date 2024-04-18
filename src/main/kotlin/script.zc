@@ -1,19 +1,18 @@
-func add(a: num, b: num): num {
+def add(a: num, b: num): num {
 	a + a;
 }
 
-func main() {
+def main() {
 	createPlayer("e", 3);
 	"";
 }
 
-func createPlayer(name: str, max_health: num): num {
+def createPlayer(name: str, max_health: num): num {
 	val a = {
 		val a = 6;
 		val b = 11;
 		a + b;
 	};
-	name = '3';
 	{
 		val a = Player { name: name, cooldown: false, health: max_health, max_health: max_health };
     	struct Player {
