@@ -10,7 +10,7 @@ internal class Lexer(val s: String) {
 	private var line = 1
 
 	private fun currentChar() = if (end()) '\u0000' else source[current]
-	private fun nextChar() = if (current + 1 >= source.length) '\u0000' else source[current + 1]
+	private fun nextChar(lookAhead: Int = 0) = if (current + 1 + lookAhead >= source.length) '\u0000' else source[current + 1]
 
 	fun scanTokens(): List<Token> {
 		val tokens = ArrayList<Token>()
@@ -62,16 +62,11 @@ internal class Lexer(val s: String) {
 			'=' -> if (match('=')) add(EQUAL_EQUAL) else add(EQUAL)
 			'>' -> if (match('=')) add(GREATER_EQUAL) else add(GREATER)
 			'<' -> if (match('=')) add(LESS_EQUAL) else add(LESS)
-			'"' -> {
-				if (!match('"'))
-					string()
-				else if (nextChar() == '"') {
-					consume()
-					multiLineString()
-				} else {
-					string()
-				}
-			}
+			'"' -> string()
+
+
+			'|' -> if (match('|')) add(PIPE_PIPE) else errorToken("Unexpected character.")
+			'&' -> if (match('&')) add(AMP_AMP) else errorToken("Unexpected character.")
 
 			'\'' -> char()
 
@@ -95,11 +90,7 @@ internal class Lexer(val s: String) {
 
 		fun identifierToken(): Token.Type {
 			when (source[start]) {
-				'a' -> if (current - start > 1)
-					when (source[start + 1]) {
-						's' -> return check(2, "", AS)
-						'n' -> return check(2, "d", AND)
-					}
+				'a' -> check("s", AS)
 
 				'b' -> return check("reak", BREAK)
 				'e' -> if (current - start > 1 && source[start + 1] == 'l')
@@ -116,7 +107,6 @@ internal class Lexer(val s: String) {
 					}
 
 				'l' -> return check("oop", LOOP)
-				'o' -> return check("r", OR)
 				'r' -> return check("eturn", RETURN)
 				'v' -> if (current - start > 1 && source[start + 1] == 'a')
 					when (source[start + 2]) {

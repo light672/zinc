@@ -153,8 +153,8 @@ internal class RecursiveParser(source: String, instance: Zinc.Runtime) : Parser(
 		return expression
 	}
 
-	private fun or() = parseLogicalExpression({ and() }, OR)
-	private fun and() = parseLogicalExpression({ equality() }, AND)
+	private fun or() = parseLogicalExpression({ and() }, PIPE_PIPE)
+	private fun and() = parseLogicalExpression({ equality() }, AMP_AMP)
 	private fun equality() = parseBinaryExpression({ comparison() }, BANG_EQUAL, EQUAL_EQUAL)
 	private fun comparison() = parseBinaryExpression({ term() }, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)
 	private fun term() = parseBinaryExpression({ factor() }, MINUS, PLUS)

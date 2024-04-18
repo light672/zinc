@@ -4,6 +4,7 @@ func add(a: num, b: num): num {
 
 func main() {
 	createPlayer("e", 3);
+	"";
 }
 
 func createPlayer(name: str, max_health: num): num {

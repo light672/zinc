@@ -153,7 +153,7 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 		return expression
 	}
 
-	private fun logical() = parseLogicalExpression({ binary() }, OR, AND)
+	private fun logical() = parseLogicalExpression({ binary() }, PIPE_PIPE, AMP_AMP)
 	private fun binary() = parseBinaryExpression(
 		{ unary() },
 		BANG_EQUAL, EQUAL,
