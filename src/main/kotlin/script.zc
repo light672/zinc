@@ -13,6 +13,7 @@ func createPlayer(name: str, max_health: num): num {
 		val b = 11;
 		a + b;
 	};
+	name = '3';
 	{
 		val a = Player { name: name, cooldown: false, health: max_health, max_health: max_health };
     	struct Player {

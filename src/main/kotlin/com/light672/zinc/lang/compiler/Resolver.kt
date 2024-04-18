@@ -13,6 +13,7 @@ import com.light672.zinc.lang.compiler.CompilerError.Companion.badFieldSetType
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badLogicalOperator
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badSetType
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badUnaryOperator
+import com.light672.zinc.lang.compiler.CompilerError.Companion.immutableSet
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingFunctionParameter
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingGlobal
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingType
@@ -101,7 +102,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 			return error(notMatchingDeclaredType(range, declaredType, initializerType))
 
 		val existing = scope.variables[name.lexeme]?.first
-		if (existing != null && global) return error(matchingGlobal(existing.statement.range, range, name.lexeme))
+		if (existing != null && global) return error(matchingGlobal(existing.range, range, name.lexeme))
 
 		val type = declaredType ?: initializerType!!
 		scope.addVariable(name.lexeme, type, mutable, this, initializer != null)
@@ -121,7 +122,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		if (paramTypeError) return null
 		val params = Array(paramTypes.size) { i -> paramTypes[i]!! }
 		val og = scope.variables[name.lexeme]?.first
-		if (scope.parent == null && og != null) return error(matchingGlobal(og.statement.range, range, name.lexeme))
+		if (scope.parent == null && og != null) return error(matchingGlobal(og.range, range, name.lexeme))
 		declaredType ?: return null
 		return scope.addVariable(name.lexeme, Type.Function(params, declaredType), false, this, true)
 	}
@@ -134,10 +135,10 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 				val name = pair.first.lexeme
 				val declaration = scope.variables[name]?.first
 				if (declaration != null) {
-					error<Unit>(matchingFunctionParameter(statement.range, declaration.name))
+					error<Unit>(matchingFunctionParameter(range, declaration.name))
 					return@scope null
 				}
-				scope.addVariable(name, paramType, false, statement, true)
+				scope.addVariable(name, paramType, false, statement, true, pair.first.range.first..pair.second.range.last)
 			}
 			val finalType = statement.body.resolveAlreadyInScope() ?: return@scope null
 			if (!(scope.type == finalType || scope.type == Type.Unit)) error(
@@ -190,6 +191,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 
 	private fun Expr.SetVariable.resolve(): Type? {
 		val (variable, index) = findVariable(variable) ?: return null
+		if (!variable.mutable) return error(immutableSet(variable, this))
 		val expressionType = value.resolve() ?: return null
 		if (variable.type != expressionType) return error(badSetType(variable, this, expressionType))
 		variable.initialized = true

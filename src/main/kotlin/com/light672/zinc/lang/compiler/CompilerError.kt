@@ -46,10 +46,17 @@ internal sealed class CompilerError(val message: String) {
 			)
 
 		fun badSetType(variable: Declaration, expr: Expr.SetVariable, expressionType: Type) = TwoRangeError(
-			variable.statement.range, expr.range,
+			variable.range, expr.range,
 			"Declared with type '${variable.type}'.",
 			"Set with type '$expressionType'.",
 			"Value being set to '${variable.name}' has type '$expressionType', while '${variable.name}' is type '${variable.type}'."
+		)
+
+		fun immutableSet(variable: Declaration, set: Expr.SetVariable) = TwoRangeError(
+			variable.range, set.range,
+			"Declared as immutable.",
+			"Was reassigned here.",
+			"'${set.variable.lexeme}' is immutable but was reassigned."
 		)
 
 		fun missingFields(r: IntRange, map: HashMap<String, Pair<IntRange, Expr>>, s: Struct) =
