@@ -158,16 +158,6 @@ internal class Lexer(val s: String) {
 		return token
 	}
 
-	private fun multiLineString(): Token {
-		start = current
-		while (!end()) {
-			if (match('"') && match('"') && match('"')) return addFormatted(STRING_VALUE)
-			if (currentChar() == '\n') line++
-			consume()
-		}
-		return errorToken("Unterminated multi-line string.")
-	}
-
 	private fun char(): Token {
 		start = current
 		while (currentChar() != '\'' && !end()) {
@@ -203,7 +193,7 @@ internal class Lexer(val s: String) {
 	private fun addFormatted(type: Token.Type): Token {
 		val lexeme = source.substring(start, current)
 		val final = StringEscapeUtils.escapeJava(lexeme)
-		val token = Token(type, line, start..current, final)
+		val token = Token(type, line, start..current + 1, final)
 		start = current
 		return token
 	}
