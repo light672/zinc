@@ -12,12 +12,15 @@ import com.light672.zinc.lang.compiler.CompilerError.Companion.badDot
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badFieldSetType
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badLogicalOperator
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badSetType
+import com.light672.zinc.lang.compiler.CompilerError.Companion.badThenAndElse
+import com.light672.zinc.lang.compiler.CompilerError.Companion.badType
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badUnaryOperator
 import com.light672.zinc.lang.compiler.CompilerError.Companion.immutableSet
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingFunctionParameter
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingGlobal
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingType
 import com.light672.zinc.lang.compiler.CompilerError.Companion.missingFields
+import com.light672.zinc.lang.compiler.CompilerError.Companion.noElseBranch
 import com.light672.zinc.lang.compiler.CompilerError.Companion.noFieldCalled
 import com.light672.zinc.lang.compiler.CompilerError.Companion.noGlobalInit
 import com.light672.zinc.lang.compiler.CompilerError.Companion.noMain
@@ -140,7 +143,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 				}
 				scope.addVariable(name, paramType, false, statement, true, pair.first.range.first..pair.second.range.last)
 			}
-			val finalType = statement.body.resolveAlreadyInScope() ?: return@scope null
+			val finalType = statement.body.resolveAlreadyInScope(type.returnType != Type.Unit) ?: return@scope null
 			if (!(scope.type == finalType || scope.type == Type.Unit)) error(
 				notMatchingReturnType(
 					statement.body.block.second.last().range,
@@ -172,7 +175,10 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 	private fun Expr.Binary.resolve(): Type? {
 		val leftType = left.resolve() ?: return null
 		val rightType = right.resolve() ?: return null
-		if (leftType == Type.Number && rightType == Type.Number) return Type.Number
+		if (leftType == Type.Number && rightType == Type.Number) return when (operator.type) {
+			Token.Type.GREATER_EQUAL, Token.Type.GREATER, Token.Type.LESS_EQUAL, Token.Type.LESS -> Type.Bool
+			else -> Type.Number
+		}
 		return error(badBinaryOperator(this, leftType, rightType))
 	}
 
@@ -235,16 +241,28 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		return struct.type
 	}
 
-	private fun Expr.Block.resolve(): Type? {
+	private fun Expr.Block.resolve(valueUsed: Boolean): Type? {
 		var type: Type? = null
 		scope {
-			type = resolveAlreadyInScope()
+			type = resolveAlreadyInScope(valueUsed)
 			Unit
 		}
 		return type
 	}
 
-	private fun Expr.Block.resolveAlreadyInScope(): Type? {
+	private fun Expr.If.resolve(valueUsed: Boolean): Type? {
+		val conditionType = condition.resolve() ?: return null
+		val thenType = thenBranch.resolve() ?: return null
+		val elseType = elseBranch?.let { it.resolve() ?: return null } ?: if (valueUsed) return error(noElseBranch(this)) else Type.Never
+
+		if (conditionType != Type.Bool) return error(badType(condition, conditionType, Type.Bool))
+		elseBranch ?: return Type.Unit
+
+		if (thenType != elseType) return error(badThenAndElse(thenBranch, elseBranch, thenType, elseType))
+		return thenType
+	}
+
+	private fun Expr.Block.resolveAlreadyInScope(valueUsed: Boolean): Type? {
 		var err = false
 		val structTypes = Array(block.first.size) { i ->
 			val resolved = block.first[i].resolve()
@@ -259,7 +277,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		for (stmt in block.second) {
 			if (block.second.last() === stmt) {
 				if (stmt !is Stmt.ExpressionStatement) return Type.Unit
-				return stmt.expression.resolve()
+				return stmt.expression.resolve(valueUsed)
 			} else stmt.resolve()
 		}
 		return null // not possible
@@ -314,10 +332,10 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 			is Stmt.Struct -> null
 			is Stmt.Function -> null
 			is Stmt.VariableDeclaration -> resolve()
-			is Stmt.ExpressionStatement -> expression.resolve()?.let { Unit }
+			is Stmt.ExpressionStatement -> expression.resolve(false)?.let { Unit }
 		}
 
-	private fun Expr.resolve(): Type? {
+	private fun Expr.resolve(valueUsed: Boolean = true): Type? {
 		return when (this) {
 			is Expr.Literal -> {
 				when (value) {
@@ -341,7 +359,8 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 			is Expr.Call -> resolve()
 			is Expr.InitializeStruct -> resolve()
 			is Expr.Logical -> resolve()
-			is Expr.Block -> resolve()
+			is Expr.Block -> resolve(valueUsed)
+			is Expr.If -> resolve(valueUsed)
 		}
 	}
 

@@ -201,10 +201,27 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 		return Expr.GetField(callee, previous)
 	}
 
-	/**
-	 * Returns literals and groups.
-	 * Errors already handled, returns null if an error was found and processed.
-	 */
+	private fun ternary(): Expr.If? {
+		val token = previous
+		expect(LEFT_PAREN, "Expected '(' after '${token.lexeme}'.") ?: return null
+		val condition = expression() ?: return null
+		expect(RIGHT_PAREN, "Expected ')' after expression.") ?: return null
+		val then = expression() ?: return null
+		return when (current.type) {
+			ELSE -> {
+				advance()
+				Expr.If(token, condition, then, expression() ?: return null)
+			}
+
+			ELIF -> {
+				advance()
+				Expr.If(token, condition, then, ternary() ?: return null)
+			}
+
+			else -> Expr.If(token, condition, then, null)
+		}
+	}
+
 	private fun primary(): Expr? {
 		if (match(FALSE)) return Expr.Literal(ZincFalse, previous)
 		if (match(TRUE)) return Expr.Literal(ZincTrue, previous)
@@ -245,6 +262,7 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 				Expr.Return(previous, expression() ?: return null)
 			else Expr.Return(previous, null)
 		}
+		if (match(IF)) return ternary()
 		errorAtCurrent("Expected expression.")
 		return null
 	}

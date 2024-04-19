@@ -60,7 +60,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		FOR,
 		WHILE,
 		LOOP,
-		IF,
+		IF(ParseRule(prefix = PrattParser::ternary)),
 		ELSE,
 		ELIF,
 		RETURN(ParseRule(prefix = PrattParser::returnExpr)),

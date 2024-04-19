@@ -8,6 +8,10 @@ internal sealed class Expr {
 		override val range = open.range.first..close.range.last
 	}
 
+	data class If(val token: Token, val condition: Expr, val thenBranch: Expr, val elseBranch: Expr?) : Expr() {
+		override val range = token.range.first..(elseBranch?.range?.last ?: thenBranch.range.last)
+	}
+
 	data class InitializeStruct(val name: Token, val fields: Array<Pair<Token, Expr>>, val end: Token) : Expr() {
 		override val range = name.range.first..end.range.last
 		override fun toString(): String {

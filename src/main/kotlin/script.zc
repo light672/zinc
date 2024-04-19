@@ -1,28 +1,7 @@
 def add(a: num, b: num): num {
-	a + a;
+
 }
 
 def main() {
-	createPlayer("e", 3);
-	"";
+	add(3, 4);
 }
-
-def createPlayer(name: str, max_health: num): num {
-	val a = {
-		val a = 6;
-		val b = 11;
-		a + b;
-	};
-	{
-		val a = Player { name: name, cooldown: false, health: max_health, max_health: max_health };
-    	struct Player {
-        	name: str,
-        	health: num,
-        	max_health: num,
-        	cooldown: bool
-        }
-        a;
-	}.health;
-
-}
-

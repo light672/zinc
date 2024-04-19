@@ -46,6 +46,27 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 		return Expr.Block(open, Pair(structs, stmts), previous)
 	}
 
+	fun ternary(u: Boolean = true): Expr.If? {
+		val token = previous
+		expect(LEFT_PAREN, "Expected '(' after '${token.lexeme}'.") ?: return null
+		val condition = expression() ?: return null
+		expect(RIGHT_PAREN, "Expected ')' after expression.") ?: return null
+		val then = expression() ?: return null
+		return when (current.type) {
+			ELSE -> {
+				advance()
+				Expr.If(token, condition, then, expression() ?: return null)
+			}
+
+			ELIF -> {
+				advance()
+				Expr.If(token, condition, then, ternary() ?: return null)
+			}
+
+			else -> Expr.If(token, condition, then, null)
+		}
+	}
+
 	private fun declaration(): Stmt? {
 		if (match(STRUCT)) return structDeclaration()
 		if (match(DEF)) return functionDeclaration()
@@ -125,7 +146,7 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 	}
 
 	private fun statement(): Stmt? {
-		return expressionStatement();
+		return expressionStatement()
 	}
 
 	private fun expressionStatement(): Stmt.ExpressionStatement? {

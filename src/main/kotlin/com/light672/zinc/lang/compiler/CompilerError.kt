@@ -84,6 +84,19 @@ internal sealed class CompilerError(val message: String) {
 				}'."
 			)
 
+		fun badType(expr: Expr, got: Type, expected: Type) = OneRangeError(expr.range, "Expected type '$expected' but got '$got'.")
+
+		fun badThenAndElse(thenBranch: Expr, elseBranch: Expr, thenType: Type, elseType: Type) =
+			TwoRangeError(
+				thenBranch.range,
+				elseBranch.range,
+				"Then branch has type '$thenType'.",
+				"Else branch has type '$elseType'.",
+				"Conditional branch types of '$thenType' and '$elseType' do not match."
+			)
+
+		fun noElseBranch(expr: Expr.If) = OneRangeError(expr.range, "Expected 'else' branch in 'if' expression.")
+
 		fun badDot(expr: Expr, type: Type) = OneRangeError(expr.range, "Cannot get field using '.' on type '$type'.")
 
 		fun noVariable(name: Token) = TokenError(name, "Variable '${name.lexeme}' does not exist in the current scope.")
@@ -99,6 +112,7 @@ internal sealed class CompilerError(val message: String) {
 
 		fun badUnaryOperator(expression: Expr.Unary, rightType: Type) =
 			OneRangeError(expression.range, "Cannot perform '${expression.operator.lexeme}' on '$rightType'.")
+
 
 		val noMain = SimpleError("No main function found in file being ran.")
 	}
