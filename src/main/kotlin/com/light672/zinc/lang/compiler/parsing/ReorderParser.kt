@@ -99,7 +99,7 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 		}
 		expect(LEFT_BRACE, "Expected function body.")
 		val block = block()
-		return block?.let { Stmt.Function(declaration, name, list.toTypedArray(), rightParen, type, it, previous) }
+		return block?.let { Stmt.Function(declaration, name, list.toTypedArray(), rightParen, type, it) }
 	}
 
 	private fun variableDeclaration(): Stmt.VariableDeclaration? {
@@ -126,7 +126,22 @@ internal class ReorderParser(source: String, runtime: Zinc.Runtime) : Parser(sou
 	}
 
 	private fun statement(): Stmt? {
-		return expressionStatement();
+		return when (current.type) {
+			WHILE -> {
+				advance()
+				whileStatement()
+			}
+
+			else -> expressionStatement()
+		}
+	}
+
+	private fun whileStatement(): Stmt.While? {
+		val token = previous
+		expect(LEFT_PAREN, "Expected '(' after 'while'.") ?: return null
+		val condition = expression() ?: return null
+		expect(RIGHT_PAREN, "Expected ')' after expression.") ?: return null
+		return Stmt.While(token, condition, expression() ?: return null)
 	}
 
 	private fun expressionStatement(): Stmt.ExpressionStatement? {

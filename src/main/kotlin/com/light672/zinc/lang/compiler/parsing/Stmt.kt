@@ -13,7 +13,6 @@ internal sealed class Stmt {
 		val rightParen: Token,
 		val type: Token?,
 		val body: Expr.Block,
-		val closeToken: Token,
 	) : Stmt() {
 		override val range = declaration.range.first..(type?.range?.last ?: rightParen.range.last)
 		override fun equals(other: Any?): Boolean {
@@ -28,7 +27,6 @@ internal sealed class Stmt {
 			if (rightParen != other.rightParen) return false
 			if (type != other.type) return false
 			if (body != other.body) return false
-			if (closeToken != other.closeToken) return false
 
 			return true
 		}
@@ -40,9 +38,12 @@ internal sealed class Stmt {
 			result = 31 * result + rightParen.hashCode()
 			result = 31 * result + (type?.hashCode() ?: 0)
 			result = 31 * result + body.hashCode()
-			result = 31 * result + closeToken.hashCode()
 			return result
 		}
+	}
+
+	data class While(val token: Token, val condition: Expr, val then: Expr) : Stmt() {
+		override val range = token.range.first..then.range.last
 	}
 
 	data class Struct(

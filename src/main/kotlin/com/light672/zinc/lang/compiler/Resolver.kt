@@ -156,6 +156,15 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 
 	private fun Stmt.Function.resolve() = declare()?.resolveFunctionBlock()
 
+	private fun Stmt.While.resolve(): Unit? {
+		val conditionType = condition.resolve() ?: return null
+		if (conditionType != Type.Bool) return error(badType(condition, conditionType, Type.Bool))
+
+		then.resolve(false) ?: return null
+
+		return Unit
+	}
+
 
 	private fun Expr.Return.resolve(): Type? {
 		val type = expression?.let { it.resolve() ?: return null } ?: Type.Unit
@@ -276,7 +285,10 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		if (err) return null
 		for (stmt in block.second) {
 			if (block.second.last() === stmt) {
-				if (stmt !is Stmt.ExpressionStatement) return Type.Unit
+				if (stmt !is Stmt.ExpressionStatement) {
+					stmt.resolve()
+					return Type.Unit
+				}
 				return stmt.expression.resolve(valueUsed)
 			} else stmt.resolve()
 		}
@@ -333,6 +345,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 			is Stmt.Struct -> null
 			is Stmt.Function -> null
 			is Stmt.VariableDeclaration -> resolve()
+			is Stmt.While -> resolve()
 			is Stmt.ExpressionStatement -> expression.resolve(false)?.let { Unit }
 		}
 

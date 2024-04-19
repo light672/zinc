@@ -9,5 +9,5 @@ def add(): num {
 }
 
 def sub() {
-
+	while (true) 3
 }
