@@ -1,7 +1,13 @@
-def add(a: num, b: num): num {
 
+
+def add(): num {
+	val a = 3 + 4;
+	if (a > 5) {
+		return a + 15;
+	};
+	a + 6;
 }
 
-def main() {
-	add(3, 4);
+def sub() {
+
 }

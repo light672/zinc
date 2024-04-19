@@ -146,7 +146,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 			val finalType = statement.body.resolveAlreadyInScope(type.returnType != Type.Unit) ?: return@scope null
 			if (!(scope.type == finalType || scope.type == Type.Unit)) error(
 				notMatchingReturnType(
-					statement.body.block.second.last().range,
+					statement.body.range,
 					scope.type!!,
 					finalType
 				)
@@ -280,7 +280,8 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 				return stmt.expression.resolve(valueUsed)
 			} else stmt.resolve()
 		}
-		return null // not possible
+		// block is empty
+		return Type.Unit
 	}
 
 
