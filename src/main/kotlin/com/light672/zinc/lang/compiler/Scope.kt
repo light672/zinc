@@ -33,4 +33,14 @@ internal class Scope(
 	fun getLocalVar(name: String) = variables[name]
 	fun getLocalStruct(name: String) = structs[name]
 	fun getLocalType(name: String) = types[name]
+
+
+	companion object {
+		val primitives = HashMap<String, Type>().also {
+			it["num"] = Type.Number
+			it["str"] = Type.String
+			it["char"] = Type.Char
+			it["bool"] = Type.Bool
+		}
+	}
 }

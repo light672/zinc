@@ -8,6 +8,6 @@ def add(): num {
 	a + 6;
 }
 
-def sub() {
-	while (true) 3
+def sub(): num {
+
 }

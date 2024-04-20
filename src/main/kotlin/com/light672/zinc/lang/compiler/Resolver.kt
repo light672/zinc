@@ -322,7 +322,8 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 			if (scope.types[name.lexeme] != null) return scope.types[name.lexeme]
 			scope = scope.parent
 		}
-		return error(noType(name))
+		val primitive = Scope.primitives[name.lexeme]
+		return primitive ?: error(noType(name))
 	}
 
 

@@ -16,10 +16,6 @@ internal class Compiler(val runtime: Zinc.Runtime, val source: String, val parse
 		val (structs, functions, variables) = parser.parse()
 		val module = ZincModule(runtime, source, structs, functions, variables)
 		val resolver = Resolver(runtime, module, true)
-		module.globals.types["num"] = Type.Number
-		module.globals.types["char"] = Type.Char
-		module.globals.types["bool"] = Type.Bool
-		module.globals.types["str"] = Type.String
 		resolver.resolve()
 		return null
 	}
