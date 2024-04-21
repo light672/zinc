@@ -46,6 +46,10 @@ internal sealed class Stmt {
 		override val range = token.range.first..then.range.last
 	}
 
+	data class Impl(val token: Token, val type: Token, val trait: Token, val close: Token) : Stmt() {
+		override val range = token.range.first..close.range.last
+	}
+
 	data class Struct(
 		val declaration: Token,
 		val name: Token,
