@@ -123,7 +123,11 @@ internal class Lexer(val s: String) {
 					}
 
 				'p' -> return check("ub", PUB)
-				's' -> return check("truct", STRUCT)
+				's' -> if (current - start > 1)
+					when (source[start + 1]) {
+						't' -> return check(2, "ruct", STRUCT)
+						'e' -> return check(2, "lf", SELF)
+					}
 			}
 			return IDENTIFIER
 		}
