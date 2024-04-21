@@ -104,6 +104,7 @@ internal class Lexer(val s: String) {
 						's' -> return check(2, "", IS)
 						'f' -> return check(2, "", IF)
 						'n' -> return if (current - start > 2 && source[start + 2] == 't') check(3, "t", INT) else check(2, "", IN)
+						'm' -> return check(2, "pl", IMPL)
 					}
 
 				'l' -> return check("oop", LOOP)
@@ -115,7 +116,12 @@ internal class Lexer(val s: String) {
 					}
 
 				'w' -> return check("hile", WHILE)
-				't' -> return check("rue", TRUE)
+				't' -> if (current - start > 1 && source[start + 1] == 'r')
+					when (source[start + 2]) {
+						'a' -> return check(3, "it", TRAIT)
+						'u' -> return check(3, "e", TRUE)
+					}
+
 				'f' -> if (current - start > 1)
 					when (source[start + 1]) {
 						'a' -> return check(2, "lse", FALSE)

@@ -71,6 +71,8 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		IS,
 		AS,
 		IN,
+		TRAIT,
+		IMPL,
 		EOF,
 		ERROR,
 		NA
