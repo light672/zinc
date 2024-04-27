@@ -7,7 +7,7 @@ internal sealed class Parser(source: String, val runtime: Zinc.Runtime) {
 	private val lexer = Lexer(source)
 	var current: Token = Token.empty()
 	var previous: Token = Token.empty()
-	abstract fun parse(): Triple<ArrayList<Stmt.Struct>, ArrayList<Stmt.Function>, ArrayList<Stmt.VariableDeclaration>>
+	abstract fun parse(): ParseResult
 	abstract fun expression(): Expr?
 
 	fun getNameAndType(variableType: String): Pair<Token, Token>? {

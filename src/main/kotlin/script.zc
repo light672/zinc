@@ -1,13 +1,20 @@
+struct MyStruct {
+	a: num
+}
 
+impl MyStruct {
+	def a(): num { 3; }
+}
+
+impl MyStruct {
+	def a() {}
+}
 
 def add(): num {
 	val a = 3 + 4;
 	if (a > 5) {
 		return a + 15;
 	};
+	val a = MyStruct {  a: 3}.a();
 	a + 6;
-}
-
-def sub(): num {
-
 }

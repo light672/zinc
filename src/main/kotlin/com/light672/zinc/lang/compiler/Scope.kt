@@ -9,6 +9,7 @@ internal class Scope(
 ) {
 	val types = HashMap<String, Type>()
 	val structs = HashMap<String, Struct>()
+	val impls = HashMap<Type, HashMap<Trait, HashMap<String, Declaration>>>()
 	val variables = HashMap<String, Pair<Declaration, Int>>()
 
 
@@ -20,7 +21,7 @@ internal class Scope(
 		initialized: Boolean,
 		range: IntRange = statement.range
 	): Declaration {
-		val declaration = Declaration(name, type, mutable, statement, initialized, variables.size + base, range)
+		val declaration = Declaration(name, type, mutable, statement, initialized, range)
 		variables[name] = Pair(declaration, variables.size)
 		return declaration
 	}

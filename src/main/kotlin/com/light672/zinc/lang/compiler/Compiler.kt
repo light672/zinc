@@ -13,8 +13,8 @@ internal class Compiler(val runtime: Zinc.Runtime, val source: String, val parse
 			Zinc.ParseType.RECURSIVE -> RecursiveParser(source, runtime)
 			Zinc.ParseType.REORDER -> ReorderParser(source, runtime)
 		}
-		val (structs, functions, variables) = parser.parse()
-		val module = ZincModule(runtime, source, structs, functions, variables)
+		val result = parser.parse()
+		val module = ZincModule(runtime, source, result)
 		val resolver = Resolver(runtime, module, true)
 		resolver.resolve()
 		return null

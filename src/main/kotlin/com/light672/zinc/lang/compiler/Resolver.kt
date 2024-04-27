@@ -16,6 +16,7 @@ import com.light672.zinc.lang.compiler.CompilerError.Companion.badThenAndElse
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badType
 import com.light672.zinc.lang.compiler.CompilerError.Companion.badUnaryOperator
 import com.light672.zinc.lang.compiler.CompilerError.Companion.immutableSet
+import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingFuncInImpl
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingFunctionParameter
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingGlobal
 import com.light672.zinc.lang.compiler.CompilerError.Companion.matchingType
@@ -24,6 +25,7 @@ import com.light672.zinc.lang.compiler.CompilerError.Companion.noElseBranch
 import com.light672.zinc.lang.compiler.CompilerError.Companion.noFieldCalled
 import com.light672.zinc.lang.compiler.CompilerError.Companion.noGlobalInit
 import com.light672.zinc.lang.compiler.CompilerError.Companion.noMain
+import com.light672.zinc.lang.compiler.CompilerError.Companion.noMethod
 import com.light672.zinc.lang.compiler.CompilerError.Companion.noStruct
 import com.light672.zinc.lang.compiler.CompilerError.Companion.noType
 import com.light672.zinc.lang.compiler.CompilerError.Companion.noVariable
@@ -41,28 +43,41 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 
 	fun resolve(): Unit? {
 		var err = false
-		val structTypes = Array(module.structs.size) { i ->
-			val resolved = module.structs[i].resolve()
+		val structTypes = Array(module.result.structs.size) { i ->
+			val resolved = module.result.structs[i].resolve()
 			if (resolved == null) err = true
 			resolved
 		}
 		if (err) return null
 
 		for ((i, struct) in structTypes.withIndex())
-			if (struct!!.resolveStructInside(module.structs[i].fields) == null) err = true
+			if (struct!!.resolveStructInside(module.result.structs[i].fields) == null) err = true
 		if (err) return null
 
-		val funcDeclarations = Array(module.functions.size) { i ->
-			val resolved = module.functions[i].declare()
+		val funcDeclarations = Array(module.result.functions.size) { i ->
+			val resolved = module.result.functions[i].declare()
 			if (resolved == null) err = true
 			resolved
 		}
 		if (err) return null
 
-		for (variable in module.variables)
-			if (variable.resolve() == null) err = true
+		val implDeclarations = ArrayList<Array<Declaration?>>()
+
+		for (impl in module.result.impls) {
+			val resolved = impl.resolve()
+			if (resolved == null) err = true else implDeclarations.add(resolved)
+		}
 		if (err) return null
 
+		for (variable in module.result.variables)
+			if (variable.resolve() == null) err = true
+		if (err) return null
+		for (implFunctions in implDeclarations) {
+			for (declaration in implFunctions) {
+				val result = declaration!!.resolveFunctionBlock()
+				if (result == null) err = true
+			}
+		}
 		for (declaration in funcDeclarations) {
 			declaration!!.resolveFunctionBlock()
 		}
@@ -130,6 +145,26 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 		return scope.addVariable(name.lexeme, Type.Function(params, declaredType), false, this, true)
 	}
 
+	private fun Stmt.Function.declareInImpl(implType: Type, map: HashMap<String, Declaration>): Declaration? {
+		val declaredType = if (type != null) getTypeFromName(type) else Type.Unit
+		var paramTypeError = false
+		val paramTypes = Array(arguments.size) { i ->
+			val type = arguments[i].second
+			getTypeFromName(type) ?: run {
+				paramTypeError = true
+				null
+			}
+		}
+		if (paramTypeError) return null
+		val params = Array(paramTypes.size) { i -> paramTypes[i]!! }
+		val og = map[name.lexeme]
+		og?.let { return error(matchingFuncInImpl(og.range, range, name.lexeme, implType)) }
+		declaredType ?: return null
+		val declaration = Declaration(name.lexeme, Type.Function(params, declaredType), false, this, true, range)
+		map[name.lexeme] = declaration
+		return declaration
+	}
+
 	private fun Declaration.resolveFunctionBlock(): Unit? {
 		return scope((type as Type.Function).returnType) scope@{
 			statement as Stmt.Function
@@ -159,10 +194,46 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 	private fun Stmt.While.resolve(): Unit? {
 		val conditionType = condition.resolve() ?: return null
 		if (conditionType != Type.Bool) return error(badType(condition, conditionType, Type.Bool))
-
 		then.resolve(false) ?: return null
-
 		return Unit
+	}
+
+	private fun Stmt.Impl.resolve(): Array<Declaration?>? {
+		trait?.let { TODO("implement traits") }
+
+		val type = getTypeFromName(type) ?: return null
+
+
+		val impl = scope.impls[type]
+
+		// if impl doesn't exist create one, if it does exist use NO_TRAIT, if it does not have a NO_TRAIT impl for later purposes, create one and use that
+
+		val map = if (impl == null) {
+			val h = HashMap<Trait, HashMap<String, Declaration>>().also {
+				val h = HashMap<String, Declaration>()
+				it[Trait.NO_TRAIT] = h
+			}
+			scope.impls[type] = h
+			h[Trait.NO_TRAIT]!!
+		} else {
+			impl[Trait.NO_TRAIT] ?: run {
+				val h = HashMap<String, Declaration>()
+				impl[Trait.NO_TRAIT] = h
+				h
+			}
+		}
+
+		var err = false
+		val funcDeclarations = Array(functions.size) { i ->
+			val resolved = functions[i].declareInImpl(type, map)
+			if (resolved == null) err = true
+			resolved
+		}
+		if (err) return null
+
+
+		return if (err) null
+		else funcDeclarations
 	}
 
 
@@ -230,7 +301,34 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 	}
 
 	private fun Expr.Call.resolve(): Type? {
-		val calleeType = callee.resolve() ?: return null
+		var calleeType: Type? = null
+		if (callee is Expr.GetField) {
+			callee.field.lexeme
+
+			val gotFromType = callee.obj.resolve() ?: return null
+
+			var scope: Scope? = scope
+			a@ while (scope != null) {
+				val implement = scope.impls[gotFromType]
+				if (implement == null) {
+					scope = scope.parent
+					continue
+				}
+				for ((trait, functions) in implement.entries) {
+					val type = functions[callee.field.lexeme]?.type
+					if (type == null) {
+						scope = scope!!.parent
+						continue
+					}
+					calleeType = type
+					if (trait === Trait.NO_TRAIT) break@a
+				}
+				scope = scope!!.parent
+			}
+			calleeType ?: return error(noMethod(this, callee.field.lexeme, gotFromType))
+		} else {
+			calleeType = callee.resolve() ?: return null
+		}
 		if (calleeType !is Type.Function) return error(badCall(callee, calleeType))
 		val argTypes = Array(calleeType.parameters.size) { i -> arguments[i].resolve() ?: return null }
 		if (!argTypes.contentEquals(calleeType.parameters)) return error(badArgs(this, calleeType, argTypes))
@@ -347,6 +445,7 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 			is Stmt.Function -> null
 			is Stmt.VariableDeclaration -> resolve()
 			is Stmt.While -> resolve()
+			is Stmt.Impl -> resolve()
 			is Stmt.ExpressionStatement -> expression.resolve(false)?.let { Unit }
 		}
 

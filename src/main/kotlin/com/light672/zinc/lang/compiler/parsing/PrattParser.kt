@@ -6,20 +6,22 @@ import com.light672.zinc.lang.compiler.parsing.Token.Type.*
 import java.lang.Double.parseDouble
 
 internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(source, runtime) {
-	override fun parse(): Triple<ArrayList<Stmt.Struct>, ArrayList<Stmt.Function>, ArrayList<Stmt.VariableDeclaration>> {
+	override fun parse(): ParseResult {
 		advance()
 		val functions = ArrayList<Stmt.Function>()
 		val variables = ArrayList<Stmt.VariableDeclaration>()
 		val structs = ArrayList<Stmt.Struct>()
+		val impls = ArrayList<Stmt.Impl>()
 		while (!end()) {
 			when (val declaration = parseDeclaration()) {
 				is Stmt.Function -> functions.add(declaration)
 				is Stmt.VariableDeclaration -> variables.add(declaration)
 				is Stmt.Struct -> structs.add(declaration)
+				is Stmt.Impl -> impls.add(declaration)
 				else -> throw IllegalArgumentException()
 			}
 		}
-		return Triple(structs, functions, variables)
+		return ParseResult(structs, functions, variables, impls)
 	}
 
 
@@ -71,6 +73,7 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 		if (match(STRUCT)) return structDeclaration()
 		if (match(DEF)) return functionDeclaration()
 		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
+		if (match(IMPL)) return implStatement()
 		errorAtCurrent("Expected declaration.")
 		return null
 	}
@@ -79,6 +82,7 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 		if (match(STRUCT)) return structDeclaration()
 		if (match(DEF)) return functionDeclaration()
 		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
+		if (match(IMPL)) return implStatement()
 		return statement()
 	}
 
@@ -162,6 +166,40 @@ internal class PrattParser(source: String, runtime: Zinc.Runtime) : Parser(sourc
 		val condition = expression() ?: return null
 		expect(RIGHT_PAREN, "Expected ')' after expression.") ?: return null
 		return Stmt.While(token, condition, expression() ?: return null)
+	}
+
+	private fun implStatement(): Stmt.Impl? {
+		val token = previous
+		expect(IDENTIFIER, "Expected type name after 'impl'.")
+		val type = previous
+		val trait = if (match(COLON)) {
+			expect(IDENTIFIER, "Expect trait name after ':'.")
+			previous
+		} else null
+
+		expect(LEFT_BRACE, "Expect '{' after ${trait?.let { "trait" } ?: "type"}.")
+
+		val functions = ArrayList<Stmt.Function>()
+
+		if (!isNext(RIGHT_BRACE)) {
+			do {
+				when (current.type) {
+					DEF -> {
+						advance()
+						val function = functionDeclaration() ?: return null
+						functions.add(function)
+					}
+
+					else -> {
+						errorAtCurrent("Expected 'def' or 'typealias' inside of impl body.")
+						return null
+					}
+				}
+			} while (!isNext(RIGHT_BRACE))
+		}
+		expect(RIGHT_BRACE, "Expected '}' after block.") ?: return null
+		val close = previous
+		return Stmt.Impl(token, type, trait, functions, close)
 	}
 
 	private fun expressionStatement(): Stmt.ExpressionStatement? {

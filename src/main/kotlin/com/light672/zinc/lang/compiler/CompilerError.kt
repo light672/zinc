@@ -25,6 +25,13 @@ internal sealed class CompilerError(val message: String) {
 			"'$name' can only be declared once in top level scope."
 		)
 
+		fun matchingFuncInImpl(a: IntRange, b: IntRange, name: String, type: Type) = TwoRangeError(
+			a, b,
+			"'$name' first implemented here in '$type'.",
+			"'$name' implemented again in '$type'.",
+			"Function '$name' can only be declared once in implementation for type '$type'."
+		)
+
 		fun matchingType(a: IntRange, name: String) = OneRangeError(a, "Type '$name' declared twice in the same scope.")
 		fun matchingFunctionParameter(a: IntRange, name: String) = OneRangeError(a, "Function parameter '$name' declared twice.")
 
@@ -100,6 +107,7 @@ internal sealed class CompilerError(val message: String) {
 		fun badDot(expr: Expr, type: Type) = OneRangeError(expr.range, "Cannot get field using '.' on type '$type'.")
 
 		fun noVariable(name: Token) = TokenError(name, "Variable '${name.lexeme}' does not exist in the current scope.")
+		fun noMethod(expr: Expr.Call, name: String, type: Type) = OneRangeError(expr.range, "Method '$name' is not implemented for type '$type'.")
 		fun noType(name: Token) = TokenError(name, "Type '${name.lexeme}' does not exist in the current scope.")
 		fun noStruct(name: Token) = TokenError(name, "Struct '${name.lexeme}' does not exist in the current scope.")
 
