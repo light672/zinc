@@ -315,15 +315,11 @@ internal class Resolver(val runtime: Zinc.Runtime, val module: ZincModule, val m
 					continue
 				}
 				for ((trait, functions) in implement.entries) {
-					val type = functions[callee.field.lexeme]?.type
-					if (type == null) {
-						scope = scope!!.parent
-						continue
-					}
+					val type = functions[callee.field.lexeme]?.type ?: continue
 					calleeType = type
 					if (trait === Trait.NO_TRAIT) break@a
 				}
-				scope = scope!!.parent
+				scope = scope.parent
 			}
 			calleeType ?: return error(noMethod(this, callee.field.lexeme, gotFromType))
 		} else {
