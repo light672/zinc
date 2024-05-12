@@ -1,6 +1,6 @@
-package com.light672.zinc.lang.compiler.parsing
+package com.light672.zinc.lang.compiler
 
-import com.light672.zinc.lang.compiler.parsing.Token.Type.*
+import com.light672.zinc.lang.compiler.Token.Type.*
 import org.apache.commons.lang3.StringEscapeUtils
 
 internal class Lexer(val s: String) {

@@ -30,46 +30,4 @@ internal sealed class Type {
 		override fun toString() = "nothing"
 		override fun equals(other: Any?) = other is Type
 	}
-
-	data class Function(val parameters: Array<Type>, val returnType: Type) : Type() {
-		override fun toString(): kotlin.String = "${typeArrayToString(parameters)} -> $returnType"
-
-		override fun equals(other: Any?): Boolean {
-			if (this === other) return true
-			if (other === Never) return true
-			if (javaClass != other?.javaClass) return false
-
-			other as Function
-
-			if (!parameters.contentEquals(other.parameters)) return false
-			if (returnType != other.returnType) return false
-
-			return true
-		}
-
-		override fun hashCode(): Int {
-			var result = parameters.contentHashCode()
-			result = 31 * result + returnType.hashCode()
-			return result
-		}
-
-		companion object {
-			fun typeArrayToString(parameters: Array<Type>): kotlin.String {
-				val params = StringBuilder("(")
-				for (parameterType in parameters) {
-					params.append("$parameterType, ")
-				}
-				if (params[params.length - 2] == ',') {
-					params.delete(params.length - 2, params.length)
-				}
-				params.append(")")
-				return params.toString()
-			}
-		}
-	}
-
-	class Struct(val name: kotlin.String, val fields: LinkedHashMap<kotlin.String, Pair<IntRange, Type>>) : Type() {
-		override fun toString(): kotlin.String = name
-		override fun equals(other: Any?) = this === other || other is Never
-	}
 }
