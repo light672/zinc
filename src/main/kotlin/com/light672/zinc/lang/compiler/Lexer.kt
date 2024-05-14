@@ -3,8 +3,8 @@ package com.light672.zinc.lang.compiler
 import com.light672.zinc.lang.compiler.Token.Type.*
 import org.apache.commons.lang3.StringEscapeUtils
 
-internal class Lexer(val s: String) {
-	val source = s.replace("\t", "    ")
+internal class Lexer(private val originalSource: String) {
+	private val source = originalSource.replace("\t", "    ")
 	private var start = 0
 	private var current = 0
 	private var line = 1

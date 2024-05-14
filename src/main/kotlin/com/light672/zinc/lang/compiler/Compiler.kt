@@ -10,6 +10,8 @@ import com.light672.zinc.lang.runtime.opcodes.OP_SUB
 import java.lang.Double.parseDouble
 
 internal class Compiler(source: String, val runtime: Zinc.Runtime) {
+	var scopeDepth = 0
+	val scopes = arrayOfNulls<Scope>(256)
 	fun compile() {
 		advance()
 		while (!end()) declaration() ?: synchronize()
@@ -90,19 +92,23 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		// generate code
 		return ExprData(Type.String, previous.range)
 	}
+
 	fun charLiteral(u: Boolean): ExprData {
 		// generate code
 		return ExprData(Type.Char, previous.range)
 	}
+
 	fun numberLiteral(u: Boolean): ExprData {
 		parseDouble(previous.lexeme)
 		// generate code
 		return ExprData(Type.Number, previous.range)
 	}
+
 	fun trueLiteral(u: Boolean): ExprData {
 		// generate code
 		return ExprData(Type.Bool, previous.range)
 	}
+
 	fun falseLiteral(u: Boolean): ExprData {
 		// generate code
 		return ExprData(Type.Bool, previous.range)
@@ -123,20 +129,37 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		// generate code
 		return left
 	}
+
 	fun term(left: ExprData, u: Boolean) = binary(left, Precedence.FACTOR, if (previous.type == PLUS) OP_ADD else OP_SUB, Type.Number)
 	fun factor(left: ExprData, u: Boolean) = binary(left, Precedence.EXPONENT, if (previous.type == STAR) OP_ADD else OP_DIV, Type.Number)
 	fun exponent(left: ExprData, u: Boolean) = binary(left, Precedence.UNARY, OP_POW, Type.Number)
 
-	fun call(callee: Expr, u: Boolean): Expr.Call? {
-		val left = previous
-		val arguments = ArrayList<Expr>()
+	fun call(callee: ExprData, u: Boolean): ExprData? {
+		if (callee.type !is Type.Function) return rangeError(callee.range, "Cannot perform call on type '${callee.type}'.")
+
+		var arity = 0
+		val argArity = (callee.type as Type.Function).args.size - 1
 		if (!isNext(RIGHT_PAREN)) {
 			do {
-				arguments.add(expression() ?: return null)
+				if (arity > argArity) {
+					expression() ?: return null
+					continue
+				}
+
+				val expression = expression() ?: return null
+				val argType = (callee.type as Type.Function).args[arity++]
+				if (argType != expression.type) return rangeError(callee.range, "Expected type '${expression.type}' but got '${argType}'.")
 			} while (match(COMMA))
+
+			if (arity != argArity) return rangeError(
+				callee.range.first..previous.range.last,
+				"Function has '$argArity' argument${if (argArity > 1) "s" else ""} but '${arity}' ${if (arity > 1) "were" else "was"} given."
+			)
 		}
 		expect(RIGHT_PAREN, "Expected ')' after function arguments.") ?: return null
-		return Expr.Call(callee, left, arguments.toTypedArray(), previous)
+		callee.range = callee.range.first..previous.range.last
+		callee.type = (callee.type as Type.Function).returnType
+		return callee
 	}
 
 	fun dot(callee: Expr, canAssign: Boolean): Expr? {
@@ -194,7 +217,6 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		}
 		return left
 	}
-
 
 
 	private val lexer = Lexer(source)
