@@ -35,4 +35,9 @@ internal sealed class Type {
 		override fun toString() = "function" // TODO: change later
 		override fun equals(other: Any?) = other === this || other is Never
 	}
+
+	class Object(val struct: Struct) : Type() {
+		override fun toString() = struct.name
+		override fun equals(other: Any?) = other === this || other is Never
+	}
 }

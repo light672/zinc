@@ -162,11 +162,23 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		return callee
 	}
 
-	fun dot(callee: Expr, canAssign: Boolean): Expr? {
+	fun dot(callee: ExprData, canAssign: Boolean): ExprData? {
 		expect(IDENTIFIER, "Expected field name after '.'.") ?: return null
 		val name = previous
-		if (!canAssign || !match(EQUAL)) return Expr.GetField(callee, name)
-		return Expr.SetField(callee, name, expression() ?: return null)
+		if (callee.type !is Type.Object) return rangeError(callee.range, "Cannot get field using '.' on type '${callee.type}'.")
+		callee.range = callee.range.first..name.range.last
+		callee.type = (callee.type as Type.Object).struct.fields[name.lexeme] ?: return rangeError(
+			callee.range,
+			"Field '${name.lexeme}' in type '${callee.type}' does not exist."
+		)
+
+		if (!canAssign || !match(EQUAL)) return callee
+
+		val expression = expression() ?: return null
+		callee.range = callee.range.first..previous.range.last
+		if (expression.type == callee.type) return callee
+
+		return rangeError(callee.range, "Type '${expression.type}' does not match with expected type '${callee.type}'.")
 	}
 
 	fun init(callee: Expr, u: Boolean): Expr.InitializeStruct? {
