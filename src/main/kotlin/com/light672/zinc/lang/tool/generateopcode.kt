@@ -19,6 +19,11 @@ fun main() {
 		OP_MOD
 		OP_POW
 		
+		OP_OR
+		OP_AND
+		OP_EQUAL
+		OP_NOT_EQUAL
+		
 		OP_NOT
 		OP_NEG
 		

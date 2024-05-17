@@ -3,15 +3,13 @@ package com.light672.zinc.lang.compiler
 import com.light672.zinc.Zinc
 import com.light672.zinc.builtin.*
 import com.light672.zinc.lang.compiler.Token.Type.*
-import com.light672.zinc.lang.runtime.opcodes.OP_ADD
-import com.light672.zinc.lang.runtime.opcodes.OP_DIV
-import com.light672.zinc.lang.runtime.opcodes.OP_POW
-import com.light672.zinc.lang.runtime.opcodes.OP_SUB
+import com.light672.zinc.lang.runtime.opcodes.*
 import java.lang.Double.parseDouble
 
 internal class Compiler(source: String, val runtime: Zinc.Runtime) {
-	var scopeDepth = 0
-	val scopes = arrayOfNulls<Scope>(256)
+	private var scopeDepth = 0
+	private val scopes = arrayOfNulls<Scope>(256)
+	private val scope get() = scopes[scopeDepth]!!
 	fun compile() {
 		advance()
 		while (!end()) declaration() ?: synchronize()
@@ -21,8 +19,37 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		if (match(STRUCT)) return structDeclaration()
 		if (match(DEF)) return functionDeclaration()
 		if (match(arrayOf(VAR, VAL))) return variableDeclaration()
-		if (match(IMPL)) return implStatement()
+		if (match(IMPL)) return implDeclaration()
 		return statement()
+	}
+
+	private fun structDeclaration() {
+
+	}
+
+	private fun functionDeclaration() {
+
+	}
+
+	private fun variableDeclaration(): Unit? {
+		expect(IDENTIFIER, "Expected variable name after '${previous.lexeme}'.") ?: return null
+		val name = previous
+
+		var type: Type = Type.None
+
+		if (match(COLON)) {
+			expect(IDENTIFIER, "Expected variable type after ':'.") ?: return null
+			type = findType(previous) ?: return null
+		}
+
+		if (!match(EQUAL)) {
+			scope.variables[name.lexeme] = Variable(type, false, false)
+			return Unit
+		}
+	}
+
+	private fun implDeclaration() {
+
 	}
 
 	private fun statement(): Unit? {
@@ -76,17 +103,67 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		TODO("not yet implemented")
 	}
 
-
 	fun variable(canAssign: Boolean): ExprData? {
-
-		TODO("not yet implemented")
-		/*
 		val name = previous
-		if (!canAssign || !match(EQUAL)) return Expr.GetVariable(name)
-		return Expr.SetVariable(name, expression() ?: return null)
-		*/
+		if (match(LEFT_BRACE)) return init(name)
+
+		val variable = findVariable(name) ?: return null
+
+		if (!canAssign || !match(EQUAL))
+			return if (!variable.initialized) {
+				errorAt(name, "Variable '$name' was used before it was initialized.")
+				null
+			} else ExprData(variable.type, name.range)
+
+		val expression = expression() ?: return null
+		expression.range = name.range.first..previous.range.last
+		if (expression.type != variable.type) return rangeError(
+			expression.range,
+			"Set type of '${expression.type}' does not match with the declared type of '${name.lexeme} (${variable.type})"
+		)
+
+		// generate code
+
+		return expression
 	}
 
+	fun init(name: Token): ExprData? {
+		val struct = findStruct(name) ?: return null
+		val map = struct.fields.clone() as HashMap<String, Pair<Int, Type>>
+		if (!isNext(RIGHT_BRACE)) {
+			do {
+				expect(IDENTIFIER, "Expected field name.") ?: return null
+				val name = previous
+				expect(COLON, "Expected ':' after field name.") ?: return null
+				val expression = expression() ?: return null
+				expression.range = name.range.first..previous.range.last
+				val (i, type) = map[name.lexeme].also { map.remove(name.lexeme) } ?: return rangeError(
+					expression.range,
+					"Field '${name.lexeme}' in type '$struct' does not exist."
+				)
+
+				if (type != expression.type)
+					return rangeError(
+						expression.range,
+						"Field '${name.lexeme}' in type '$struct' was set with type '${expression.type}' while it was declared with type '$type'."
+					)
+			} while (match(COMMA))
+		}
+		expect(RIGHT_BRACE, "Expect '}' after struct initialization.") ?: return null
+		val expression = ExprData(struct.type, name.range.first..previous.range.last)
+		if (map.size != 0) return rangeError(expression.range, "Missing fields ${
+			run {
+				val stringBuilder = StringBuilder()
+				for ((k, v) in map.entries) {
+					stringBuilder.append("'$k', ")
+				}
+				stringBuilder.substring(0, stringBuilder.length - 2)
+				stringBuilder.toString()
+			}
+		} in initialization of struct '$struct'.")
+
+		return expression
+	}
 
 	fun stringLiteral(u: Boolean): ExprData {
 		// generate code
@@ -114,9 +191,16 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		return ExprData(Type.Bool, previous.range)
 	}
 
-	fun or(left: ExprData, u: Boolean) = binary(left, Precedence.AND, OP_OR, Type.Number)
-	fun and(left: ExprData, u: Boolean) = binary(left, Precedence.EQUALITY, OP_AND, Type.Number)
-	fun equality(left: ExprData, u: Boolean) = binary(left, Precedence.COMPARISON, OP_EQUAL, Type.Number)
+	fun or(left: ExprData, u: Boolean) = binary(left, Precedence.AND, OP_OR, Type.Bool, Type.Bool)
+	fun and(left: ExprData, u: Boolean) = binary(left, Precedence.EQUALITY, OP_AND, Type.Bool, Type.Bool)
+	fun equality(left: ExprData, u: Boolean) = binary(
+		left, Precedence.COMPARISON, when (previous.type) {
+			EQUAL_EQUAL -> OP_EQUAL
+			BANG_EQUAL -> OP_NOT_EQUAL
+			else -> throw IllegalArgumentException()
+		}, Type.Never, Type.Bool
+	)
+
 	fun comparison(left: ExprData, u: Boolean): ExprData? {
 		val operator = previous
 		val right = parsePrecedence(Precedence.TERM) ?: return null
@@ -130,9 +214,11 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		return left
 	}
 
-	fun term(left: ExprData, u: Boolean) = binary(left, Precedence.FACTOR, if (previous.type == PLUS) OP_ADD else OP_SUB, Type.Number)
-	fun factor(left: ExprData, u: Boolean) = binary(left, Precedence.EXPONENT, if (previous.type == STAR) OP_ADD else OP_DIV, Type.Number)
-	fun exponent(left: ExprData, u: Boolean) = binary(left, Precedence.UNARY, OP_POW, Type.Number)
+	fun term(left: ExprData, u: Boolean) = binary(left, Precedence.FACTOR, if (previous.type == PLUS) OP_ADD else OP_SUB, Type.Number, Type.Number)
+	fun factor(left: ExprData, u: Boolean) =
+		binary(left, Precedence.EXPONENT, if (previous.type == STAR) OP_ADD else OP_DIV, Type.Number, Type.Number)
+
+	fun exponent(left: ExprData, u: Boolean) = binary(left, Precedence.UNARY, OP_POW, Type.Number, Type.Number)
 
 	fun call(callee: ExprData, u: Boolean): ExprData? {
 		if (callee.type !is Type.Function) return rangeError(callee.range, "Cannot perform call on type '${callee.type}'.")
@@ -167,7 +253,7 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		val name = previous
 		if (callee.type !is Type.Object) return rangeError(callee.range, "Cannot get field using '.' on type '${callee.type}'.")
 		callee.range = callee.range.first..name.range.last
-		callee.type = (callee.type as Type.Object).struct.fields[name.lexeme] ?: return rangeError(
+		callee.type = (callee.type as Type.Object).struct.fields[name.lexeme]?.second ?: return rangeError(
 			callee.range,
 			"Field '${name.lexeme}' in type '${callee.type}' does not exist."
 		)
@@ -181,23 +267,8 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 		return rangeError(callee.range, "Type '${expression.type}' does not match with expected type '${callee.type}'.")
 	}
 
-	fun init(callee: Expr, u: Boolean): Expr.InitializeStruct? {
-		if (callee !is Expr.GetVariable) {
-			error("Invalid struct initialization target.")
-			return null
-		}
-		val fields = ArrayList<Pair<Token, Expr>>()
-		if (!isNext(RIGHT_BRACE)) {
-			do {
-				val pair = getNameAndExpression("field") ?: return null
-				fields.add(pair)
-			} while (match(COMMA))
-		}
-		expect(RIGHT_BRACE, "Expected '}' after struct initialization.")
-		return Expr.InitializeStruct(callee.variable, fields.toTypedArray(), previous)
-	}
 
-	private fun binary(left: ExprData, next: Precedence, opcode: Byte, type: Type): ExprData? {
+	private fun binary(left: ExprData, next: Precedence, opcode: Byte, type: Type, returnType: Type): ExprData? {
 		val operator = previous
 		val right = parsePrecedence(next) ?: return null
 		val range = left.range.first..right.range.last
@@ -205,6 +276,7 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 			return rangeError(range, "Cannot perform '${operator.lexeme}' on types '${left.type}' and '${right.type}'.")
 		}
 		left.range = range
+		left.type = returnType
 		// generate code
 		return left
 	}
@@ -228,6 +300,51 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 			return null
 		}
 		return left
+	}
+
+	private fun findVariable(name: Token): Variable? {
+		for (i in scopeDepth downTo 0) {
+			val currentScope = scopes[i]!!
+			return currentScope.variables[name.lexeme] ?: continue
+		}
+		errorAt(name, "Variable '${name.lexeme}' could not be found in the current scope.")
+		return null
+	}
+
+	private fun findNamespace(name: Token): Scope? {
+		for (i in scopeDepth downTo 0) {
+			val currentScope = scopes[i]!!
+			return currentScope.namespaces[name.lexeme] ?: continue
+		}
+		errorAt(name, "Namespace '${name.lexeme}' could not be found in the current scope.")
+		return null
+	}
+
+	private fun findType(name: Token): Type? {
+		for (i in scopeDepth downTo 0) {
+			val currentScope = scopes[i]!!
+			return currentScope.types[name.lexeme] ?: continue
+		}
+		errorAt(name, "Type '${name.lexeme}' could not be found in the current scope.")
+		return null
+	}
+
+	private fun findStruct(name: Token): Struct? {
+		for (i in scopeDepth downTo 0) {
+			val currentScope = scopes[i]!!
+			return currentScope.structs[name.lexeme] ?: continue
+		}
+		errorAt(name, "Struct '${name.lexeme}' could not be found in the current scope.")
+		return null
+	}
+
+	private fun findTrait(name: Token): Trait? {
+		for (i in scopeDepth downTo 0) {
+			val currentScope = scopes[i]!!
+			return currentScope.traits[name.lexeme] ?: continue
+		}
+		errorAt(name, "Trait '${name.lexeme}' could not be found in the current scope.")
+		return null
 	}
 
 
@@ -259,4 +376,9 @@ internal class Compiler(source: String, val runtime: Zinc.Runtime) {
 	private fun error(message: String) = errorAt(previous, message)
 	private fun errorAtCurrent(message: String) = errorAt(current, message)
 	private fun errorAt(token: Token, message: String) = runtime.reportCompileError(message)
+
+	private fun <T> rangeError(range: IntRange, message: String): T? {
+		// TODO: do something here?
+		return null
+	}
 }

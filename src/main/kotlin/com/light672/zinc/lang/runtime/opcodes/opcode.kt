@@ -15,6 +15,11 @@ internal const val OP_MUL: Byte = 10
 internal const val OP_MOD: Byte = 11
 internal const val OP_POW: Byte = 12
 
+internal const val OP_OR: Byte = 100
+internal const val OP_AND: Byte = 100
+internal const val OP_EQUAL: Byte = 100
+internal const val OP_NOT_EQUAL: Byte = 100
+
 internal const val OP_NOT: Byte = 13
 internal const val OP_NEG: Byte = 14
 

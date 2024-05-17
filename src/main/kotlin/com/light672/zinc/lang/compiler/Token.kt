@@ -14,7 +14,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 	enum class Type(val rule: ParseRule = ParseRule(NONE, null, null)) {
 		LEFT_PAREN(ParseRule(CALL, Compiler::parenthesis, Compiler::call)),
 		RIGHT_PAREN,
-		LEFT_BRACE(ParseRule(INIT, Compiler::block, Compiler::init)),
+		LEFT_BRACE(ParseRule(INIT, Compiler::block)),
 		RIGHT_BRACE,
 		LEFT_BRACKET,
 		RIGHT_BRACKET,

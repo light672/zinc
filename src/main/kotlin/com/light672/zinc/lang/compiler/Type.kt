@@ -31,6 +31,10 @@ internal sealed class Type {
 		override fun equals(other: Any?) = other is Type
 	}
 
+	object None : Type() {
+		override fun toString() = "user should never see this"
+	}
+
 	class Function(val args: Array<Type>, val returnType: Type) : Type() {
 		override fun toString() = "function" // TODO: change later
 		override fun equals(other: Any?) = other === this || other is Never
