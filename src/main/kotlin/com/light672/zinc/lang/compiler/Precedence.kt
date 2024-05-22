@@ -12,6 +12,5 @@ enum class Precedence {
 	FACTOR, // infix
 	EXPONENT, // infix
 	UNARY, // prefix
-	INIT, // infix
 	CALL // infix
 }

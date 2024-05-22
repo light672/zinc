@@ -1,8 +1,6 @@
 package com.light672.zinc
 
-import com.light672.zinc.lang.compiler.Lexer
-import com.light672.zinc.lang.runtime.VirtualMachine
-import kotlin.math.max
+import com.light672.zinc.lang.compiler.Parser
 
 object Zinc {
 
@@ -18,7 +16,7 @@ object Zinc {
 		internal var hadError = false
 
 		fun run() {
-
+			Parser(source, this).parse()
 		}
 
 		private fun reportRuntimeError(error: String) {

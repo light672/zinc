@@ -2,8 +2,8 @@ package com.light672.zinc.lang.runtime
 
 import com.light672.zinc.builtin.*
 import com.light672.zinc.lang.Chunk
-import com.light672.zinc.lang.compiler.toShort
 import com.light672.zinc.lang.runtime.opcodes.*
+import com.light672.zinc.lang.toShort
 
 class VirtualMachine(
 	private val instance: com.light672.zinc.Zinc.Runtime,

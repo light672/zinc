@@ -55,7 +55,7 @@ internal class Lexer(private val originalSource: String) {
 			}
 
 			'%' -> add(if (match('=')) PERCENT_EQUAL else PERCENT)
-			':' -> add(COLON)
+			':' -> add(if (match('=')) COLON_EQUAL else COLON)
 			';' -> add(SEMICOLON)
 			'?' -> add(QUESTION)
 			'!' -> if (match('=')) add(BANG_EQUAL) else add(BANG)
@@ -107,13 +107,7 @@ internal class Lexer(private val originalSource: String) {
 						'm' -> return check(2, "pl", IMPL)
 					}
 
-				'l' -> return check("oop", LOOP)
 				'r' -> return check("eturn", RETURN)
-				'v' -> if (current - start > 1 && source[start + 1] == 'a')
-					when (source[start + 2]) {
-						'r' -> return check(3, "", VAR)
-						'l' -> return check(3, "", VAL)
-					}
 
 				'w' -> return check("hile", WHILE)
 				't' -> if (current - start > 1 && source[start + 1] == 'r')
