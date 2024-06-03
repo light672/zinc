@@ -1,4 +1,4 @@
-package com.light672.zinc.lang.compiler
+package com.light672.zinc.lang.compiler.parsing
 
 import com.light672.zinc.lang.compiler.parsing.syntax.Token
 import com.light672.zinc.lang.compiler.parsing.syntax.Token.Type.*

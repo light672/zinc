@@ -2,7 +2,6 @@ package com.light672.zinc.lang.compiler.parsing
 
 import com.light672.zinc.Zinc
 import com.light672.zinc.builtin.*
-import com.light672.zinc.lang.compiler.Lexer
 import com.light672.zinc.lang.compiler.parsing.syntax.*
 import com.light672.zinc.lang.compiler.parsing.syntax.Token.Type.*
 import com.light672.zinc.lang.compiler.parsing.syntax.tools.Either
