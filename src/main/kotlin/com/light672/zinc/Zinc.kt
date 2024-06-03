@@ -1,6 +1,6 @@
 package com.light672.zinc
 
-import com.light672.zinc.lang.compiler.Parser
+import com.light672.zinc.lang.compiler.parsing.Parser
 
 object Zinc {
 
@@ -37,13 +37,13 @@ object Zinc {
 		fun println(message: String) = print(message + "\n")
 	}
 
-	object SystemOutputStream : com.light672.zinc.Zinc.OutputStream() {
+	object SystemOutputStream : OutputStream() {
 		override fun print(message: String) {
 			kotlin.io.print(message)
 		}
 	}
 
-	object SystemErrorStream : com.light672.zinc.Zinc.OutputStream() {
+	object SystemErrorStream : OutputStream() {
 		override fun print(message: String) {
 			System.err.print(message)
 		}

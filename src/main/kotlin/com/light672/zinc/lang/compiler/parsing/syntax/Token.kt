@@ -1,6 +1,8 @@
-package com.light672.zinc.lang.compiler
+package com.light672.zinc.lang.compiler.parsing.syntax
 
-import com.light672.zinc.lang.compiler.Precedence.*
+import com.light672.zinc.lang.compiler.parsing.Parser
+import com.light672.zinc.lang.compiler.parsing.Precedence
+import com.light672.zinc.lang.compiler.parsing.Precedence.*
 
 internal data class Token(val type: Type, val line: Int, val range: IntRange, val lexeme: String = "") {
 	val prec get() = type.rule.precedence
@@ -42,18 +44,19 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		CARET(ParseRule(EXPONENT, infix = Parser::exponent)),
 		CARET_EQUAL,
 		COLON,
+		COLON_EQUAL,
+		COLON_COLON,
 		SEMICOLON,
 		QUESTION,
 		BANG(ParseRule(prefix = Parser::unary)),
 		BANG_EQUAL(ParseRule(EQUALITY, infix = Parser::equality)),
 		EQUAL,
-		COLON_EQUAL,
 		EQUAL_EQUAL(ParseRule(EQUALITY, infix = Parser::equality)),
 		GREATER(ParseRule(COMPARISON, infix = Parser::comparison)),
 		GREATER_EQUAL(ParseRule(COMPARISON, infix = Parser::comparison)),
 		LESS(ParseRule(COMPARISON, infix = Parser::comparison)),
 		LESS_EQUAL(ParseRule(COMPARISON, infix = Parser::comparison)),
-		IDENTIFIER,
+		IDENTIFIER(ParseRule(prefix = Parser::variable)),
 		STRING_VALUE(ParseRule(prefix = Parser::stringLiteral)),
 		CHAR_VALUE(ParseRule(prefix = Parser::charLiteral)),
 		NUMBER_VALUE(ParseRule(prefix = Parser::numberLiteral)),
@@ -63,7 +66,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		SELF,
 		DEF,
 		PUB,
-		INT,
+		MUT,
 		FOR,
 		WHILE,
 		IF,

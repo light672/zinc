@@ -1,4 +1,4 @@
-package com.light672.zinc.lang.compiler
+package com.light672.zinc.lang.compiler.parsing
 
 enum class Precedence {
 	NONE,

@@ -4,7 +4,7 @@ import java.nio.charset.Charset
 
 
 fun main() {
-	val benchmark = File("src/main/kotlin/benchmark.zc").readBytes().toString(Charset.defaultCharset())
+	// val benchmark = File("src/main/kotlin/benchmark.zc").readBytes().toString(Charset.defaultCharset())
 	val script = File("src/main/kotlin/script.zc").readBytes().toString(Charset.defaultCharset())
 	normalTest(script)
 }

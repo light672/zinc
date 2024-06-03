@@ -1,6 +1,7 @@
 package com.light672.zinc.lang.compiler
 
-import com.light672.zinc.lang.compiler.Token.Type.*
+import com.light672.zinc.lang.compiler.parsing.syntax.Token
+import com.light672.zinc.lang.compiler.parsing.syntax.Token.Type.*
 import org.apache.commons.lang3.StringEscapeUtils
 
 internal class Lexer(private val originalSource: String) {
@@ -21,6 +22,10 @@ internal class Lexer(private val originalSource: String) {
 		return tokens
 	}
 
+	fun setLocation(token: Token) {
+		current = token.range.last
+		start = current
+	}
 
 	fun scanToken(): Token {
 		skipWhiteSpace()
@@ -55,7 +60,11 @@ internal class Lexer(private val originalSource: String) {
 			}
 
 			'%' -> add(if (match('=')) PERCENT_EQUAL else PERCENT)
-			':' -> add(if (match('=')) COLON_EQUAL else COLON)
+			':' -> {
+				if (match(':')) add(COLON_COLON)
+				else add(if (match('=')) COLON_EQUAL else COLON)
+			}
+
 			';' -> add(SEMICOLON)
 			'?' -> add(QUESTION)
 			'!' -> if (match('=')) add(BANG_EQUAL) else add(BANG)
@@ -103,9 +112,11 @@ internal class Lexer(private val originalSource: String) {
 					when (source[start + 1]) {
 						's' -> return check(2, "", IS)
 						'f' -> return check(2, "", IF)
-						'n' -> return if (current - start > 2 && source[start + 2] == 't') check(3, "t", INT) else check(2, "", IN)
+						'n' -> return check(2, "", IN)
 						'm' -> return check(2, "pl", IMPL)
 					}
+
+				'm' -> return check("ut", MUT)
 
 				'r' -> return check("eturn", RETURN)
 

@@ -122,7 +122,7 @@ class VirtualMachine(
 					(popStack() as ZincGroup).array[readByte().toInt()] = peekStack()
 				}
 
-				OP_CREATE_FUNCTION -> {
+				/*OP_CREATE_FUNCTION -> {
 					val location = readByte().toInt()
 					val captureSize = readByte().toInt()
 					val captures = Array(captureSize) { i -> stack[stackSize - captureSize + i] }
@@ -139,7 +139,7 @@ class VirtualMachine(
 						arity++
 					}
 					pc = function.codeLocation
-				}
+				}*/
 
 				OP_RETURN -> {
 					if (callStackSize == 1) return

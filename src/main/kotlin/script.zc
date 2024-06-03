@@ -1,1 +1,4 @@
-3 + 6;
+a := 3;
+a: bool::grerrr::aaa<IO,> = 4;
+
+def <T: bool = bool> myFunction(a: T);
