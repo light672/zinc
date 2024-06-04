@@ -9,10 +9,21 @@ import java.lang.Double.parseDouble
 
 internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 
-	private fun expressionStmt(): Stmt {
-		val expression = expression()
-		expect(SEMICOLON, "Expected ';' after statement.")
-		return Stmt.Expression(expression)
+	private fun expressionStmt(expression: Expr): Stmt.Expression {
+		val trailing = when (expression) {
+			is Expr.WithoutBlock -> {
+				if (isNext(RIGHT_BRACE)) true else {
+					expect(SEMICOLON, "Expected ';' after statement.")
+					false
+				}
+			}
+
+			is Expr.WithBlock -> true
+			else -> {
+				TODO("forgot to attach WithoutBlock or WithBlock to ${expression.javaClass}")
+			}
+		}
+		return Stmt.Expression(expression, trailing)
 	}
 
 	private fun functionStmt(): Stmt {
@@ -49,11 +60,8 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	}
 
 	private fun variableStmt(): Stmt {
-		if (!isNext(COLON, COLON_EQUAL)) {
-			val v = Stmt.Expression(variable())
-			expect(SEMICOLON, "Expected ';' after statement.")
-			return v
-		}
+		if (!isNext(COLON, COLON_EQUAL)) return expressionStmt(variable())
+
 		val name = previous
 		var type = if (match(COLON)) type() else null
 		var expr = if (type == null) {
@@ -80,7 +88,7 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 
 	fun variable() = Expr.Variable(previous)
 
-
+	// <editor-fold desc="binary">
 	private fun binary(a: Expr, precedence: Precedence): Expr {
 		val operator = previous
 		val b = parsePrecedence(precedence)
@@ -100,7 +108,8 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		return Expr.Unary(expr, operator)
 	}
 
-	// <editor-fold desc="genericParams()"
+	// </editor-fold>
+	// <editor-fold desc="genericParams"
 	private fun optionalGenericParams() = if (match(LESS)) genericParams(previous) else null
 
 	private fun genericParams(): GenericParams {
@@ -110,17 +119,15 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 
 	private fun genericParams(open: Token): GenericParams {
 		val params = ArrayList<TypeParam>()
-		if (isNext(GREATER)) throw errorAtCurrent("Generic parameters must have at least one parameter.")
+		if (match(GREATER)) return GenericParams(open, params, previous)
 		params.add(typeParam())
-		while (match(COMMA) && !isNext(GREATER)) {
-			params.add(typeParam())
-		}
+		while (match(COMMA)) params.add(optionalTypeParam() ?: break)
 		expect(GREATER, "Expected '>' after generic parameters.")
 		return GenericParams(open, params, previous)
 	}
 
 	// </editor-fold>
-	// <editor-fold desc="genericArgs()">
+	// <editor-fold desc="genericArgs">
 	private fun optionalGenericArgs() = if (match(LESS)) genericArgs(previous) else null
 
 	private fun genericArgs(): GenericArgs {
@@ -130,17 +137,15 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 
 	private fun genericArgs(open: Token): GenericArgs {
 		val args = ArrayList<Type>()
-		if (isNext(GREATER)) throw errorAtCurrent("Generic arguments must have at least one argument.")
+		if (match(GREATER)) return GenericArgs(open, args, previous)
 		args.add(type())
-		while (match(COMMA) && !isNext(GREATER)) {
-			args.add(type())
-		}
+		while (match(COMMA)) args.add(optionalType() ?: break)
 		expect(GREATER, "Expected '>' after generic arguments.")
 		return GenericArgs(open, args, previous)
 	}
 
 	// </editor-fold>
-	// <editor-fold desc="typeParam()"
+	// <editor-fold desc="typeParam"
 	private fun optionalTypeParam() = if (match(IDENTIFIER)) typeParam(previous) else null
 
 	private fun typeParam(): TypeParam {
@@ -155,7 +160,7 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	}
 
 	// </editor-fold>
-	// <editor-fold desc="typePath()">
+	// <editor-fold desc="typePath">
 	private fun optionalTypePath() = if (match(IDENTIFIER)) typePath(previous) else null
 
 	private fun typePath(error: String): TypePath {
@@ -197,7 +202,7 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	}
 
 	// </editor-fold>
-	// <editor-fold desc="typeParamBounds()">
+	// <editor-fold desc="typeParamBounds">
 	private fun optionalTypeParamBounds() = if (match(COLON)) typeParamBounds() else null
 
 	private fun typeParamBounds(): TypeParamBounds {
@@ -210,9 +215,10 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	}
 
 	// </editor-fold>
-
+	// <editor-fold desc="type">
+	private fun optionalType() = optionalTypePath()
 	private fun type() = typePath("Expected type.")
-
+	// </editor-fold>
 
 	private val lexer = Lexer(source)
 	private var current: Token = Token.empty()
@@ -247,22 +253,24 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	private fun expression() = parsePrecedence(Precedence.ASSIGNMENT)
 	private fun declaration() = statement()
 	private fun statement(): Stmt {
+		if (match(SEMICOLON)) return Stmt.Semicolon(previous)
+		if (match(PUB)) {
+
+		}
 		if (match(IDENTIFIER)) return variableStmt()
 		if (match(DEF)) return functionStmt()
-		return expressionStmt()
+		return expressionStmt(expression())
 	}
 
 	private fun parsePrecedence(precedence: Precedence): Expr {
 		advance()
 		val rule = previous.type.rule.prefix ?: throw error("Expected expression.")
-		// val canAssign = precedence.ordinal <= Precedence.ASSIGNMENT.ordinal
 		var left = rule()
 		while (precedence.ordinal <= current.type.rule.precedence.ordinal) {
 			advance()
 			val infix = previous.type.rule.infix!!
 			left = infix(left)
 		}
-		// if (canAssign && match(EQUAL)) throw error("Invalid assignment target.")
 		return left
 	}
 

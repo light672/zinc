@@ -51,6 +51,7 @@ internal class Resolver(val statements: ArrayList<Stmt>) {
 			is Stmt.Expression -> resolve()
 			is Stmt.Variable -> resolve()
 			is Stmt.Function -> resolve()
+			is Stmt.Semicolon -> {}
 		}
 	}
 

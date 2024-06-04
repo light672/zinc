@@ -3,7 +3,7 @@ package com.light672.zinc.lang.compiler.parsing.syntax
 import com.light672.zinc.lang.compiler.parsing.syntax.tools.Either
 
 internal sealed class Stmt {
-	class Expression(val expr: Expr) : Stmt()
+	class Expression(val expr: Expr, val trailing: Boolean) : Stmt()
 	class Function(
 		val def: Token,
 		val generics: GenericParams?,
@@ -22,5 +22,6 @@ internal sealed class Stmt {
 		class ReturnType(val colon: Token, val type: Type)
 	}
 
+	class Semicolon(val token: Token) : Stmt()
 	class Variable(val name: Token, val type: Type?, val initializer: Expr?) : Stmt()
 }
