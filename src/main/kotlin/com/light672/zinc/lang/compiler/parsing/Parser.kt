@@ -10,19 +10,27 @@ import java.lang.Double.parseDouble
 internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 
 	private fun expressionStmt(expression: Expr): Stmt.Expression {
-		val trailing = when (expression) {
-			is Expr.WithoutBlock -> {
-				if (isNext(RIGHT_BRACE)) true else {
-					expect(SEMICOLON, "Expected ';' after statement.")
-					false
+		fun doWhen(expression: Expr): Boolean {
+			return when (expression) {
+				is Expr.MutableReference -> {
+					doWhen(expression.expr)
+				}
+
+				is Expr.WithoutBlock -> {
+					if (isNext(RIGHT_BRACE)) true else {
+						expect(SEMICOLON, "Expected ';' after statement.")
+						false
+					}
+				}
+
+				is Expr.WithBlock -> true
+				else -> {
+					TODO("forgot to attach WithoutBlock or WithBlock to ${expression.javaClass}")
 				}
 			}
-
-			is Expr.WithBlock -> true
-			else -> {
-				TODO("forgot to attach WithoutBlock or WithBlock to ${expression.javaClass}")
-			}
 		}
+
+		val trailing = doWhen(expression)
 		return Stmt.Expression(expression, trailing)
 	}
 
@@ -87,6 +95,8 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	}
 
 	fun variable() = Expr.Variable(previous)
+	fun mutReference() = Expr.MutableReference(previous, expression())
+
 
 	// <editor-fold desc="binary">
 	private fun binary(a: Expr, precedence: Precedence): Expr {

@@ -10,7 +10,7 @@ internal sealed class Expr {
 	class Binary(val a: Expr, val b: Expr, val operator: Token) : Expr(), WithoutBlock
 	class Unary(val a: Expr, val operator: Token) : Expr(), WithoutBlock
 	class Variable(val variable: Token) : Expr(), WithoutBlock
-
+	class MutableReference(val mut: Token, val expr: Expr) : Expr() // use `expr` as the with our without block check.
 
 	interface WithBlock
 	class Block(val stmts: List<Stmt>) : Expr(), WithBlock

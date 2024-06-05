@@ -66,7 +66,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		SELF,
 		DEF,
 		PUB,
-		MUT,
+		MUT(ParseRule(prefix = Parser::mutReference)),
 		FOR,
 		WHILE,
 		IF,
