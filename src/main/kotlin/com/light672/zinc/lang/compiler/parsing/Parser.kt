@@ -68,30 +68,31 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	}
 
 	private fun variableStmt(): Stmt {
-		if (!isNext(COLON, COLON_EQUAL)) return expressionStmt(variable())
-
-		val name = previous
+		val expr = expression()
+		if (!isNext(COLON, COLON_EQUAL)) return expressionStmt(expr)
+		val pattern = patternFrom(expr)
 		var type = if (match(COLON)) type() else null
-		var expr = if (type == null) {
+		var initializer = if (type == null) {
 			advance()
 			expression()
 		} else if (match(EQUAL)) expression() else null
 
 		expect(SEMICOLON, "Expected ';' after variable declaration.")
-		return Stmt.Variable(name, type, expr)
+		return Stmt.Variable(pattern, type, initializer)
 	}
 
-	fun charLiteral() = Expr.Literal(ZincChar(previous.lexeme[0]))
-	fun stringLiteral() = Expr.Literal(ZincString(previous.lexeme))
-	fun numberLiteral() = Expr.Literal(ZincNumber(parseDouble(previous.lexeme)))
-	fun trueLiteral() = Expr.Literal(ZincTrue)
-	fun falseLiteral() = Expr.Literal(ZincFalse)
+	fun charLiteral() = Expr.Literal(ZincChar(previous.lexeme[0]), previous)
+	fun stringLiteral() = Expr.Literal(ZincString(previous.lexeme), previous)
+	fun numberLiteral() = Expr.Literal(ZincNumber(parseDouble(previous.lexeme)), previous)
+	fun trueLiteral() = Expr.Literal(ZincTrue, previous)
+	fun falseLiteral() = Expr.Literal(ZincFalse, previous)
 
 
 	fun parenthesis(): Expr {
+		val open = previous
 		val expr = expression()
 		expect(RIGHT_PAREN, "Expected ')' after expression.")
-		return Expr.Group(expr)
+		return Expr.Group(open, expr, previous)
 	}
 
 	fun variable() = Expr.Variable(previous)
@@ -230,6 +231,37 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	private fun type() = typePath("Expected type.")
 	// </editor-fold>
 
+	fun pattern(): Pattern {
+		return when (current.type) {
+			IDENTIFIER -> {
+				advance()
+				Pattern.IdentifierPattern(null, previous)
+			}
+
+			MUT -> {
+				advance()
+				val mut = previous
+				expect(IDENTIFIER, "Expected identifier after 'mut' in pattern.")
+				Pattern.IdentifierPattern(mut, previous)
+			}
+
+			else -> throw errorAtCurrent("Expected pattern.")
+		}
+	}
+
+	fun patternFrom(expr: Expr): Pattern {
+		return when (expr) {
+			is Expr.Variable -> Pattern.IdentifierPattern(null, expr.variable)
+
+			is Expr.MutableReference -> {
+				if (expr.expr !is Expr.Variable) throw exprError(expr, "Expected identifier after 'mut' in pattern.")
+				return Pattern.IdentifierPattern(expr.mut, expr.expr.variable)
+			}
+
+			else -> throw exprError(expr, "Expected pattern.")
+		}
+	}
+
 	private val lexer = Lexer(source)
 	private var current: Token = Token.empty()
 	private var previous: Token = Token.empty()
@@ -260,21 +292,27 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		return ParseError()
 	}
 
+	private fun exprError(expr: Expr, message: String): ParseError {
+		runtime.reportCompileError("line ${expr.firstToken.line} at '${expr.firstToken.lexeme}' : $message'")
+		return ParseError()
+	}
+
 	private fun expression() = parsePrecedence(Precedence.ASSIGNMENT)
 	private fun declaration() = statement()
 	private fun statement(): Stmt {
 		if (match(SEMICOLON)) return Stmt.Semicolon(previous)
-		if (match(PUB)) {
-
-		}
-		if (match(IDENTIFIER)) return variableStmt()
 		if (match(DEF)) return functionStmt()
-		return expressionStmt(expression())
+		return variableStmt()
 	}
 
 	private fun parsePrecedence(precedence: Precedence): Expr {
 		advance()
-		val rule = previous.type.rule.prefix ?: throw error("Expected expression.")
+		val rule = previous.type.rule.prefix ?: run {
+			when (previous.type) {
+				RIGHT_PAREN, RIGHT_BRACE -> throw error("Unexpected closing delimiter '${previous.lexeme}'. Did you mean: ';'?")
+				else -> throw error("Expected expression.")
+			}
+		}
 		var left = rule()
 		while (precedence.ordinal <= current.type.rule.precedence.ordinal) {
 			advance()

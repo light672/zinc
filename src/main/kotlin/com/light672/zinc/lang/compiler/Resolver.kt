@@ -63,6 +63,7 @@ internal class Resolver(val statements: ArrayList<Stmt>) {
 			is Expr.Literal -> type()
 			is Expr.Variable -> type()
 			is Expr.Block -> TODO()
+			is Expr.MutableReference -> TODO()
 		}
 	}
 
@@ -87,6 +88,7 @@ internal class Resolver(val statements: ArrayList<Stmt>) {
 	private var scope = Core.namespace.clone()
 
 	class ResolverError(message: String) : RuntimeException(message)
+
 
 	// </editor-fold>
 }

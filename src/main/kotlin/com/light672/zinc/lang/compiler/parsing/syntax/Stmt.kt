@@ -23,5 +23,5 @@ internal sealed class Stmt {
 	}
 
 	class Semicolon(val token: Token) : Stmt()
-	class Variable(val name: Token, val type: Type?, val initializer: Expr?) : Stmt()
+	class Variable(val pattern: Pattern, val type: Type?, val initializer: Expr?) : Stmt()
 }

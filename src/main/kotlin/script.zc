@@ -1,4 +1,0 @@
-a := 3;
-a: bool::grerrr::aaa<> = 4;
-
-def <T: bool = bool> myFunction(a: T);
