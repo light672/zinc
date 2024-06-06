@@ -45,17 +45,16 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 			if (match(RIGHT_PAREN)) return null
 			do {
 				if (isNext(RIGHT_PAREN)) break
-				if (match(MUT) || isNext(SELF)) {
-					val mut = if (previous.type == MUT) previous else null
-					expect(SELF, "Expected 'self' after 'mut' in method parameters.")
-					params.add(Stmt.Function.FunctionParams.FunctionParam.SelfParam(mut, previous))
-				} else {
-					expect(IDENTIFIER, "Expected parameter name.")
-					val name = previous
-					expect(COLON, "Expected ':' and parameter type after parameter name.")
-					val type = type()
-					params.add(Stmt.Function.FunctionParams.FunctionParam.NormalParam(name, type))
+
+				val pattern = patternOrSelf()
+				if (pattern is Either.Right<Pattern, Pair<Token?, Token>>) {
+					params.add(Stmt.Function.FunctionParams.FunctionParam.SelfParam(pattern.value.first, pattern.value.second))
+					continue
 				}
+				pattern as Either.Left<Pattern, Pair<Token?, Token>>
+				expect(COLON, "Expected ':' and parameter type after parameter name.")
+				val type = type()
+				params.add(Stmt.Function.FunctionParams.FunctionParam.NormalParam(pattern.value, type))
 			} while (match(COMMA))
 			expect(RIGHT_PAREN, "Expected ')' after function parameters.")
 			return Stmt.Function.FunctionParams(params)
@@ -247,6 +246,17 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 
 			else -> throw errorAtCurrent("Expected pattern.")
 		}
+	}
+
+	fun patternOrSelf(): Either<Pattern, Pair<Token?, Token>> {
+		if (match(SELF)) return Either.Right(Pair(null, previous))
+		if (match(MUT)) {
+			val mut = previous
+			if (match(SELF)) return Either.Right(Pair(mut, previous))
+			expect(IDENTIFIER, "Expected identifier or 'self' after 'mut' in pattern for function parameters.")
+			return Either.Left(Pattern.IdentifierPattern(mut, previous))
+		}
+		return Either.Left(pattern())
 	}
 
 	fun patternFrom(expr: Expr): Pattern {

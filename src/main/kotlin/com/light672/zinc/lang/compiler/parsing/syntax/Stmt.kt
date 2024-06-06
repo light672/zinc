@@ -15,7 +15,7 @@ internal sealed class Stmt {
 		class FunctionParams(val params: ArrayList<FunctionParam>) {
 			sealed class FunctionParam {
 				class SelfParam(val mut: Token?, val self: Token) : FunctionParam()
-				class NormalParam(val name: Token, val type: Type) : FunctionParam()
+				class NormalParam(val pattern: Pattern, val type: Type) : FunctionParam()
 			}
 		}
 
