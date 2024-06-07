@@ -80,6 +80,10 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		return Stmt.Variable(pattern, type, initializer)
 	}
 
+	fun block(): Expr.Block {
+
+	}
+
 	fun charLiteral() = Expr.Literal(ZincChar(previous.lexeme[0]), previous)
 	fun stringLiteral() = Expr.Literal(ZincString(previous.lexeme), previous)
 	fun numberLiteral() = Expr.Literal(ZincNumber(parseDouble(previous.lexeme)), previous)
@@ -337,11 +341,30 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		val statements = ArrayList<Stmt>()
 		advance()
 		while (!end()) {
-			/* try {
+			try {
 				statements.add(declaration())
 			} catch (error: ParseError) {
-			}*/
-			statements.add(declaration())
+				synchronize()
+			}
+		}
+	}
+
+	private fun synchronize() {
+		advance()
+		var braces = 0
+		while (!end()) {
+			if (previous.type == SEMICOLON) return
+			when (current.type) {
+				STRUCT, DEF, WHILE -> return
+				LEFT_BRACE -> braces++
+				RIGHT_BRACE -> {
+					if (braces != 0) braces--
+					else return
+				}
+
+				else -> {}
+			}
+			advance()
 		}
 	}
 
