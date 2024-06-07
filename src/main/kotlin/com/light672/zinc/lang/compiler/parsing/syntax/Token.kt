@@ -23,7 +23,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 	enum class Type(val rule: ParseRule = ParseRule(NONE, null, null)) {
 		LEFT_PAREN(ParseRule(CALL, Parser::parenthesis)),
 		RIGHT_PAREN,
-		LEFT_BRACE,
+		LEFT_BRACE(ParseRule(prefix = Parser::block)),
 		RIGHT_BRACE,
 		LEFT_BRACKET,
 		RIGHT_BRACKET,
