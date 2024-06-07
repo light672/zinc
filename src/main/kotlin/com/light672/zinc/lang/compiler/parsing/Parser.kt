@@ -81,7 +81,17 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	}
 
 	fun block(): Expr.Block {
-
+		val open = previous
+		val stmts = ArrayList<Stmt>()
+		while (isNext(RIGHT_BRACE)) {
+			try {
+				stmts.add(declaration())
+			} catch (error: ParseError) {
+				synchronize()
+			}
+		}
+		expect(RIGHT_BRACE, "Expected '}' to close block.")
+		return Expr.Block(open, stmts, previous)
 	}
 
 	fun charLiteral() = Expr.Literal(ZincChar(previous.lexeme[0]), previous)
