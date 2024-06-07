@@ -194,16 +194,22 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		}
 	}
 
+	/**
+	 * Called after IDENTIFIER starts a path
+	 */
 	private fun typePath(tailName: Token): TypePath {
 		val tail = ArrayList<TypePath.TypePathSegment>()
 		var head = typePathSegment(tailName)
-		while (match(COLON_COLON)) {
+		while (previous.type == COLON_COLON) {
 			tail.add(head)
 			head = typePathSegment()
 		}
 		return TypePath(tail, head)
 	}
 
+	/**
+	 * Called after '::' starts a path.
+	 */
 	private fun typePath(): TypePath {
 		val tail = ArrayList<TypePath.TypePathSegment>().also { it.add(TypePath.TypePathSegment.NONE) }
 		expect(IDENTIFIER, "Expected identifier after '::'.")
@@ -215,9 +221,26 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		return TypePath(tail, head)
 	}
 
-	private fun typePathSegment(begin: Token) =
-		if (match(LESS)) TypePath.TypePathSegment(begin, genericArgs(previous)) else TypePath.TypePathSegment(begin, null)
+	/**
+	 * Called after IDENTIFIER
+	 * Consumes '::'
+	 */
+	private fun typePathSegment(begin: Token): TypePath.TypePathSegment {
+		return if (match(LESS)) {
+			val a = TypePath.TypePathSegment(begin, genericArgs(previous))
+			match(COLON_COLON)
+			a
+		} else if (match(COLON_COLON)) {
+			val generics = optionalGenericArgs()
+			generics?.let { match(COLON_COLON) }
+			TypePath.TypePathSegment(begin, generics)
+		} else
+			TypePath.TypePathSegment(begin, null)
+	}
 
+	/**
+	 * Called after '::'
+	 */
 	private fun typePathSegment(): TypePath.TypePathSegment {
 		expect(IDENTIFIER, "Expected identifier after '::'.")
 		return typePathSegment(previous)
