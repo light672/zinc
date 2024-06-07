@@ -185,45 +185,44 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 
 	// </editor-fold>
 	// <editor-fold desc="typePath">
-	private fun optionalTypePath() = if (match(IDENTIFIER)) typePath(previous) else null
+	private fun optionalTypePath() = if (match(IDENTIFIER)) typePath(previous) else if (match(COLON_COLON)) typePath() else null
 
 	private fun typePath(error: String): TypePath {
-		expect(IDENTIFIER, error)
-		return typePath(previous)
+		if (match(COLON_COLON)) return typePath() else {
+			expect(IDENTIFIER, error)
+			return typePath(previous)
+		}
 	}
 
 	private fun typePath(tailName: Token): TypePath {
-		var enterLoop = false
-		val tail: TypePath.TypePathSegment =
-			if (match(COLON_COLON) || isNext(LESS)) {
-				if (!isNext(IDENTIFIER)) {
-					expect(LESS, "Expected identifier or generic arguments after '::' in type path.")
-					val genericArgs = genericArgs(previous)
-					TypePath.TypePathSegment(tailName, genericArgs)
-				} else {
-					enterLoop = true
-					TypePath.TypePathSegment(tailName, null)
-				}
-			} else TypePath.TypePathSegment(tailName, null)
-
-		val body = ArrayList<TypePath.TypePathSegment>()
-		enterLoop = enterLoop || match(COLON_COLON)
-		while (enterLoop) {
-			expect(IDENTIFIER, "Expected identifier after '::'.")
-			val segmentName = previous
-			if (match(COLON_COLON) || isNext(LESS)) {
-				if (isNext(IDENTIFIER)) continue
-				expect(LESS, "Expected identifier or generic arguments after '::' in type path.")
-				val genericArgs = genericArgs(previous)
-				body.add(TypePath.TypePathSegment(segmentName, genericArgs))
-			} else {
-				body.add(TypePath.TypePathSegment(segmentName, null))
-			}
-			enterLoop = match(COLON_COLON)
+		val tail = ArrayList<TypePath.TypePathSegment>()
+		var head = typePathSegment(tailName)
+		while (match(COLON_COLON)) {
+			tail.add(head)
+			head = typePathSegment()
 		}
-
-		return TypePath(tail, body)
+		return TypePath(tail, head)
 	}
+
+	private fun typePath(): TypePath {
+		val tail = ArrayList<TypePath.TypePathSegment>().also { it.add(TypePath.TypePathSegment.NONE) }
+		expect(IDENTIFIER, "Expected identifier after '::'.")
+		var head = typePathSegment(previous)
+		while (match(COLON_COLON)) {
+			tail.add(head)
+			head = typePathSegment()
+		}
+		return TypePath(tail, head)
+	}
+
+	private fun typePathSegment(begin: Token) =
+		if (match(LESS)) TypePath.TypePathSegment(begin, genericArgs(previous)) else TypePath.TypePathSegment(begin, null)
+
+	private fun typePathSegment(): TypePath.TypePathSegment {
+		expect(IDENTIFIER, "Expected identifier after '::'.")
+		return typePathSegment(previous)
+	}
+
 
 	// </editor-fold>
 	// <editor-fold desc="typeParamBounds">
