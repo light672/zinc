@@ -1,8 +1,8 @@
 package com.light672.zinc.lang.compiler.core
 
-import com.light672.zinc.lang.compiler.Scope
-import com.light672.zinc.lang.compiler.Type
 import com.light672.zinc.lang.compiler.item.names.Struct
+import com.light672.zinc.lang.compiler.resolving.Scope
+import com.light672.zinc.lang.compiler.resolving.Type
 
 internal object Core {
 	private val numStruct = Struct("num", HashMap(), ArrayList(), 0)

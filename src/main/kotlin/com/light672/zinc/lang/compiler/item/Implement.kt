@@ -1,8 +1,8 @@
 package com.light672.zinc.lang.compiler.item
 
-import com.light672.zinc.lang.compiler.Resolver
-import com.light672.zinc.lang.compiler.Type
 import com.light672.zinc.lang.compiler.item.names.Trait
+import com.light672.zinc.lang.compiler.resolving.Resolver
+import com.light672.zinc.lang.compiler.resolving.Type
 
 internal class Implement(val type: Type, depth: Int) : Item(depth) {
 	val traits = HashMap<Trait, TraitImplement>()

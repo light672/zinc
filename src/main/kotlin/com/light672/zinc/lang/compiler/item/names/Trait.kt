@@ -1,6 +1,6 @@
 package com.light672.zinc.lang.compiler.item.names
 
-import com.light672.zinc.lang.compiler.Type
+import com.light672.zinc.lang.compiler.resolving.Type
 
 internal class Trait(
 	name: String,

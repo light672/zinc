@@ -1,4 +1,4 @@
-package com.light672.zinc.lang.compiler
+package com.light672.zinc.lang.compiler.resolving
 
 import com.light672.zinc.builtin.ZincBoolean
 import com.light672.zinc.builtin.ZincChar
