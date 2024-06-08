@@ -83,7 +83,7 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	fun block(): Expr.Block {
 		val open = previous
 		val stmts = ArrayList<Stmt>()
-		while (isNext(RIGHT_BRACE)) {
+		while (!isNext(RIGHT_BRACE)) {
 			try {
 				stmts.add(declaration())
 			} catch (error: ParseError) {
