@@ -70,8 +70,8 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		val expr = expression()
 		if (!isNext(COLON, COLON_EQUAL)) return expressionStmt(expr)
 		val pattern = patternFrom(expr)
-		var type = if (match(COLON)) type() else null
-		var initializer = if (type == null) {
+		val type = if (match(COLON)) type() else null
+		val initializer = if (type == null) {
 			advance()
 			expression()
 		} else if (match(EQUAL)) expression() else null
@@ -188,9 +188,9 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	private fun optionalTypePath() = if (match(IDENTIFIER)) typePath(previous) else if (match(COLON_COLON)) typePath() else null
 
 	private fun typePath(error: String): TypePath {
-		if (match(COLON_COLON)) return typePath() else {
+		return if (match(COLON_COLON)) typePath() else {
 			expect(IDENTIFIER, error)
-			return typePath(previous)
+			typePath(previous)
 		}
 	}
 
