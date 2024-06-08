@@ -1,6 +1,7 @@
 package com.light672.zinc
 
 import com.light672.zinc.lang.compiler.parsing.Parser
+import com.light672.zinc.lang.compiler.parsing.syntax.Token
 
 object Zinc {
 
@@ -23,8 +24,18 @@ object Zinc {
 			err.println("Panicked: $error")
 		}
 
-		internal fun reportCompileError(error: String) {
+		internal fun reportCompileError(error: String, range: Token.Range) {
 			err.println(error)
+			val lines = source.split("\n") // do not change this to source.lines()
+			val neededLines = Array(range.last.line - range.first.line + 1) { i -> lines[i + range.first.line - 1] }
+			val padLength = range.last.line.toString().length
+			err.println("".padStart(padLength) + " |")
+			for ((i, line) in neededLines.withIndex()) err.println(
+				"${
+					(i + range.first.line).toString().padStart(padLength)
+				} | $line"
+			)
+			err.println("".padStart(padLength) + " |")
 			hadError = true
 		}
 

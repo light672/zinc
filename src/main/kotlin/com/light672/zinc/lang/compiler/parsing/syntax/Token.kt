@@ -5,8 +5,6 @@ import com.light672.zinc.lang.compiler.parsing.Precedence
 import com.light672.zinc.lang.compiler.parsing.Precedence.*
 
 internal data class Token(val type: Type, val line: Int, val range: IntRange, val lexeme: String = "") {
-	val prec get() = type.rule.precedence
-
 	companion object {
 		fun empty(): Token {
 			return Token(Type.NA, 0, 0..0)
@@ -19,6 +17,9 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		val infix: (Parser.(Expr) -> Expr)? = null
 	)
 
+	class Range(val first: Token, val last: Token)
+
+	operator fun rangeTo(token: Token) = Range(this, token)
 
 	enum class Type(val rule: ParseRule = ParseRule(NONE, null, null)) {
 		LEFT_PAREN(ParseRule(CALL, Parser::parenthesis)),

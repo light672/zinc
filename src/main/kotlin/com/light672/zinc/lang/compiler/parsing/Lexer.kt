@@ -7,8 +7,15 @@ import org.apache.commons.lang3.StringEscapeUtils
 internal class Lexer(private val originalSource: String) {
 	private val source = originalSource.replace("\t", "    ")
 	private var start = 0
+		set(value) {
+			startOnLine = currentOnLine
+			field = value
+		}
 	private var current = 0
 	private var line = 1
+
+	private var startOnLine = 0
+	private var currentOnLine = 0
 
 	private fun currentChar() = if (end()) '\u0000' else source[current]
 	private fun nextChar(lookAhead: Int = 0) = if (current + 1 + lookAhead >= source.length) '\u0000' else source[current + 1]
@@ -22,15 +29,10 @@ internal class Lexer(private val originalSource: String) {
 		return tokens
 	}
 
-	fun setLocation(token: Token) {
-		current = token.range.last
-		start = current
-	}
-
 	fun scanToken(): Token {
 		skipWhiteSpace()
 		start = current
-		if (end()) return Token(EOF, line, source.length - 1..<source.length, "EOF")
+		if (end()) return Token(EOF, line, startOnLine..currentOnLine, "EOF")
 		return when (val c = consume()) {
 			'(' -> add(LEFT_PAREN)
 			')' -> add(RIGHT_PAREN)
@@ -197,6 +199,8 @@ internal class Lexer(private val originalSource: String) {
 				'\n' -> {
 					consume()
 					line++
+					startOnLine = 0
+					currentOnLine = 0
 				}
 
 				else -> return
@@ -207,28 +211,33 @@ internal class Lexer(private val originalSource: String) {
 	private fun addFormatted(type: Token.Type): Token {
 		val lexeme = source.substring(start, current)
 		val final = StringEscapeUtils.escapeJava(lexeme)
-		val token = Token(type, line, start..current + 1, final)
+		val token = Token(type, line, startOnLine..currentOnLine + 1, final)
 		start = current
 		return token
 	}
 
 	private fun add(type: Token.Type): Token {
 		val lexeme = source.substring(start, current)
-		val token = Token(type, line, start..current, lexeme)
+		val token = Token(type, line, startOnLine..currentOnLine, lexeme)
 		start = current
 		return token
 	}
 
 	private fun errorToken(message: String): Token {
-		val token = Token(ERROR, line, start..current, message)
+		val token = Token(ERROR, line, startOnLine..currentOnLine, message)
 		start = current
 		return token
 	}
 
-	private fun consume() = source[current++]
+	private fun consume(): Char {
+		currentOnLine++
+		return source[current++]
+	}
+
 	private fun match(expected: Char): Boolean {
 		if (end() || source[current] != expected) return false
 		current++
+		currentOnLine++
 		return true
 	}
 

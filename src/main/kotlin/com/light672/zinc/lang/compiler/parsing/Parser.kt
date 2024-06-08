@@ -390,12 +390,12 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	private fun error(message: String) = errorAt(previous, message)
 	private fun errorAtCurrent(message: String) = errorAt(current, message)
 	private fun errorAt(token: Token, message: String): ParseError {
-		runtime.reportCompileError("line ${token.line} at '${token.lexeme}' : $message")
+		runtime.reportCompileError("line ${token.line} at '${token.lexeme}' : $message", token..token)
 		return ParseError()
 	}
 
 	private fun exprError(expr: Expr, message: String): ParseError {
-		runtime.reportCompileError("line ${expr.firstToken.line} at '${expr.firstToken.lexeme}' : $message'")
+		runtime.reportCompileError("line ${expr.firstToken.line} at '${expr.firstToken.lexeme}' : $message'", expr.range())
 		return ParseError()
 	}
 

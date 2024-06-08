@@ -18,5 +18,5 @@ internal sealed class Expr(val firstToken: Token, val lastToken: Token) {
 	class Block(open: Token, val stmts: List<Stmt>, close: Token) : Expr(open, close), WithBlock
 
 
-	fun range() = firstToken.range.first..lastToken.range.last
+	fun range() = firstToken..lastToken
 }
