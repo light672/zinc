@@ -45,7 +45,7 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		CARET_EQUAL,
 		COLON,
 		COLON_EQUAL,
-		COLON_COLON,
+		COLON_COLON(ParseRule(prefix = Parser::pathExpression)),
 		SEMICOLON,
 		QUESTION,
 		BANG(ParseRule(prefix = Parser::unary)),

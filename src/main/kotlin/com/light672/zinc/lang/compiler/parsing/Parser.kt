@@ -108,7 +108,7 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		return Expr.Group(open, expr, previous)
 	}
 
-	fun variable() = Expr.Variable(previous)
+	fun variable() = pathExpression(previous)
 	fun mutReference() = Expr.MutableReference(previous, expression())
 
 
@@ -248,8 +248,51 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 
 
 	// </editor-fold>
+	// <editor-fold desc="pathExpression"
+	private fun pathExpression(begin: Token): Expr.Path {
+		val segments = ArrayList<PathExprSegment>()
+		var head = PathExprSegment(
+			begin, if (match(COLON_COLON)) {
+				val generics = optionalGenericArgs()
+				match(COLON_COLON)
+				generics
+			} else null
+		)
+		while (previous.type == COLON_COLON) {
+			segments.add(head)
+			head = pathExpressionSegment()
+		}
+		return Expr.Path(begin, segments, head, previous)
+	}
+
+	fun pathExpression(): Expr.Path {
+		val begin = previous
+		val segments = ArrayList<PathExprSegment>().also { it.add(PathExprSegment.NONE) }
+		var head = pathExpressionSegment()
+		while (previous.type == COLON_COLON) {
+			segments.add(head)
+			head = pathExpressionSegment()
+		}
+		return Expr.Path(begin, segments, head, previous)
+	}
+
+	private fun pathExpressionSegment(): PathExprSegment {
+		expect(IDENTIFIER, "Expected identifier after '::'.")
+		val segment = previous
+		val genericArgs =
+			if (match(COLON_COLON)) {
+				val generics = optionalGenericArgs()
+				match(COLON_COLON)
+				generics
+			} else null
+		return PathExprSegment(segment, genericArgs)
+	}
+
+	// </editor-fold>
 	// <editor-fold desc="typeParamBounds">
-	private fun optionalTypeParamBounds() = if (match(COLON)) typeParamBounds() else null
+	private
+
+	fun optionalTypeParamBounds() = if (match(COLON)) typeParamBounds() else null
 
 	private fun typeParamBounds(): TypeParamBounds {
 		expect(IDENTIFIER, "Expected type parameter bounds.")
@@ -264,12 +307,16 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 	// <editor-fold desc="type">
 	private fun optionalType() = optionalTypePath()
 	private fun type() = typePath("Expected type.")
-	// </editor-fold>
 
-	fun pattern(): Pattern {
+	// </editor-fold>
+	// <editor-fold desc="pattern">
+	private fun pattern(): Pattern {
 		return when (current.type) {
 			IDENTIFIER -> {
 				advance()
+				if (match(COLON_COLON)) {
+
+				}
 				Pattern.IdentifierPattern(null, previous)
 			}
 
@@ -284,7 +331,7 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		}
 	}
 
-	fun patternOrSelf(): Either<Pattern, Pair<Token?, Token>> {
+	private fun patternOrSelf(): Either<Pattern, Pair<Token?, Token>> {
 		if (match(SELF)) return Either.Right(Pair(null, previous))
 		if (match(MUT)) {
 			val mut = previous
@@ -295,18 +342,27 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 		return Either.Left(pattern())
 	}
 
-	fun patternFrom(expr: Expr): Pattern {
+	private fun patternFrom(expr: Expr): Pattern {
 		return when (expr) {
-			is Expr.Variable -> Pattern.IdentifierPattern(null, expr.variable)
+			is Expr.Path -> {
+				if (expr.body.size > 0 || expr.head.genericArgs != null)
+					Pattern.PathPattern(expr)
+				else
+					Pattern.IdentifierPattern(null, expr.head.segment)
+			}
 
 			is Expr.MutableReference -> {
-				if (expr.expr !is Expr.Variable) throw exprError(expr, "Expected identifier after 'mut' in pattern.")
-				return Pattern.IdentifierPattern(expr.mut, expr.expr.variable)
+				if (expr.expr !is Expr.Path) throw exprError(expr, "Expected identifier after 'mut' in pattern.")
+				if (expr.expr.body.size > 0 || expr.expr.head.genericArgs != null)
+					throw exprError(expr, "Expected identifier after 'mut' in pattern.")
+				return Pattern.IdentifierPattern(expr.mut, expr.expr.head.segment)
 			}
 
 			else -> throw exprError(expr, "Expected pattern.")
 		}
 	}
+
+	// </editor-fold>
 
 	private val lexer = Lexer(source)
 	private var current: Token = Token.empty()
