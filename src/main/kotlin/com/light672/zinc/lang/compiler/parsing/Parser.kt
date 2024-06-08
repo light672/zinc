@@ -315,9 +315,9 @@ internal class Parser(source: String, private val runtime: Zinc.Runtime) {
 			IDENTIFIER -> {
 				advance()
 				if (match(COLON_COLON)) {
-
-				}
-				Pattern.IdentifierPattern(null, previous)
+					Pattern.PathPattern(pathExpression(previous))
+				} else
+					Pattern.IdentifierPattern(null, previous)
 			}
 
 			MUT -> {
