@@ -1,4 +1,4 @@
-package com.light672.zinc.lang.compiler.item.names
+package com.light672.zinc.lang.compiler.resolving.item.names
 
 import com.light672.zinc.lang.compiler.resolving.Type
 

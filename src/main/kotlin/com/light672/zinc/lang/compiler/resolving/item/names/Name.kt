@@ -1,6 +1,6 @@
-package com.light672.zinc.lang.compiler.item.names
+package com.light672.zinc.lang.compiler.resolving.item.names
 
-import com.light672.zinc.lang.compiler.item.Item
+import com.light672.zinc.lang.compiler.resolving.item.Item
 
 internal open class Name(val name: String, depth: Int) : Item(depth) {
 	override fun equals(other: Any?): Boolean {
