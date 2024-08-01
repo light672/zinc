@@ -1,7 +1,11 @@
 package com.light672.zinc
 
-import com.light672.zinc.lang.compiler.parsing.Parser
-import com.light672.zinc.lang.compiler.parsing.syntax.Token
+import com.light672.zinc.lang.compiler.ast.Parser
+import com.light672.zinc.lang.compiler.ast.syntax.Stmt
+import com.light672.zinc.lang.compiler.ast.syntax.Token
+import com.light672.zinc.lang.compiler.debug.ASTPrinter
+import com.light672.zinc.lang.compiler.debug.NameDeclarationPrinter
+import com.light672.zinc.lang.compiler.ir.Namespace
 
 object Zinc {
 
@@ -14,10 +18,17 @@ object Zinc {
 		private val err: OutputStream,
 	) {
 
-		internal var hadError = false
+		private var hadError = false
 
 		fun run() {
-			Parser(source, this).parse()
+			val rootModuleStatement = Stmt.Module(Token.empty(), Token.empty(), ArrayList())
+			val srcModuleStatement = Stmt.Module(Token.empty(), Token.newNA("src", 0, 0..0), ArrayList())
+
+			val namespace = Namespace(this)
+
+			val mainModuleStatement = Parser.parse(source, "main", namespace, this)
+			ASTPrinter.print(mainModuleStatement)
+			NameDeclarationPrinter.print(namespace)
 		}
 
 		private fun reportRuntimeError(error: String) {
@@ -25,7 +36,7 @@ object Zinc {
 		}
 
 		internal fun reportCompileError(error: String, range: Token.Range) {
-			err.println(error)
+			err.println("error at line ${range.first.line}: $error")
 			val lines = source.split("\n") // do not change this to source.lines()
 			val neededLines = Array(range.last.line - range.first.line + 1) { i -> lines[i + range.first.line - 1] }
 			val padLength = range.last.line.toString().length

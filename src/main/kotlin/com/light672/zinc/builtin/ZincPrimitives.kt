@@ -36,7 +36,6 @@ data class ZincGroup(val array: Array<ZincValue?>) : ZincValue() {
 
 		other as ZincGroup
 		return array.contentEquals(other.array)
-
 	}
 
 	override fun hashCode(): Int {

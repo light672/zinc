@@ -1,7 +1,17 @@
-a := 3;
-a: bool::grerrr::<l>::aaa<IO,> = 4;
-mut 3 := 3;
-{
-	a := 5;
+let a = 3;
+let b: ::e;
+let c: bool::grerrr::<l>::aaa<IO,> = 4;
+fn myFunction(self) {
+	fn muts();
 }
-def <T> myFunction(a: T);
+fn myFunction2(self) {
+	fn muts();
+	fn muts2() {
+		fn muts() {
+			;
+			;
+			3;
+		}
+	}
+	let a = 3;
+}
