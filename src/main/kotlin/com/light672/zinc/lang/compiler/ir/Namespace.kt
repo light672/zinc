@@ -1,6 +1,7 @@
 package com.light672.zinc.lang.compiler.ir
 
 import com.light672.zinc.Zinc
+import com.light672.zinc.lang.compiler.ast.syntax.Pattern
 import com.light672.zinc.lang.compiler.ast.syntax.Stmt
 import com.light672.zinc.lang.compiler.ast.syntax.Token
 import com.light672.zinc.lang.tool.Either
@@ -38,12 +39,30 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 		return newTypes
 	}
 
+	fun newValues(branch: Branch, code: () -> Unit) {
+		val oldValues = values
+		values = branch
+		valueDepth++
+		code()
+		values = oldValues
+		valueDepth--
+	}
+
+	fun newTypes(branch: Branch, code: () -> Unit) {
+		val oldTypes = types
+		types = branch
+		typeDepth++
+		code()
+		types = oldTypes
+		typeDepth--
+	}
+
 	fun addItem(declaration: Stmt) {
 		when (declaration) {
 			is Stmt.Function -> {
 				lateinit var innerValues: Branch
-				val innerTypes = newTypes(false) {
-					innerValues = newValues(false) {
+				val innerTypes = newTypes(true) {
+					innerValues = newValues(true) {
 						when (declaration.scOrBlock) {
 							is Either.Left -> {}
 							is Either.Right -> for (statement in declaration.scOrBlock.value.stmts) addItem(statement)
@@ -86,6 +105,13 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 			is Stmt.Expression -> {}
 		}
 	}
+
+	fun addPatternLocals(pattern: Pattern, irPattern: IRPattern) {
+		when (irPattern) {
+			is IRPattern.Identifier -> values.put(irPattern.variable.name, irPattern.variable, pattern.range())
+		}
+	}
+
 
 	class Branch : Iterable<Item> {
 		constructor(parent: Branch, allowedLocals: Boolean) {

@@ -1,13 +1,17 @@
 package com.light672.zinc.lang.compiler.ir
 
 import com.light672.zinc.builtin.ZincValue
+import com.light672.zinc.lang.compiler.ir.Function as IRFunction
+import com.light672.zinc.lang.compiler.ir.Variable as IRVariable
 
 internal sealed class IRExpr {
-	class Variable(val variable: com.light672.zinc.lang.compiler.ir.Variable) : IRExpr() {
+	class Variable(val variable: IRVariable) : IRExpr() {
 		companion object {
-			val ERROR = Variable(com.light672.zinc.lang.compiler.ir.Variable.ERROR)
+			val ERROR = Variable(IRVariable.ERROR)
 		}
 	}
+
+	class Function(val function: IRFunction, val generics: List<Type>?) : IRExpr()
 
 	class Literal(val literal: ZincValue) : IRExpr()
 	class Binary(val left: IRExpr, val right: IRExpr, val operator: BinaryOp) : IRExpr() {
@@ -41,5 +45,5 @@ internal sealed class IRExpr {
 		}
 	}
 
-	class Block(val stmts: List<IRStmt>) : IRExpr()
+	class Block(val branch: Namespace.Branch, val stmts: List<IRStmt>) : IRExpr()
 }

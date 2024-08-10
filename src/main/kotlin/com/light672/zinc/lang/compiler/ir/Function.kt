@@ -1,6 +1,7 @@
 package com.light672.zinc.lang.compiler.ir
 
 import com.light672.zinc.lang.compiler.ast.syntax.Stmt
+import com.light672.zinc.lang.tool.Either
 
 internal class Function(
 	name: String,
@@ -11,5 +12,5 @@ internal class Function(
 ) : Item(name, genericArity) {
 	lateinit var parameters: List<Type>
 	lateinit var returnType: Type
-	lateinit var block: IRExpr.Block
+	lateinit var block: Either<Unit, IRExpr.Block>
 }

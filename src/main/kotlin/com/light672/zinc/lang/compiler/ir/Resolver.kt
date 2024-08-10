@@ -18,7 +18,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 			is Function -> resolveFunction(item)
 			is Module -> TODO()
 			is TypeAlias -> TODO()
-			is Variable -> TODO()
+			is Variable -> {}
 		}
 	}
 
@@ -43,14 +43,38 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 		function.returnType = returnType
 		when (function.declaration.scOrBlock) {
 			is Either.Left -> {
-				function.block = IRExpr.Block(emptyList())
-				return
+				function.block = Either.Left(Unit)
 			}
 
 			is Either.Right -> {
 				val block = function.declaration.scOrBlock
-				function.block = lowerASTExpr(block.value) as IRExpr.Block
+				function.block = Either.Right(lowerASTExpr(block.value) as IRExpr.Block)
 			}
+		}
+	}
+
+	private fun lowerBlock(block: Expr.Block, branch: Namespace.Branch): IRExpr.Block {
+		val statements = ArrayList<IRStmt>()
+		namespace.newValues(branch) {
+			ArrayList<IRStmt>(block.stmts.size)
+			for (stmt in block.stmts)
+				lowerASTStmt(stmt)?.let { statements.add(it) }
+		}
+		return IRExpr.Block(branch, statements)
+	}
+
+	private fun lowerLet(stmt: Stmt.Variable, branch: Namespace.Branch): IRStmt.LetBinding {
+		val irPattern = resolvePattern(stmt.pattern)
+		namespace.newValues(branch) {
+			namespace.addPatternLocals(stmt.pattern, irPattern)
+		}
+		return IRStmt.LetBinding(branch, irPattern)
+	}
+
+	private fun resolvePattern(pattern: Pattern): IRPattern {
+		return when (pattern) {
+			is Pattern.IdentifierPattern -> IRPattern.Identifier(Variable(pattern.name.lexeme, pattern.mut != null))
+			is Pattern.PathPattern -> TODO()
 		}
 	}
 
@@ -58,42 +82,50 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 		return when (stmt) {
 			is Stmt.Module, is Stmt.Function, is Stmt.TypeAlias -> null
 			is Stmt.Expression -> IRStmt.Expr(lowerASTExpr(stmt.expr), stmt.trailing)
-			is Stmt.Variable -> TODO()
+			is Stmt.Variable -> lowerLet(stmt, namespace.values)
 		}
 	}
 
 	private fun lowerASTExpr(expr: Expr): IRExpr {
 		return when (expr) {
-			is Expr.Binary -> IRExpr.Binary(
-				lowerASTExpr(expr.a), lowerASTExpr(expr.b), when (expr.operator.type) {
-					Token.Type.PLUS -> IRExpr.Binary.BinaryOp.ADD
-					Token.Type.MINUS -> IRExpr.Binary.BinaryOp.SUBTRACT
-					Token.Type.SLASH -> IRExpr.Binary.BinaryOp.DIVIDE
-					Token.Type.STAR -> IRExpr.Binary.BinaryOp.MULTIPLY
-					Token.Type.PERCENT -> IRExpr.Binary.BinaryOp.MODULO
-					Token.Type.GREATER -> IRExpr.Binary.BinaryOp.GREATER
-					Token.Type.GREATER_EQUAL -> IRExpr.Binary.BinaryOp.GREATER_EQUAL
-					Token.Type.LESS -> IRExpr.Binary.BinaryOp.LESS
-					Token.Type.LESS_EQUAL -> IRExpr.Binary.BinaryOp.LESS_EQUAL
-					Token.Type.EQUAL_EQUAL -> IRExpr.Binary.BinaryOp.EQUAL
-					Token.Type.AMP -> IRExpr.Binary.BinaryOp.BIT_AND
-					Token.Type.PIPE -> IRExpr.Binary.BinaryOp.BIT_OR
-					Token.Type.CARET -> IRExpr.Binary.BinaryOp.BIT_XOR
-					Token.Type.PIPE_PIPE -> IRExpr.Binary.BinaryOp.OR
-					Token.Type.AMP_AMP -> IRExpr.Binary.BinaryOp.AND
-					else -> throw IllegalArgumentException()
-				}
-			)
+			is Expr.Binary -> {
+				val a = lowerASTExpr(expr.a)
+				val b = lowerASTExpr(expr.b)
+				IRExpr.Binary(
+					a, b, when (expr.operator.type) {
+						Token.Type.PLUS -> IRExpr.Binary.BinaryOp.ADD
+						Token.Type.MINUS -> IRExpr.Binary.BinaryOp.SUBTRACT
+						Token.Type.SLASH -> IRExpr.Binary.BinaryOp.DIVIDE
+						Token.Type.STAR -> IRExpr.Binary.BinaryOp.MULTIPLY
+						Token.Type.PERCENT -> IRExpr.Binary.BinaryOp.MODULO
+						Token.Type.GREATER -> IRExpr.Binary.BinaryOp.GREATER
+						Token.Type.GREATER_EQUAL -> IRExpr.Binary.BinaryOp.GREATER_EQUAL
+						Token.Type.LESS -> IRExpr.Binary.BinaryOp.LESS
+						Token.Type.LESS_EQUAL -> IRExpr.Binary.BinaryOp.LESS_EQUAL
+						Token.Type.EQUAL_EQUAL -> IRExpr.Binary.BinaryOp.EQUAL
+						Token.Type.AMP -> IRExpr.Binary.BinaryOp.BIT_AND
+						Token.Type.PIPE -> IRExpr.Binary.BinaryOp.BIT_OR
+						Token.Type.CARET -> IRExpr.Binary.BinaryOp.BIT_XOR
+						Token.Type.PIPE_PIPE -> IRExpr.Binary.BinaryOp.OR
+						Token.Type.AMP_AMP -> IRExpr.Binary.BinaryOp.AND
+						else -> throw IllegalArgumentException()
+					}
+				)
+			}
 
-			is Expr.Block -> IRExpr.Block(ArrayList<IRStmt>(expr.stmts.size).also {
-				for (stmt in expr.stmts)
-					lowerASTStmt(stmt)?.let { stmt -> it.add(stmt) }
-			})
+			is Expr.Block -> lowerBlock(expr, Namespace.Branch(namespace.values, true))
 
 			is Expr.Group -> lowerASTExpr(expr.expr)
 			is Expr.Literal -> IRExpr.Literal(expr.literal)
 
-			is Expr.Path -> resolveComplexPathExpr(expr.path)?.let { IRExpr.Variable(it) } ?:
+			is Expr.Path -> resolveComplexPathExpr(expr.path)?.let {
+				when (it.first) {
+					is Function -> IRExpr.Function(it.first as Function, it.second)
+					is Variable -> IRExpr.Variable(it.first as Variable)
+					is Module, is TypeAlias -> throw IllegalArgumentException()
+				}
+			} ?: IRExpr.Variable.ERROR
+
 			is Expr.Unary -> IRExpr.Unary(
 				lowerASTExpr(expr.a), when (expr.operator.type) {
 					Token.Type.MINUS -> IRExpr.Unary.UnaryOp.NEGATE
@@ -147,7 +179,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 		val generics = resolveGenericParams(
 			if (item != null) {
 				item = resolveValueItemField(item, path.head.segment)
-				if (item != null) Pair(item, path.head.segment) else null
+				item?.let { Pair(item, path.head.segment) }
 			} else null, path.head.generics
 		)
 		return item?.let { Pair(item, generics) }
@@ -158,14 +190,14 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 		val generics = resolveGenericParams(
 			if (item != null) {
 				item = resolveTypeItemField(item, path.head.segment)
-				if (item != null) Pair(item, path.head.segment) else null
+				item?.let { Pair(item, path.head.segment) }
 			} else null, path.head.generics
 		)
 		return item?.let { Pair(item, generics) }
 	}
 
 	private fun resolveValueItemField(item: Item, field: Token): Item? {
-		when (item) {
+		return when (item) {
 			is Function, is Variable -> throw IllegalArgumentException("This will never happen")
 			is Module -> {
 				val inner = item.values.get(field.lexeme)
@@ -175,7 +207,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 					field.asRange()
 				)
 
-				return inner
+				inner
 			}
 
 			is TypeAlias -> {
@@ -183,13 +215,13 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 					"Cannot use '::' on a type directly. Try using a qualified path. Ex: <${item.name} as Trait>",
 					field.asRange()
 				)
-				return null
+				null
 			}
 		}
 	}
 
 	private fun resolveTypeItemField(item: Item, field: Token): Item? {
-		when (item) {
+		return when (item) {
 			is Function, is Variable -> throw IllegalArgumentException("This will never happen")
 			is Module -> {
 				val inner = item.types.get(field.lexeme)
@@ -199,7 +231,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 					field.asRange()
 				)
 
-				return inner
+				inner
 			}
 
 			is TypeAlias -> {
@@ -207,15 +239,14 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 					"Cannot use '::' on a type directly. Try using a qualified path. Ex: <${item.name} as Trait>",
 					field.asRange()
 				)
-				return null
+				null
 			}
 		}
 	}
 
 	private fun resolveGenericParams(itemApplied: Pair<Item, Token>?, generics: GenericArgs?): List<Type> {
 		val passedInGenerics = generics?.args?.size ?: 0
-		if (itemApplied != null) {
-			val (itemApplied, token) = itemApplied
+		itemApplied?.let { (itemApplied, token) ->
 			if (itemApplied.genericArity != passedInGenerics) {
 				zinc.reportCompileError(
 					"Item '${itemApplied.name}' expected '${itemApplied.genericArity}' generic argument(s) but '${passedInGenerics}' were provided",
