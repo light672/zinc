@@ -7,6 +7,7 @@ import com.light672.zinc.lang.tool.Either
 internal class Resolver(private val namespace: Namespace, private val zinc: Zinc.Runtime) {
 	private var currentModule: Module = namespace.rootModule
 	fun resolveAndLower() {
+		// TODO: find a way to better resolve global variables while keeping 'let' pattern semantics
 		for (type in namespace.types) resolve(type)
 		for (value in namespace.values) resolve(value)
 	}
@@ -71,6 +72,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 	}
 
 	private fun lowerLet(stmt: Stmt.Variable, branch: Namespace.Branch): IRStmt.LetBinding {
+		// TODO: handle variable initializers
 		val irPattern = resolvePattern(stmt.pattern)
 		namespace.newValues(branch) {
 			namespace.addPatternLocals(stmt.pattern, irPattern)
