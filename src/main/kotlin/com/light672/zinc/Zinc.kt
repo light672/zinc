@@ -6,6 +6,7 @@ import com.light672.zinc.lang.compiler.ast.syntax.Token
 import com.light672.zinc.lang.compiler.debug.ASTPrinter
 import com.light672.zinc.lang.compiler.debug.NameDeclarationPrinter
 import com.light672.zinc.lang.compiler.ir.Namespace
+import com.light672.zinc.lang.compiler.ir.Resolver
 
 object Zinc {
 
@@ -29,6 +30,7 @@ object Zinc {
 			val mainModuleStatement = Parser.parse(source, "main", namespace, this)
 			ASTPrinter.print(mainModuleStatement)
 			NameDeclarationPrinter.print(namespace)
+			Resolver(namespace, this).resolveAndLower()
 		}
 
 		private fun reportRuntimeError(error: String) {

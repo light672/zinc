@@ -145,6 +145,10 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 			return names[name]
 		}
 
+		fun recursiveGet(name: String): Item? {
+			return names[name] ?: parent?.recursiveGet(name)
+		}
+
 		override fun iterator(): Iterator<Item> {
 			return names.values.iterator()
 		}

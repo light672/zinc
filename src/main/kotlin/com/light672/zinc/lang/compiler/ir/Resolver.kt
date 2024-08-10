@@ -7,18 +7,25 @@ import com.light672.zinc.lang.tool.Either
 internal class Resolver(private val namespace: Namespace, private val zinc: Zinc.Runtime) {
 	private var currentModule: Module = namespace.rootModule
 	fun resolveAndLower() {
-		for (type in namespace.types) {
-			resolve(type)
-		}
+		for (type in namespace.types) resolve(type)
+		for (value in namespace.values) resolve(value)
 	}
 
 
 	private fun resolve(item: Item) {
 		when (item) {
 			is Function -> resolveFunction(item)
-			is Module -> TODO()
+			is Module -> resolveModule(item)
 			is TypeAlias -> TODO()
 			is Variable -> {}
+		}
+	}
+
+	private fun resolveModule(module: Module) {
+		namespace.newTypes(module.types) {
+			namespace.newValues(module.values) {
+				resolveAndLower()
+			}
 		}
 	}
 
@@ -175,6 +182,13 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 	}
 
 	private fun resolveComplexPathExpr(path: ComplexPath): Pair<Item, List<Type>>? {
+		if (path.tail.isEmpty()) {
+			val item = namespace.values.recursiveGet(path.head.segment.lexeme)
+			if (item == null) zinc.reportCompileError("'${path.head.segment.lexeme}' does not exist in the current scope.", path.range())
+			val generics = resolveGenericParams(item?.let { Pair(it, path.head.segment) }, path.head.generics)
+			return (item?.let { Pair(it, generics) })
+		}
+
 		var item = complexPathUntilHead(path)
 		val generics = resolveGenericParams(
 			if (item != null) {
@@ -186,6 +200,13 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 	}
 
 	private fun resolveComplexPathType(path: ComplexPath): Pair<Item, List<Type>>? {
+		if (path.tail.isEmpty()) {
+			val item = namespace.types.recursiveGet(path.head.segment.lexeme)
+			if (item == null) zinc.reportCompileError("'${path.head.segment.lexeme}' does not exist in the current scope.", path.range())
+			val generics = resolveGenericParams(item?.let { Pair(it, path.head.segment) }, path.head.generics)
+			return (item?.let { Pair(it, generics) })
+		}
+
 		var item = complexPathUntilHead(path)
 		val generics = resolveGenericParams(
 			if (item != null) {
@@ -203,7 +224,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 				val inner = item.values.get(field.lexeme)
 
 				inner ?: zinc.reportCompileError(
-					"Value item '${field.lexeme}' does not exist in module '${item.name}'.",
+					"'${field.lexeme}' does not exist in module '${item.name}'.",
 					field.asRange()
 				)
 

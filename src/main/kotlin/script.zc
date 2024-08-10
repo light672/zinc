@@ -1,10 +1,10 @@
 let a = 3;
 let b: ::e;
 let c: bool::grerrr::<l>::aaa<IO,> = 4;
-fn myFunction(self) {
+fn myFunction() {
 	fn muts();
 }
-fn myFunction2(self) {
+fn myFunction2() {
 	fn muts();
 	fn muts2() {
 		fn muts() {
@@ -13,5 +13,5 @@ fn myFunction2(self) {
 			3;
 		}
 	}
-	let a = 3;
+	c
 }
