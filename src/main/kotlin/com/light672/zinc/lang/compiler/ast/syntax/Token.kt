@@ -81,6 +81,8 @@ internal data class Token(val type: Type, val line: Int, val range: IntRange, va
 		PIPE,
 		AMP_AMP(ParseRule(AND, infix = Parser::and)),
 		PIPE_PIPE(ParseRule(OR, infix = Parser::or)),
+		DOLLAR,
+		AT,
 		IS,
 		AS,
 		IN,

@@ -76,7 +76,8 @@ internal class Lexer(private val originalSource: String) {
 
 			'|' -> if (match('|')) add(PIPE_PIPE) else errorToken("Unexpected character.")
 			'&' -> if (match('&')) add(AMP_AMP) else errorToken("Unexpected character.")
-
+			'$' -> add(DOLLAR)
+			'@' -> add(AT)
 			'\'' -> char()
 
 			else -> {
@@ -111,7 +112,7 @@ internal class Lexer(private val originalSource: String) {
 					when (source[start + 1]) {
 						's' -> return check(2, "", IS)
 						'f' -> return check(2, "", IF)
-						'n' -> return if (check(2, "", IN) != IDENTIFIER) check(2, "terface", INTERFACE) else IN
+						'n' -> return if (check(2, "", IN) == IN) IN else check(2, "terface", INTERFACE)
 						'm' -> return check(2, "pl", IMPL)
 					}
 
