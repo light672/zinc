@@ -1,5 +1,6 @@
 package com.light672.zinc
 
+import com.light672.zinc.lang.compiler.ast.Lexer
 import com.light672.zinc.lang.compiler.ast.Parser
 import com.light672.zinc.lang.compiler.ast.syntax.Stmt
 import com.light672.zinc.lang.compiler.ast.syntax.Token
@@ -26,7 +27,7 @@ object Zinc {
 			val srcModuleStatement = Stmt.Module(Token.empty(), Token.newNA("src", 0, 0..0), ArrayList())
 
 			val namespace = Namespace(this)
-
+			println(Lexer(source).scanTokens())
 			val mainModuleStatement = Parser.parse(source, "main", namespace, this)
 			ASTPrinter.print(mainModuleStatement)
 			NameDeclarationPrinter.print(namespace)
