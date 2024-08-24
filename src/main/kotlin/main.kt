@@ -26,5 +26,3 @@ fun normalTest(source: String) {
 		} ms"
 	)
 }
-
-val list = ArrayList<() -> Unit>()
