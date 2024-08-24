@@ -5,13 +5,6 @@ fn myFunction() {
 	fn muts();
 }
 fn myFunction2() {
-	fn muts();
-	fn muts2() {
-		fn muts() {
-			;
-			;
-			3;
-		}
-	}
-	c
+	let a = 3;
+	let a = o;
 }

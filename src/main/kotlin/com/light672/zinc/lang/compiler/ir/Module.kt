@@ -4,4 +4,6 @@ internal class Module(
 	name: String,
 	val values: Namespace.Branch,
 	val types: Namespace.Branch
-) : Item(name, 0)
+) : Item(name, 0) {
+	val globalLets = ArrayList<IRStmt.LetBinding>()
+}

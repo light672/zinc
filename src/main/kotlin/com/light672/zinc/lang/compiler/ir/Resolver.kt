@@ -18,8 +18,15 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 			is Function -> resolveFunction(item)
 			is Module -> resolveModule(item)
 			is TypeAlias -> TODO()
+			is Static -> resolveStatic(item)
 			is Variable -> {}
 		}
+	}
+
+	private fun resolveStatic(static: Static) {
+		val stmt = static.letBinding.ast
+		val expr = stmt.initializer?.let { lowerASTExpr(it) }
+		static.letBinding.initializer = expr
 	}
 
 	private fun resolveModule(module: Module) {
@@ -72,18 +79,20 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 	}
 
 	private fun lowerLet(stmt: Stmt.Variable, branch: Namespace.Branch): IRStmt.LetBinding {
-		// TODO: handle variable initializers
 		val irPattern = resolvePattern(stmt.pattern)
 		namespace.newValues(branch) {
 			namespace.addPatternLocals(stmt.pattern, irPattern)
 		}
-		return IRStmt.LetBinding(branch, irPattern)
+		val expr = stmt.initializer?.let { lowerASTExpr(it) }
+		return IRStmt.LetBinding(stmt, branch, irPattern).also { it.initializer = expr }
 	}
 
-	private fun resolvePattern(pattern: Pattern): IRPattern {
-		return when (pattern) {
-			is Pattern.IdentifierPattern -> IRPattern.Identifier(Variable(pattern.name.lexeme, pattern.mut != null))
-			is Pattern.PathPattern -> TODO()
+	companion object {
+		fun resolvePattern(pattern: Pattern): IRPattern {
+			return when (pattern) {
+				is Pattern.IdentifierPattern -> IRPattern.Identifier(Variable(pattern.name.lexeme, pattern.mut != null))
+				is Pattern.PathPattern -> TODO()
+			}
 		}
 	}
 
@@ -91,7 +100,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 		return when (stmt) {
 			is Stmt.Module, is Stmt.Function, is Stmt.TypeAlias -> null
 			is Stmt.Expression -> IRStmt.Expr(lowerASTExpr(stmt.expr), stmt.trailing)
-			is Stmt.Variable -> lowerLet(stmt, namespace.values)
+			is Stmt.Variable -> lowerLet(stmt, Namespace.Branch(namespace.values, true))
 		}
 	}
 

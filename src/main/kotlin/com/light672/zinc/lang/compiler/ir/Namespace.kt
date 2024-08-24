@@ -97,8 +97,16 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 
 			is Stmt.Variable -> {
 				if (valueDepth == 0) {
-					val variables = declaration.pattern.toVariables()
-					for (variable in variables) values.put(variable.name, variable, declaration.range())
+					val irPattern = Resolver.resolvePattern(declaration.pattern)
+					if (irPattern !is IRPattern.Identifier) {
+						zinc.reportCompileError("Global variables can only use identifier patterns.", declaration.pattern.range())
+						return
+					}
+					values.put(
+						irPattern.variable.name,
+						Static(irPattern.variable.name, irPattern.variable.mutable, IRStmt.LetBinding(declaration, values, irPattern)),
+						declaration.pattern.range()
+					)
 				}
 			}
 
