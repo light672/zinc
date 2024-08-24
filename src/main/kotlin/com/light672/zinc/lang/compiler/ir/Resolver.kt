@@ -26,7 +26,9 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 	private fun resolveStatic(static: Static) {
 		val stmt = static.letBinding.ast
 		val expr = stmt.initializer?.let { lowerASTExpr(it) }
+		val type = stmt.type?.let { resolveType(it) }
 		static.letBinding.initializer = expr
+		static.letBinding.type = type
 	}
 
 	private fun resolveModule(module: Module) {
@@ -83,8 +85,12 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 		namespace.newValues(branch) {
 			namespace.addPatternLocals(stmt.pattern, irPattern)
 		}
+		val type = stmt.type?.let { resolveType(it) }
 		val expr = stmt.initializer?.let { lowerASTExpr(it) }
-		return IRStmt.LetBinding(stmt, branch, irPattern).also { it.initializer = expr }
+		return IRStmt.LetBinding(stmt, branch, irPattern).also {
+			it.initializer = expr
+			it.type = type
+		}
 	}
 
 	companion object {
