@@ -17,7 +17,7 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 	private var typeDepth = 0
 	private var valueDepth = 0
 
-	private fun newValues(allowedLocals: Boolean, code: () -> Unit): Branch {
+	fun newValues(allowedLocals: Boolean, code: () -> Unit): Branch {
 		val oldValues = values
 		val newValues = Branch(oldValues, allowedLocals)
 		values = newValues
@@ -28,7 +28,7 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 		return newValues
 	}
 
-	private fun newTypes(allowedLocals: Boolean, code: () -> Unit): Branch {
+	fun newTypes(allowedLocals: Boolean, code: () -> Unit): Branch {
 		val oldTypes = types
 		val newTypes = Branch(oldTypes, allowedLocals)
 		types = newTypes

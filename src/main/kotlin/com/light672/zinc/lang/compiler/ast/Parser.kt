@@ -5,6 +5,7 @@ import com.light672.zinc.builtin.*
 import com.light672.zinc.lang.compiler.ast.syntax.*
 import com.light672.zinc.lang.compiler.ast.syntax.Token.Type.*
 import com.light672.zinc.lang.compiler.ir.Namespace
+import com.light672.zinc.lang.compiler.ir.Namespace.Branch
 import com.light672.zinc.lang.tool.Either
 import java.lang.Double.parseDouble
 
@@ -88,15 +89,22 @@ internal class Parser(
 	fun block(): Expr.Block {
 		val open = previous
 		val stmts = ArrayList<Stmt>()
-		while (!isNext(RIGHT_BRACE)) {
-			try {
-				stmts.add(statement())
-			} catch (error: ParseError) {
-				synchronize()
+		lateinit var innerValues: Branch
+		val innerTypes = namespace.newTypes(true) {
+			innerValues = namespace.newValues(true) {
+				while (!isNext(RIGHT_BRACE)) {
+					try {
+						val statement = statement()
+						stmts.add(statement)
+						namespace.addItem(statement)
+					} catch (error: ParseError) {
+						synchronize()
+					}
+				}
 			}
 		}
 		expect(RIGHT_BRACE, "Expected '}' to close block.")
-		return Expr.Block(open, stmts, previous)
+		return Expr.Block(open, stmts, previous, innerValues, innerTypes)
 	}
 
 	fun charLiteral() = Expr.Literal(ZincChar(previous.lexeme[0]), previous)

@@ -1,6 +1,7 @@
 package com.light672.zinc.lang.compiler.ir
 
 import com.light672.zinc.builtin.ZincValue
+import com.light672.zinc.lang.compiler.ast.syntax.Expr
 import com.light672.zinc.lang.compiler.ir.Function as IRFunction
 import com.light672.zinc.lang.compiler.ir.Variable as IRVariable
 
@@ -45,5 +46,5 @@ internal sealed class IRExpr {
 		}
 	}
 
-	class Block(val branch: Namespace.Branch, val stmts: List<IRStmt>) : IRExpr()
+	class Block(val ast: Expr.Block, val stmts: List<IRStmt>) : IRExpr()
 }

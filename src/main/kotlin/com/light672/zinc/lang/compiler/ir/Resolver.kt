@@ -70,20 +70,22 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 			}
 
 			is Either.Right -> {
-				val block = function.declaration.scOrBlock
-				function.block = Either.Right(lowerASTExpr(block.value) as IRExpr.Block)
+				val block = function.declaration.scOrBlock.value
+				function.block = Either.Right(lowerBlock(block))
 			}
 		}
 	}
 
-	private fun lowerBlock(block: Expr.Block, branch: Namespace.Branch): IRExpr.Block {
+	private fun lowerBlock(block: Expr.Block): IRExpr.Block {
 		val statements = ArrayList<IRStmt>()
-		namespace.newValues(branch) {
-			ArrayList<IRStmt>(block.stmts.size)
-			for (stmt in block.stmts)
-				lowerASTStmt(stmt)?.let { statements.add(it) }
+		namespace.newValues(block.values) {
+			namespace.newTypes(block.types) {
+				ArrayList<IRStmt>(block.stmts.size)
+				for (stmt in block.stmts)
+					lowerASTStmt(stmt)?.let { statements.add(it) }
+			}
 		}
-		return IRExpr.Block(branch, statements)
+		return IRExpr.Block(block, statements)
 	}
 
 	private fun lowerLet(stmt: Stmt.Variable, branch: Namespace.Branch): IRStmt.LetBinding {
@@ -143,7 +145,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 				)
 			}
 
-			is Expr.Block -> lowerBlock(expr, Namespace.Branch(namespace.values, true))
+			is Expr.Block -> lowerBlock(expr)
 
 			is Expr.Group -> lowerASTExpr(expr.expr)
 			is Expr.Literal -> IRExpr.Literal(expr.literal)
