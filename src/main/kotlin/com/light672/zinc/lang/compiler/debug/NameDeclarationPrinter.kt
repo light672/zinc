@@ -17,8 +17,8 @@ internal object NameDeclarationPrinter {
 			when (item) {
 				is Function -> {
 					println(prefix + indent.first + "function ${item.name} (g-arity ${item.genericArity}):")
-					printBranch("types", prefix + indent.second + "    ", item.types)
-					printBranch("values", prefix + indent.second + "    ", item.values)
+					item.types?.let { printBranch("types", prefix + indent.second + "    ", it) }
+					item.values?.let { printBranch("values", prefix + indent.second + "    ", it) }
 				}
 
 				is Module -> {

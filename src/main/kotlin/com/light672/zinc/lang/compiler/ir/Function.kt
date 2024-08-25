@@ -7,8 +7,8 @@ internal class Function(
 	name: String,
 	genericArity: Int,
 	val declaration: Stmt.Function,
-	val values: Namespace.Branch,
-	val types: Namespace.Branch
+	val values: Namespace.Branch?,
+	val types: Namespace.Branch?
 ) : Item(name, genericArity) {
 	lateinit var parameters: List<Type>
 	lateinit var returnType: Type

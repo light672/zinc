@@ -5,7 +5,7 @@ fn main() {
 }
 
 fn add(a: int, b: int): int {
-	fn e() {}
-
+	fn e();
+	fn e();
 	e
 }

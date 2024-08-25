@@ -60,13 +60,19 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 	fun addItem(declaration: Stmt) {
 		when (declaration) {
 			is Stmt.Function -> {
-				lateinit var innerValues: Branch
-				val innerTypes = newTypes(true) {
-					innerValues = newValues(true) {
-						when (declaration.scOrBlock) {
-							is Either.Left -> {}
-							is Either.Right -> for (statement in declaration.scOrBlock.value.stmts) addItem(statement)
-						}
+
+				val innerTypes: Branch?
+				val innerValues: Branch?
+
+				when (declaration.scOrBlock) {
+					is Either.Left -> {
+						innerTypes = null
+						innerValues = null
+					}
+
+					is Either.Right -> {
+						innerTypes = declaration.scOrBlock.value.types
+						innerValues = declaration.scOrBlock.value.values
 					}
 				}
 
