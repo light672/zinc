@@ -1,10 +1,5 @@
-let a = 3;
-let b: ::e;
-let c: bool::grerrr::<l>::aaa<IO,> = 4;
-fn myFunction() {
-	fn muts();
-}
-fn myFunction2() {
-	let a = 3;
-	let a = o;
+let global_variable: int = 3;
+
+fn main() {
+
 }

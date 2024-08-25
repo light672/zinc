@@ -28,6 +28,7 @@ internal object NameDeclarationPrinter {
 				}
 
 				is TypeAlias -> println(prefix + indent.first + "typealias ${item.name} (g-arity ${item.genericArity})")
+				is Struct -> println(prefix + indent.first + "struct ${item.name} (g-arity ${item.genericArity})")
 				is Variable -> println(prefix + indent.first + "variable ${item.name} ${if (item.mutable) "(mutable) " else ""}")
 			}
 		}

@@ -2,6 +2,7 @@ package com.light672.zinc.lang.compiler.ir
 
 import com.light672.zinc.Zinc
 import com.light672.zinc.lang.compiler.ast.syntax.*
+import com.light672.zinc.lang.compiler.ir.prelude.Prelude
 import com.light672.zinc.lang.tool.Either
 
 internal class Resolver(private val namespace: Namespace, private val zinc: Zinc.Runtime) {
@@ -19,8 +20,13 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 			is Module -> resolveModule(item)
 			is TypeAlias -> TODO()
 			is Static -> resolveStatic(item)
+			is Struct -> resolveStruct(item)
 			is Variable -> {}
 		}
+	}
+
+	private fun resolveStruct(struct: Struct) {
+		TODO()
 	}
 
 	private fun resolveStatic(static: Static) {
@@ -146,7 +152,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 				when (it.first) {
 					is Function -> IRExpr.Function(it.first as Function, it.second)
 					is Variable -> IRExpr.Variable(it.first as Variable)
-					is Module, is TypeAlias -> throw IllegalArgumentException()
+					is Module, is TypeAlias, is Struct -> throw IllegalArgumentException()
 				}
 			} ?: IRExpr.Variable.ERROR
 
@@ -172,7 +178,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 						Type.ERROR
 					}
 
-					is TypeAlias -> Type(item, genericArgs)
+					is TypeAlias, is Struct -> Type(item, genericArgs)
 				}
 			}
 
@@ -200,7 +206,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 
 	private fun resolveComplexPathExpr(path: ComplexPath): Pair<Item, List<Type>>? {
 		if (path.tail.isEmpty()) {
-			val item = namespace.values.recursiveGet(path.head.segment.lexeme)
+			val item = namespace.values.recursiveGet(path.head.segment.lexeme) ?: Prelude.getValue(path.head.segment.lexeme)
 			if (item == null) zinc.reportCompileError("'${path.head.segment.lexeme}' does not exist in the current scope.", path.range())
 			val generics = resolveGenericParams(item?.let { Pair(it, path.head.segment) }, path.head.generics)
 			return (item?.let { Pair(it, generics) })
@@ -218,7 +224,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 
 	private fun resolveComplexPathType(path: ComplexPath): Pair<Item, List<Type>>? {
 		if (path.tail.isEmpty()) {
-			val item = namespace.types.recursiveGet(path.head.segment.lexeme)
+			val item = namespace.types.recursiveGet(path.head.segment.lexeme) ?: Prelude.getType(path.head.segment.lexeme)
 			if (item == null) zinc.reportCompileError("'${path.head.segment.lexeme}' does not exist in the current scope.", path.range())
 			val generics = resolveGenericParams(item?.let { Pair(it, path.head.segment) }, path.head.generics)
 			return (item?.let { Pair(it, generics) })
@@ -248,7 +254,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 				inner
 			}
 
-			is TypeAlias -> {
+			is TypeAlias, is Struct -> {
 				zinc.reportCompileError(
 					"Cannot use '::' on a type directly. Try using a qualified path. Ex: <${item.name} as Trait>",
 					field.asRange()
@@ -272,7 +278,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 				inner
 			}
 
-			is TypeAlias -> {
+			is TypeAlias, is Struct -> {
 				zinc.reportCompileError(
 					"Cannot use '::' on a type directly. Try using a qualified path. Ex: <${item.name} as Trait>",
 					field.asRange()
