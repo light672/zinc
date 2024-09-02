@@ -1,11 +1,10 @@
-let global_variable: int = 3;
+let global_variable: ::int = 4;
 
 fn main() {
 	let a = 3;
 }
 
-fn add(a: int, b: int): int {
-	fn e();
+fn add(a: (int, int,), b: int,): int {
 	fn e();
 	e
 }

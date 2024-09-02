@@ -24,10 +24,8 @@ object Zinc {
 		fun run() {
 			val rootModuleStatement = Stmt.Module(Token.empty(), Token.empty(), ArrayList())
 			val srcModuleStatement = Stmt.Module(Token.empty(), Token.newNA("src", 0, 0..0), ArrayList())
-
 			val namespace = Namespace(this)
-			// println(Lexer(source).scanTokens())
-			val mainModuleStatement = Parser.parse(source, "main", namespace, this)
+			val mainModuleStatement = Parser(source, "main", namespace, this).parse()
 			ASTPrinter.print(mainModuleStatement)
 			NameDeclarationPrinter.print(namespace)
 			Resolver(namespace, this).resolveAndLower()

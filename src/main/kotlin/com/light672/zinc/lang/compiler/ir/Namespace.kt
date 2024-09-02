@@ -39,7 +39,7 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 		return newTypes
 	}
 
-	fun newValues(branch: Branch, code: () -> Unit) {
+	fun withValues(branch: Branch, code: () -> Unit) {
 		val oldValues = values
 		values = branch
 		valueDepth++
@@ -48,7 +48,7 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 		valueDepth--
 	}
 
-	fun newTypes(branch: Branch, code: () -> Unit) {
+	fun withTypes(branch: Branch, code: () -> Unit) {
 		val oldTypes = types
 		types = branch
 		typeDepth++
@@ -108,6 +108,7 @@ internal class Namespace(private val zinc: Zinc.Runtime) {
 						zinc.reportCompileError("Global variables can only use identifier patterns.", declaration.pattern.range())
 						return
 					}
+					declaration.initializer ?: zinc.reportCompileError("Global variables must have an initializer.", declaration.range())
 					values.put(
 						irPattern.variable.name,
 						Static(irPattern.variable.name, irPattern.variable.mutable, IRStmt.LetBinding(declaration, values, irPattern)),

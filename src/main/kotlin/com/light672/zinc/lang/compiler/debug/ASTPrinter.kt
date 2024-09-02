@@ -166,6 +166,15 @@ internal object ASTPrinter {
 	private fun type(type: Type): String {
 		return when (type) {
 			is ComplexPath -> complexPath(type)
+			is TupleType -> {
+				val builder = StringBuilder("(")
+				for (field in type.fields) {
+					builder.append(type(field))
+					if (field != type.fields.last()) builder.append(", ")
+				}
+				builder.append(")")
+				builder.toString()
+			}
 		}
 	}
 

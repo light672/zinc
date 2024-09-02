@@ -2,6 +2,7 @@ package com.light672.zinc.lang.compiler.ir
 
 import com.light672.zinc.builtin.ZincValue
 import com.light672.zinc.lang.compiler.ast.syntax.Expr
+import com.light672.zinc.lang.compiler.type_checking.Type
 import com.light672.zinc.lang.compiler.ir.Function as IRFunction
 import com.light672.zinc.lang.compiler.ir.Variable as IRVariable
 

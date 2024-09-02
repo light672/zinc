@@ -3,12 +3,13 @@ package com.light672.zinc.lang.compiler.ir
 import com.light672.zinc.Zinc
 import com.light672.zinc.lang.compiler.ast.syntax.*
 import com.light672.zinc.lang.compiler.ir.prelude.Prelude
+import com.light672.zinc.lang.compiler.type_checking.Type
 import com.light672.zinc.lang.tool.Either
+import com.light672.zinc.lang.compiler.ast.syntax.Type as ASTType
 
 internal class Resolver(private val namespace: Namespace, private val zinc: Zinc.Runtime) {
 	private var currentModule: Module = namespace.rootModule
 	fun resolveAndLower() {
-		// TODO: find a way to better resolve global variables while keeping 'let' pattern semantics
 		for (type in namespace.types) resolve(type)
 		for (value in namespace.values) resolve(value)
 	}
@@ -31,15 +32,15 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 
 	private fun resolveStatic(static: Static) {
 		val stmt = static.letBinding.ast
-		val expr = stmt.initializer?.let { lowerASTExpr(it) }
+		val expr = lowerASTExpr(stmt.initializer!!)
 		val type = stmt.type?.let { resolveType(it) }
 		static.letBinding.initializer = expr
-		static.letBinding.type = type
+		static.letBinding.type = type ?: Type.UNDEFINED
 	}
 
 	private fun resolveModule(module: Module) {
-		namespace.newTypes(module.types) {
-			namespace.newValues(module.values) {
+		namespace.withTypes(module.types) {
+			namespace.withValues(module.values) {
 				resolveAndLower()
 			}
 		}
@@ -62,8 +63,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 			}
 		}
 		function.parameters = params
-		val returnType = resolveType(function.declaration.returnType)
-		function.returnType = returnType
+		function.returnType = resolveType(function.declaration.returnType)
 		when (function.declaration.scOrBlock) {
 			is Either.Left -> {
 				function.block = Either.Left(Unit)
@@ -78,8 +78,8 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 
 	private fun lowerBlock(block: Expr.Block): IRExpr.Block {
 		val statements = ArrayList<IRStmt>()
-		namespace.newValues(block.values) {
-			namespace.newTypes(block.types) {
+		namespace.withValues(block.values) {
+			namespace.withTypes(block.types) {
 				ArrayList<IRStmt>(block.stmts.size)
 				for (stmt in block.stmts)
 					lowerASTStmt(stmt)?.let { statements.add(it) }
@@ -90,14 +90,14 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 
 	private fun lowerLet(stmt: Stmt.Variable, branch: Namespace.Branch): IRStmt.LetBinding {
 		val irPattern = resolvePattern(stmt.pattern)
-		namespace.newValues(branch) {
+		namespace.withValues(branch) {
 			namespace.addPatternLocals(stmt.pattern, irPattern)
 		}
 		val type = stmt.type?.let { resolveType(it) }
 		val expr = stmt.initializer?.let { lowerASTExpr(it) }
 		return IRStmt.LetBinding(stmt, branch, irPattern).also {
 			it.initializer = expr
-			it.type = type
+			it.type = type ?: Type.UNDEFINED
 		}
 	}
 
@@ -169,7 +169,7 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 		}
 	}
 
-	private fun resolveType(type: com.light672.zinc.lang.compiler.ast.syntax.Type?): Type {
+	private fun resolveType(type: ASTType?): Type {
 		return when (type) {
 			is ComplexPath -> {
 				val (item, genericArgs) = resolveComplexPathType(type) ?: return Type.ERROR
@@ -180,8 +180,12 @@ internal class Resolver(private val namespace: Namespace, private val zinc: Zinc
 						Type.ERROR
 					}
 
-					is TypeAlias, is Struct -> Type(item, genericArgs)
+					is TypeAlias, is Struct -> Type.Normal(item, genericArgs)
 				}
+			}
+
+			is TupleType -> {
+				TODO()
 			}
 
 			null -> Type.UNIT

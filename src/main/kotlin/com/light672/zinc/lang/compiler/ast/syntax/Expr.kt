@@ -13,8 +13,8 @@ internal sealed class Expr(val firstToken: Token, val lastToken: Token) {
 
 	class Unary(val a: Expr, val operator: Token) : Expr(operator, a.lastToken)
 
-	class Path(firsToken: Token, val path: ComplexPath, lastToken: Token) :
-		Expr(firsToken, lastToken)
+	class Path(firstToken: Token, val path: ComplexPath, lastToken: Token) :
+		Expr(firstToken, lastToken)
 
 	class Block(open: Token, val stmts: List<Stmt>, close: Token, val values: Namespace.Branch, val types: Namespace.Branch) : Expr(open, close)
 
