@@ -5,12 +5,11 @@ import com.light672.zinc.lang.compiler.type_checking.Type
 import com.light672.zinc.lang.tool.Either
 
 internal class Function(
-	name: String,
-	genericArity: Int,
+	val name: String,
 	val declaration: Stmt.Function,
 	val values: Namespace.Branch?,
 	val types: Namespace.Branch?
-) : Item(name, genericArity) {
+) : Item() {
 	lateinit var genericParameters: List<Type>
 	lateinit var parameters: List<Type>
 	lateinit var returnType: Type

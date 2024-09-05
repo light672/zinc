@@ -9,10 +9,7 @@ import com.light672.zinc.lang.tool.Either
 internal class TypeChecker(val namespace: Namespace, private val zinc: Zinc.Runtime) {
 	private var currentModule: Module = namespace.rootModule
 
-	// type-check all generics                                             : not done
-
-	private fun resolve() {
-
+	private fun check() {
 		for (type in namespace.types) check(type)
 		for (value in namespace.values) check(value)
 	}
@@ -35,8 +32,7 @@ internal class TypeChecker(val namespace: Namespace, private val zinc: Zinc.Runt
 				val block = (function.block as Either.Right<Unit, IRExpr.Block>).value
 				namespace.withTypes(block.ast.types) {
 					namespace.withValues(block.ast.values) {
-						resolve()
-
+						check()
 						for (statement in block.stmts) {
 							check(statement)
 						}
@@ -47,11 +43,15 @@ internal class TypeChecker(val namespace: Namespace, private val zinc: Zinc.Runt
 	}
 
 	private fun checkModule(module: Module) {
-
+		namespace.withTypes(module.types) {
+			namespace.withValues(module.values) {
+				check()
+			}
+		}
 	}
 
 	private fun checkStruct(struct: Struct) {
-
+		TODO()
 	}
 
 	private fun checkStatic(static: Static) {
