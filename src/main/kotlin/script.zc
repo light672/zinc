@@ -1,10 +1,18 @@
-let global_variable: ::int = 4;
-
-fn main() {
-	let a = 3;
+struct A;
+interface T {
+	fn c() {}
+}
+impl A {
+	fn a() {}
+    fn b() {}
 }
 
-fn add(a: (int, int,), b: int,): int {
-	fn e();
-	e
+impl A : T {
+	fn c() {}
+}
+
+fn main() {
+	A::a();
+	A::b();
+	A::c();
 }
