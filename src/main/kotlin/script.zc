@@ -1,14 +1,14 @@
 struct A;
 interface T {
-	fn c() {}
+	fn c();
 }
 impl A {
-	fn a() {}
-    fn b() {}
+	fn a();
+    fn b();
 }
 
 impl A : T {
-	fn c() {}
+
 }
 
 fn main() {

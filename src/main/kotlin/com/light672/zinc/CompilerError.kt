@@ -3,6 +3,7 @@ package com.light672.zinc
 import com.light672.zinc.ast.Token
 import com.light672.zinc.ast.TokenType
 import com.light672.zinc.ast.Type
+import com.light672.zinc.ir.IRType
 import kotlin.math.max
 
 internal class CompilerError(
@@ -53,6 +54,14 @@ internal class CompilerError(
 				token.rangeOnLine
 			)
 
+		internal fun nameIsNotMemberOf(name: Token, type: IRType) =
+			CompilerError(
+				Code.NAME_IS_NOT_MEMBER_OF,
+				"${name.lexeme} is not a member of '${type}'",
+				name.line..name.line,
+				name.rangeOnLine
+			)
+
 		internal fun indirectTypeInImpl(type: Type) =
 			CompilerError(
 				Code.INDIRECT_TYPE_IN_IMPL,
@@ -67,6 +76,14 @@ internal class CompilerError(
 				"An inherent implementation must inherit an interface.",
 				type.first().line..type.last().line,
 				type.first().rangeOnLine.first..max(type.first().rangeOnLine.last, type.last().rangeOnLine.last)
+			)
+
+		internal fun missingInterfaceMembers(list: List<CharSequence>, implLines: IntRange, implRange: IntRange) =
+			CompilerError(
+				Code.MISSING_INTERFACE_MEMBERS,
+				"Not all interface items implemented, missing ${list.joinToString(", ", "'", "'")}",
+				implLines,
+				implRange
 			)
 	}
 
@@ -83,8 +100,10 @@ internal class CompilerError(
 		EXPECTED_PATTERN,
 		NAME_ALREADY_EXISTS,
 		NAME_DOES_NOT_EXIST,
+		NAME_IS_NOT_MEMBER_OF,
 		INDIRECT_TYPE_IN_IMPL,
-		INHERITING_NON_INTERFACE
+		INHERITING_NON_INTERFACE,
+		MISSING_INTERFACE_MEMBERS
 	}
 }
 

@@ -57,7 +57,7 @@ internal data class ScopeInfo(
 			val branch = getImplementation(type) ?: return null
 			val item = branch.get(name, reportError) ?: parent?.get(type, name, reportError)
 			if (item == null && parent == null && reportError)
-				zinc.reportCompileError(CompilerError.nameDoesNotExist(name)) // change error later
+				zinc.reportCompileError(CompilerError.nameIsNotMemberOf(name, type)) // change error later
 			return item
 		}
 
@@ -92,7 +92,7 @@ internal data class ScopeInfo(
 			val branch = getImplementation(type, inheritedType) ?: return null
 			val item = branch.get(name, reportError) ?: parent?.get(type, inheritedType, name, reportError)
 			if (item == null && parent == null && reportError)
-				zinc.reportCompileError(CompilerError.nameDoesNotExist(name)) // change error later
+				zinc.reportCompileError(CompilerError.nameIsNotMemberOf(name, inheritedType))
 			return item
 		}
 

@@ -83,7 +83,7 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 		}
 		val close = expect(RIGHT_BRACE) ?: return null
 
-		scope.implementationItems.add(Implementation(type, inheritedInterface, values))
+		scope.implementationItems.add(Implementation(keyword, type, inheritedInterface, values))
 		return Unit
 	}
 
@@ -102,7 +102,7 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 			expectType() ?: return null
 		} else null
 
-		val block = expectBlock() ?: return null
+		val block = if (match(SEMICOLON)) null else (expectBlock() ?: return null)
 
 		return values.add(name, ValueItem.Function(keyword, name, parameters, returnType, block, parentType))
 	}

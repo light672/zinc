@@ -14,12 +14,12 @@ internal sealed interface ValueItem {
 		val name: Token,
 		val parameters: List<Pair<Pattern, Type>>,
 		val returnType: Type?,
-		val block: Expr.Block,
+		val block: Expr.Block?,
 		val parentType: ParentType
 	) : ValueItem {
 		lateinit var irParameters: List<Pair<IRPattern, IRType>>
 		lateinit var irReturnType: IRType
-		lateinit var irBlock: IRExpr.Block
+		var irBlock: IRExpr.Block? = null
 
 		enum class ParentType {
 			MODULE,

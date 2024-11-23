@@ -37,21 +37,65 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 			zinc.reportCompileError(CompilerError.inheritingNonInterface(impl.inheritedInterface))
 		}
 
-		if (inheritedInterface != null) {
+		if (type === IRType.Error) return
+		if (inheritedInterface == null) {
 			for ((_, function) in impl.functions) {
-				val name = (function as ValueItem.Function).name
-				scope.interfaceImpls.add(type, inheritedInterface, name, function)
-				val existingFunction = scope.impls.get(type, name, false) as ValueItem.Function?
-				if (existingFunction == null) {
-					scope.impls.add(type, name, function)
-				} else if (existingFunction.parentType == ValueItem.Function.ParentType.INHERIT_IMPL) {
-					scope.impls.add(type, name, ValueItem.Ambiguous)
-				}
-			}
-		} else if (type !== IRType.Error) {
-			for ((name, function) in impl.functions) {
 				scope.impls.add(type, (function as ValueItem.Function).name, function)
 			}
+			return
+		}
+
+		val interfaceItem = (inheritedInterface as? IRType.Item)?.typeItem as? TypeItem.Interface
+		val mutableFunctionMap = interfaceItem?.functions?.associateTo(HashMap()) { (name, value) -> Pair(name, value) }
+		val originalFunctionMap = mutableFunctionMap?.clone() as Map<CharSequence, ValueItem>?
+
+		for ((_, function) in impl.functions) {
+			val name = (function as ValueItem.Function).name
+			addFunctionToInheritImpl(type, inheritedInterface, name, function, originalFunctionMap, mutableFunctionMap, scope)
+		}
+
+		mutableFunctionMap?.let { map ->
+			for ((name, value) in map) {
+				value as ValueItem.Function
+				addFunctionToInheritImpl(type, inheritedInterface, value.name, value, null, null, scope)
+				if (value.block != null)
+					map.remove(name)
+			}
+			if (map.isNotEmpty()) {
+				zinc.reportCompileError(
+					CompilerError.missingInterfaceMembers(
+						map.map { it.key },
+						impl.keyword.line..impl.inheritedInterface.last().line,
+						impl.keyword.rangeOnLine.first..impl.inheritedInterface.last().rangeOnLine.last
+					)
+				)
+			}
+		}
+	}
+
+	private fun addFunctionToInheritImpl(
+		type: IRType,
+		inheritedInterface: IRType,
+		name: Token,
+		function: ValueItem.Function,
+		originalFunctionMap: Map<CharSequence, ValueItem>?,
+		mutableFunctionMap: HashMap<CharSequence, ValueItem>?,
+		scope: ScopeInfo
+	) {
+		scope.interfaceImpls.add(type, inheritedInterface, name, function)
+
+		mutableFunctionMap?.let { map ->
+			if (!originalFunctionMap!!.containsKey(name.lexeme)) {
+				zinc.reportCompileError(CompilerError.nameIsNotMemberOf(name, inheritedInterface))
+			} else map.remove(name.lexeme)
+		}
+
+		val existingFunction = scope.impls.get(type, name, false) as ValueItem.Function?
+
+		if (existingFunction == null) {
+			scope.impls.add(type, name, function)
+		} else if (existingFunction.parentType == ValueItem.Function.ParentType.INHERIT_IMPL) {
+			scope.impls.add(type, name, ValueItem.Ambiguous)
 		}
 	}
 
@@ -97,7 +141,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 			Pair(resolvePattern(pattern, scope), resolveType(type, scope))
 		}
 		function.irReturnType = resolveType(function.returnType, scope)
-		function.irBlock = resolveBlock(function.block, scope)
+		function.irBlock = function.block?.let { block -> resolveBlock(block, scope) }
 	}
 
 	// types
