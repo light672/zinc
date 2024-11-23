@@ -13,6 +13,7 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 			it["as"] = AS
 			it["let"] = LET
 			it["impl"] = IMPL
+			it["self"] = SELF
 			it["return"] = RETURN
 			it["struct"] = STRUCT
 			it["interface"] = INTERFACE

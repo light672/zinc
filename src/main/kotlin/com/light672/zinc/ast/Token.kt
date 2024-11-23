@@ -26,6 +26,7 @@ internal enum class TokenType(
 	LET,
 	MUT,
 	IMPL,
+	SELF,
 	RETURN,
 	STRUCT,
 	INTERFACE,

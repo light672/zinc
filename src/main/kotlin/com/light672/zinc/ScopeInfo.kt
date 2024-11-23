@@ -10,11 +10,11 @@ internal data class ScopeInfo(
 	val types: Branch<TypeItem>,
 	val values: Branch<ValueItem>,
 	val impls: ImplBranch,
-	val interfaceImpls: InterfaceImplBranch
+	val interfaceImpls: InterfaceImplBranch,
+	val implementationItems: ArrayList<Implementation>
 ) {
-	val implementationItems = ArrayList<Implementation>()
 
-	constructor(zinc: Zinc.Runtime) : this(Branch(zinc), Branch(zinc), ImplBranch(zinc), InterfaceImplBranch(zinc))
+	constructor(zinc: Zinc.Runtime) : this(Branch(zinc), Branch(zinc), ImplBranch(zinc), InterfaceImplBranch(zinc), ArrayList())
 
 	class Branch<T>(private val zinc: Zinc.Runtime) : Iterable<Map.Entry<CharSequence, T>> {
 		private var parent: Branch<T>? = null

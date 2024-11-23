@@ -224,6 +224,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 		val types = block.scope.types
 		val impls = block.scope.impls
 		val interfaceImpls = block.scope.interfaceImpls
+		val implementationItems = block.scope.implementationItems
 
 
 		types.bindParent(parentScope.types)
@@ -231,16 +232,16 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 		impls.bindParent(parentScope.impls)
 		interfaceImpls.bindParent(parentScope.interfaceImpls)
 
-		resolve(ScopeInfo(types, values, impls, interfaceImpls))
+		resolve(ScopeInfo(types, values, impls, interfaceImpls, implementationItems))
 
 		return IRExpr.Block(block, block.stmts.map { stmt ->
 			when (stmt) {
-				is Stmt.Expression -> resolveExpressionStatement(stmt, ScopeInfo(types, values, impls, interfaceImpls))
+				is Stmt.Expression -> resolveExpressionStatement(stmt, ScopeInfo(types, values, impls, interfaceImpls, implementationItems))
 				is Stmt.Let -> {
 					val newBranch = Branch<ValueItem>(zinc)
 					newBranch.bindParent(values)
 					values = newBranch
-					resolveLetStatement(stmt, ScopeInfo(types, values, impls, interfaceImpls))
+					resolveLetStatement(stmt, ScopeInfo(types, values, impls, interfaceImpls, implementationItems))
 				}
 			}
 		})
