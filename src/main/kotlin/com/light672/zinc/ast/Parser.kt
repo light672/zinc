@@ -104,7 +104,7 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 
 		val block = if (match(SEMICOLON)) null else (expectBlock() ?: return null)
 
-		return values.add(name, ValueItem.Function(keyword, name, parameters, returnType, block, parentType))
+		return values.add(name, ValueItem.Function(keyword, name, parameters, returnType, block, if (block == null) previous else null, parentType))
 	}
 
 	// statements

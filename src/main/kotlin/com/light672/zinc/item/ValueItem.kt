@@ -15,6 +15,7 @@ internal sealed interface ValueItem {
 		val parameters: List<Pair<Pattern, Type>>,
 		val returnType: Type?,
 		val block: Expr.Block?,
+		val semicolon: Token?,
 		val parentType: ParentType
 	) : ValueItem {
 		lateinit var irParameters: List<Pair<IRPattern, IRType>>

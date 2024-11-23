@@ -121,7 +121,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 	private fun resolveInterface(int: TypeItem.Interface, scope: ScopeInfo) {
 		for ((name, value) in int.functions) {
 			val function = value as ValueItem.Function
-			resolveFunction(function, scope)
+			resolveFunction(function, false, scope)
 		}
 	}
 
@@ -129,19 +129,21 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 
 	private fun resolveValueItem(item: ValueItem, scope: ScopeInfo) {
 		when (item) {
-			is ValueItem.Function -> resolveFunction(item, scope)
+			is ValueItem.Function -> resolveFunction(item, true, scope)
 			is ValueItem.UnitStruct -> {}
 			is ValueItem.Variable -> throw IllegalArgumentException("should not show up")
 			ValueItem.Ambiguous -> {}
 		}
 	}
 
-	private fun resolveFunction(function: ValueItem.Function, scope: ScopeInfo) {
+	private fun resolveFunction(function: ValueItem.Function, mustHaveBody: Boolean, scope: ScopeInfo) {
 		function.irParameters = function.parameters.map { (pattern, type) ->
 			Pair(resolvePattern(pattern, scope), resolveType(type, scope))
 		}
 		function.irReturnType = resolveType(function.returnType, scope)
 		function.irBlock = function.block?.let { block -> resolveBlock(block, scope) }
+		if (mustHaveBody && function.block == null)
+			zinc.reportCompileError(CompilerError.functionMustHaveBody(function.name, function.semicolon!!))
 	}
 
 	// types

@@ -85,6 +85,14 @@ internal class CompilerError(
 				implLines,
 				implRange
 			)
+
+		internal fun functionMustHaveBody(name: Token, semicolon: Token) =
+			CompilerError(
+				Code.FUNCTION_MUST_HAVE_BODY,
+				"Function '${name.lexeme}' must have a body.",
+				semicolon.line..semicolon.line,
+				semicolon.rangeOnLine
+			)
 	}
 
 	enum class Code {
@@ -103,7 +111,8 @@ internal class CompilerError(
 		NAME_IS_NOT_MEMBER_OF,
 		INDIRECT_TYPE_IN_IMPL,
 		INHERITING_NON_INTERFACE,
-		MISSING_INTERFACE_MEMBERS
+		MISSING_INTERFACE_MEMBERS,
+		FUNCTION_MUST_HAVE_BODY
 	}
 }
 
