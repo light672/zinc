@@ -44,6 +44,7 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 
 	private fun structDecl(keyword: Token, scope: Scope): Stmt.Struct? {
 		val name = expect(IDENTIFIER) ?: return null
+		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
 		if (!isNext(SEMICOLON)) expect(LEFT_BRACE) ?: return null
 
 		val (fields, close) = if (match(SEMICOLON)) Pair(emptyList(), previous) else trailingCommaGroup(RIGHT_PAREN) {
@@ -54,12 +55,13 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 		} ?: return null
 
 		val structItem = TypeItem.Struct()
-		val struct = Stmt.Struct(keyword, name, fields, structItem)
+		val struct = Stmt.Struct(keyword, name, genericParams, fields, structItem)
 		return struct
 	}
 
 	private fun interfaceDecl(keyword: Token, scope: Scope): Stmt? {
 		val name = expect(IDENTIFIER) ?: return null
+		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
 		expect(LEFT_BRACE) ?: return null
 		val values = Branch<ValueItem>(zinc)
 		val functions = ArrayList<Stmt.Function>()
@@ -69,11 +71,12 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 		}
 		val close = expect(RIGHT_BRACE) ?: return null
 		val interfaceItem = TypeItem.Interface(name, functions.associate { fn -> Pair(fn.name.lexeme, fn.item) })
-		val interfaceStmt = Stmt.Interface(keyword, name, functions, interfaceItem)
+		val interfaceStmt = Stmt.Interface(keyword, name, genericParams, functions, interfaceItem)
 		return interfaceStmt
 	}
 
 	private fun implDecl(keyword: Token, scope: Scope): Stmt.Implementation? {
+		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
 		val type = expectType() ?: return null
 		val inheritedInterface = if (match(COLON)) {
 			expectType() ?: return null
@@ -87,12 +90,13 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 			functions.add(functionDecl(keyword, values) ?: return null)
 		}
 		val close = expect(RIGHT_BRACE) ?: return null
-		val impl = Stmt.Implementation(type, inheritedInterface, functions)
+		val impl = Stmt.Implementation(genericParams, type, inheritedInterface, functions)
 		return impl
 	}
 
 	private fun functionDecl(keyword: Token, values: Branch<ValueItem>): Stmt.Function? {
 		val name = expect(IDENTIFIER) ?: return null
+		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
 		expect(LEFT_PAREN) ?: return null
 		val (parameters, close) = trailingCommaGroup(RIGHT_PAREN) {
 			val pattern = expectPattern() ?: return null
@@ -107,7 +111,7 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 
 		val block = if (match(SEMICOLON)) null else (expectBlock() ?: return null)
 		val functionItem = ValueItem.Function()
-		val function = Stmt.Function(keyword, name, parameters, returnType, block.or(previous), functionItem)
+		val function = Stmt.Function(keyword, name, genericParams, parameters, returnType, block.or(previous), functionItem)
 		return function
 	}
 
@@ -270,6 +274,27 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 	private fun tupleType(start: Token): Type.Tuple? {
 		val (list, end) = group(RIGHT_PAREN, ::expectType) ?: return null
 		return Type.Tuple(start, list, end)
+	}
+
+	private fun expectTypeBounds(): TypeParamBounds? {
+		val types = ArrayList<Type>()
+		types.add(expectType() ?: return null)
+		while (match(PLUS)) {
+			types.add(expectType() ?: return null)
+		}
+		return TypeParamBounds(types)
+	}
+
+	private fun genericParams(start: Token): GenericParams? {
+		return trailingCommaGroup(GREATER) {
+			val name = expect(IDENTIFIER) ?: return null
+			val bounds = if (match(COLON)) expectTypeBounds() ?: return null else null
+			Pair(name, bounds)
+		}?.let { GenericParams(it.first) }
+	}
+
+	private fun genericArgs(start: Token): GenericArgs? {
+		return group(RIGHT_PAREN, ::expectType)?.let { GenericArgs(it.first) }
 	}
 
 	// patterns

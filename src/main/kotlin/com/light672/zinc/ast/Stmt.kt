@@ -21,6 +21,7 @@ internal sealed interface Stmt {
 	class Function(
 		val keyword: Token,
 		val name: Token,
+		val genericParams: GenericParams?,
 		val parameters: List<Pair<Pattern, Type>>,
 		val returnType: Type?,
 		val blockOrSemi: Either<Expr.Block, Token>,
@@ -30,6 +31,7 @@ internal sealed interface Stmt {
 	class Interface(
 		val keyword: Token,
 		val name: Token,
+		val genericParams: GenericParams?,
 		val functions: List<Function>,
 		val item: TypeItem.Interface
 	) : Stmt
@@ -37,6 +39,7 @@ internal sealed interface Stmt {
 	class Struct(
 		val keyword: Token,
 		val name: Token,
+		val genericParams: GenericParams?,
 		val fields: List<Pair<Token, Type>>,
 		val item: TypeItem.Struct
 	) : Stmt
@@ -50,6 +53,7 @@ internal sealed interface Stmt {
 	) : Stmt
 
 	class Implementation(
+		val genericParams: GenericParams?,
 		val type: Type,
 		val implInterface: Type?,
 		val functions: List<Function>,
