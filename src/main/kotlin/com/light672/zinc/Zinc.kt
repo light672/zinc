@@ -19,7 +19,7 @@ object Zinc {
 
 
 		fun run() {
-			val scope = ScopeInfo(this)
+			val scope = Scope(this)
 			Parser(this).parse(scope)
 			Resolver(this).resolve(scope)
 		}

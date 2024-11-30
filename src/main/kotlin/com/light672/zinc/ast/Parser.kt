@@ -1,36 +1,48 @@
 package com.light672.zinc.ast
 
 import com.light672.zinc.CompilerError
-import com.light672.zinc.ScopeInfo
-import com.light672.zinc.ScopeInfo.Branch
+import com.light672.zinc.Scope
+import com.light672.zinc.Scope.Branch
 import com.light672.zinc.Zinc
 import com.light672.zinc.ast.TokenType.*
-import com.light672.zinc.item.Implementation
 import com.light672.zinc.item.TypeItem
 import com.light672.zinc.item.ValueItem
+import com.light672.zinc.or
 
 internal class Parser(private val zinc: Zinc.Runtime) {
 	private val lexer = Lexer(zinc.source, zinc)
 	private var previous = Token.empty()
 	private var current = lexer.scanToken()
 
-	fun parse(scope: ScopeInfo) {
-		while (!atEnd()) addItem(scope) ?: return
+	fun parse(scope: Scope) {
+		while (!atEnd())
+			when (val decl = declaration(scope) ?: return) {
+				is Stmt.Function -> scope.values.add(decl.name, decl.item)
+				is Stmt.Interface -> scope.types.add(decl.name, decl.item)
+				is Stmt.Module -> scope.types.add(decl.name, decl.item)
+				is Stmt.Implementation -> {}
+				is Stmt.Struct -> {
+					scope.types.add(decl.name, decl.item)
+					if (decl.fields.isEmpty()) scope.values.add(decl.name, ValueItem.UnitStruct(decl.item))
+				}
+
+				is Stmt.Let, is Stmt.Expression -> {}
+			}
 	}
 
 	// declarations
 
 	// only occurs at the module level
-	private fun addItem(scope: ScopeInfo): Unit? {
-		if (match(STRUCT)) return addStructItem(previous, scope)
-		if (match(INTERFACE)) return addInterfaceItem(previous, scope)
-		if (match(IMPL)) return addImplItem(previous, scope)
-		if (match(FN)) return addFunctionItem(previous, scope.values, ValueItem.Function.ParentType.MODULE)
+	private fun declaration(scope: Scope): Stmt? {
+		if (match(STRUCT)) return structDecl(previous, scope)
+		if (match(INTERFACE)) return interfaceDecl(previous, scope)
+		if (match(IMPL)) return implDecl(previous, scope)
+		if (match(FN)) return functionDecl(previous, scope.values)
 		zinc.reportCompileError(CompilerError.expectedDeclaration(current))
 		return null
 	}
 
-	private fun addStructItem(keyword: Token, scope: ScopeInfo): Unit? {
+	private fun structDecl(keyword: Token, scope: Scope): Stmt.Struct? {
 		val name = expect(IDENTIFIER) ?: return null
 		if (!isNext(SEMICOLON)) expect(LEFT_BRACE) ?: return null
 
@@ -41,28 +53,27 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 			Pair(name, type)
 		} ?: return null
 
-		val struct = TypeItem.Struct(name, fields)
-
-		if (fields.isEmpty()) {
-			scope.values.add(name, ValueItem.UnitStruct(struct))
-		}
-
-		return scope.types.add(name, struct)
+		val structItem = TypeItem.Struct()
+		val struct = Stmt.Struct(keyword, name, fields, structItem)
+		return struct
 	}
 
-	private fun addInterfaceItem(keyword: Token, scope: ScopeInfo): Unit? {
+	private fun interfaceDecl(keyword: Token, scope: Scope): Stmt? {
 		val name = expect(IDENTIFIER) ?: return null
 		expect(LEFT_BRACE) ?: return null
 		val values = Branch<ValueItem>(zinc)
+		val functions = ArrayList<Stmt.Function>()
 		while (!isNext(RIGHT_BRACE)) {
 			val keyword = expect(FN) ?: return null
-			addFunctionItem(keyword, values, ValueItem.Function.ParentType.INTERFACE)
+			functions.add(functionDecl(keyword, values) ?: return null)
 		}
 		val close = expect(RIGHT_BRACE) ?: return null
-		return scope.types.add(name, TypeItem.Interface(name, values))
+		val interfaceItem = TypeItem.Interface(name, functions.associate { fn -> Pair(fn.name.lexeme, fn.item) })
+		val interfaceStmt = Stmt.Interface(keyword, name, functions, interfaceItem)
+		return interfaceStmt
 	}
 
-	private fun addImplItem(keyword: Token, scope: ScopeInfo): Unit? {
+	private fun implDecl(keyword: Token, scope: Scope): Stmt.Implementation? {
 		val type = expectType() ?: return null
 		val inheritedInterface = if (match(COLON)) {
 			expectType() ?: return null
@@ -70,27 +81,19 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 
 		expect(LEFT_BRACE) ?: return null
 		val values = Branch<ValueItem>(zinc)
+		val functions = ArrayList<Stmt.Function>()
 		while (!isNext(RIGHT_BRACE)) {
 			val keyword = expect(FN) ?: return null
-			addFunctionItem(
-				keyword,
-				values,
-				if (inheritedInterface != null)
-					ValueItem.Function.ParentType.INHERIT_IMPL
-				else
-					ValueItem.Function.ParentType.IMPL
-			)
+			functions.add(functionDecl(keyword, values) ?: return null)
 		}
 		val close = expect(RIGHT_BRACE) ?: return null
-
-		scope.implementationItems.add(Implementation(keyword, type, inheritedInterface, values))
-		return Unit
+		val impl = Stmt.Implementation(type, inheritedInterface, functions)
+		return impl
 	}
 
-	private fun addFunctionItem(keyword: Token, values: Branch<ValueItem>, parentType: ValueItem.Function.ParentType): Unit? {
+	private fun functionDecl(keyword: Token, values: Branch<ValueItem>): Stmt.Function? {
 		val name = expect(IDENTIFIER) ?: return null
 		expect(LEFT_PAREN) ?: return null
-
 		val (parameters, close) = trailingCommaGroup(RIGHT_PAREN) {
 			val pattern = expectPattern() ?: return null
 			expect(COLON) ?: return null
@@ -103,24 +106,17 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 		} else null
 
 		val block = if (match(SEMICOLON)) null else (expectBlock() ?: return null)
-
-		return values.add(name, ValueItem.Function(keyword, name, parameters, returnType, block, if (block == null) previous else null, parentType))
+		val functionItem = ValueItem.Function()
+		val function = Stmt.Function(keyword, name, parameters, returnType, block.or(previous), functionItem)
+		return function
 	}
 
 	// statements
-
-	/**
-	 * returns true if it declared an item, false if it did not, and null if there was an error
-	 */
-	private fun itemStatement(scope: ScopeInfo): Boolean? {
-		if (match(STRUCT)) return addStructItem(previous, scope)?.let { true }
-		if (match(INTERFACE)) return addInterfaceItem(previous, scope)?.let { true }
-		if (match(IMPL)) return addImplItem(previous, scope)?.let { true }
-		if (match(FN)) return addFunctionItem(previous, scope.values, ValueItem.Function.ParentType.MODULE)?.let { true }
-		return false
-	}
-
-	private fun statement(): Stmt? {
+	private fun statement(scope: Scope): Stmt? {
+		if (match(STRUCT)) return structDecl(previous, scope)
+		if (match(INTERFACE)) return interfaceDecl(previous, scope)
+		if (match(IMPL)) return implDecl(previous, scope)
+		if (match(FN)) return functionDecl(previous, scope.values)
 		if (match(LET)) return letStatement(previous)
 		return expressionStatement()
 	}
@@ -185,11 +181,10 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 	// prefix: '{'
 	fun block(brace: Token): Expr.Block? {
 		val stmts = ArrayList<Stmt>()
-		val innerScope = ScopeInfo(zinc)
+		val innerScope = Scope(zinc)
 		while (!isNext(RIGHT_BRACE)) {
-			if (itemStatement(innerScope) ?: return null) continue
-			val statement = statement() ?: return null // TODO: error recovery is too much work
-			stmts.add(statement)
+			val stmt = statement(innerScope) ?: return null // TODO: error recovery is too much work
+			stmts.add(stmt)
 		}
 		val close = expect(RIGHT_BRACE) ?: return null
 		return Expr.Block(stmts, innerScope)

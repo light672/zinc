@@ -1,6 +1,6 @@
 package com.light672.zinc.ast
 
-import com.light672.zinc.ScopeInfo
+import com.light672.zinc.Scope
 
 internal sealed interface Expr {
 	class Literal(
@@ -17,7 +17,7 @@ internal sealed interface Expr {
 
 	class Block(
 		val stmts: List<Stmt>,
-		val scope: ScopeInfo
+		val scope: Scope
 	) : Expr
 
 	class Unary(

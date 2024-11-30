@@ -6,7 +6,7 @@ import com.light672.zinc.item.Implementation
 import com.light672.zinc.item.TypeItem
 import com.light672.zinc.item.ValueItem
 
-internal data class ScopeInfo(
+internal data class Scope(
 	val types: Branch<TypeItem>,
 	val values: Branch<ValueItem>,
 	val impls: ImplBranch,

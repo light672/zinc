@@ -1,8 +1,8 @@
 package com.light672.zinc.resolution
 
 import com.light672.zinc.CompilerError
-import com.light672.zinc.ScopeInfo
-import com.light672.zinc.ScopeInfo.Branch
+import com.light672.zinc.Scope
+import com.light672.zinc.Scope.Branch
 import com.light672.zinc.Zinc
 import com.light672.zinc.ast.*
 import com.light672.zinc.ir.IRExpr
@@ -14,7 +14,7 @@ import com.light672.zinc.item.TypeItem
 import com.light672.zinc.item.ValueItem
 
 internal class Resolver(private val zinc: Zinc.Runtime) {
-	fun resolve(scope: ScopeInfo) {
+	fun resolve(scope: Scope) {
 		for (impl in scope.implementationItems) resolveImplementation(impl, scope)
 		for (impl in scope.implementationItems) resolveImplementationInterior(impl, scope)
 		for ((name, item) in scope.types) {
@@ -27,7 +27,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 	}
 
 	// implementations
-	private fun resolveImplementation(impl: Implementation, scope: ScopeInfo) {
+	private fun resolveImplementation(impl: Implementation, scope: Scope) {
 		val type = resolveType(impl.type, scope, true)
 		val inheritedInterface = impl.inheritedInterface?.let { resolveType(impl.inheritedInterface, scope, true) }
 		impl.irType = type
@@ -80,7 +80,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 		function: ValueItem.Function,
 		originalFunctionMap: Map<CharSequence, ValueItem>?,
 		mutableFunctionMap: HashMap<CharSequence, ValueItem>?,
-		scope: ScopeInfo
+		scope: Scope
 	) {
 		scope.interfaceImpls.add(type, inheritedInterface, name, function)
 
@@ -99,14 +99,14 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 		}
 	}
 
-	private fun resolveImplementationInterior(impl: Implementation, scope: ScopeInfo) {
+	private fun resolveImplementationInterior(impl: Implementation, scope: Scope) {
 		for ((name, value) in impl.functions) {
 			resolveValueItem(value, scope)
 		}
 	}
 
 	// type items
-	private fun resolveTypeItem(item: TypeItem, scope: ScopeInfo) {
+	private fun resolveTypeItem(item: TypeItem, scope: Scope) {
 		when (item) {
 			is TypeItem.Module -> resolve(item.scope)
 			is TypeItem.Struct -> resolveStruct(item, scope)
@@ -114,11 +114,11 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 		}
 	}
 
-	private fun resolveStruct(struct: TypeItem.Struct, scope: ScopeInfo) {
+	private fun resolveStruct(struct: TypeItem.Struct, scope: Scope) {
 		struct.irFields = struct.fields.associate { (token, type) -> Pair(token.lexeme, resolveType(type, scope)) }
 	}
 
-	private fun resolveInterface(int: TypeItem.Interface, scope: ScopeInfo) {
+	private fun resolveInterface(int: TypeItem.Interface, scope: Scope) {
 		for ((name, value) in int.functions) {
 			val function = value as ValueItem.Function
 			resolveFunction(function, false, scope)
@@ -127,7 +127,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 
 	// value items
 
-	private fun resolveValueItem(item: ValueItem, scope: ScopeInfo) {
+	private fun resolveValueItem(item: ValueItem, scope: Scope) {
 		when (item) {
 			is ValueItem.Function -> resolveFunction(item, true, scope)
 			is ValueItem.UnitStruct -> {}
@@ -136,7 +136,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 		}
 	}
 
-	private fun resolveFunction(function: ValueItem.Function, mustHaveBody: Boolean, scope: ScopeInfo) {
+	private fun resolveFunction(function: ValueItem.Function, mustHaveBody: Boolean, scope: Scope) {
 		function.irParameters = function.parameters.map { (pattern, type) ->
 			Pair(resolvePattern(pattern, scope), resolveType(type, scope))
 		}
@@ -148,7 +148,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 
 	// types
 
-	private fun resolveType(type: Type?, scope: ScopeInfo, inImpl: Boolean = false): IRType {
+	private fun resolveType(type: Type?, scope: Scope, inImpl: Boolean = false): IRType {
 		return simplifyType(
 			when (type) {
 				is ComplexPath -> IRType.Item(resolveTypePath(type, scope, inImpl) ?: return IRType.Error)
@@ -185,14 +185,14 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 	// statements
 	private fun resolveExpressionStatement(
 		exprStmt: Stmt.Expression,
-		scope: ScopeInfo
+		scope: Scope
 	): IRStmt.Expression {
 		return IRStmt.Expression(resolveExpression(exprStmt.expr, scope), exprStmt.trailing)
 	}
 
 	private fun resolveLetStatement(
 		let: Stmt.Let,
-		scope: ScopeInfo
+		scope: Scope
 	): IRStmt.Let {
 		val irPattern = resolvePattern(let.pattern, scope)
 		val type = let.type?.let { type -> resolveType(type, scope) }
@@ -201,7 +201,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 	}
 
 	// expressions
-	private fun resolveExpression(expr: Expr, scope: ScopeInfo): IRExpr {
+	private fun resolveExpression(expr: Expr, scope: Scope): IRExpr {
 		return when (expr) {
 			is Expr.Binary -> IRExpr.Binary(
 				resolveExpression(expr.left, scope),
@@ -220,7 +220,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 
 	private fun resolveBlock(
 		block: Expr.Block,
-		parentScope: ScopeInfo
+		parentScope: Scope
 	): IRExpr.Block {
 		var values = block.scope.values
 		val types = block.scope.types
@@ -234,22 +234,22 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 		impls.bindParent(parentScope.impls)
 		interfaceImpls.bindParent(parentScope.interfaceImpls)
 
-		resolve(ScopeInfo(types, values, impls, interfaceImpls, implementationItems))
+		resolve(Scope(types, values, impls, interfaceImpls, implementationItems))
 
 		return IRExpr.Block(block, block.stmts.map { stmt ->
 			when (stmt) {
-				is Stmt.Expression -> resolveExpressionStatement(stmt, ScopeInfo(types, values, impls, interfaceImpls, implementationItems))
+				is Stmt.Expression -> resolveExpressionStatement(stmt, Scope(types, values, impls, interfaceImpls, implementationItems))
 				is Stmt.Let -> {
 					val newBranch = Branch<ValueItem>(zinc)
 					newBranch.bindParent(values)
 					values = newBranch
-					resolveLetStatement(stmt, ScopeInfo(types, values, impls, interfaceImpls, implementationItems))
+					resolveLetStatement(stmt, Scope(types, values, impls, interfaceImpls, implementationItems))
 				}
 			}
 		})
 	}
 
-	private fun resolveCall(expr: Expr.Call, scope: ScopeInfo): IRExpr.Call {
+	private fun resolveCall(expr: Expr.Call, scope: Scope): IRExpr.Call {
 		return IRExpr.Call(
 			resolveExpression(expr.callee, scope),
 			expr.arguments.map { expr -> resolveExpression(expr, scope) }
@@ -269,7 +269,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 	// patterns
 	private fun resolvePattern(
 		pattern: Pattern,
-		scope: ScopeInfo
+		scope: Scope
 	): IRPattern {
 		return when (pattern) {
 			is Pattern.Identifier -> {
@@ -293,7 +293,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 
 	private fun resolveValuePath(
 		complexPath: ComplexPath,
-		scope: ScopeInfo
+		scope: Scope
 	): ValueItem? {
 		when (complexPath) {
 			is ComplexPath.Normal -> {
@@ -317,7 +317,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 		throw IllegalArgumentException("should have returned by now")
 	}
 
-	private fun resolveTypePath(complexPath: ComplexPath, scope: ScopeInfo, inImpl: Boolean = false): TypeItem? {
+	private fun resolveTypePath(complexPath: ComplexPath, scope: Scope, inImpl: Boolean = false): TypeItem? {
 		when (complexPath) {
 			is ComplexPath.Normal -> {
 				var currentTypes = scope.types
@@ -341,7 +341,7 @@ internal class Resolver(private val zinc: Zinc.Runtime) {
 
 	// utility
 
-	private fun namespacesFromTypeItem(typeItem: TypeItem, scope: ScopeInfo): Pair<Branch<TypeItem>, Branch<ValueItem>> {
+	private fun namespacesFromTypeItem(typeItem: TypeItem, scope: Scope): Pair<Branch<TypeItem>, Branch<ValueItem>> {
 		return when (typeItem) {
 			is TypeItem.Module -> Pair(typeItem.scope.types, typeItem.scope.values)
 			is TypeItem.Struct -> {

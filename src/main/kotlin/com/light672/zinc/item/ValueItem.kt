@@ -1,33 +1,13 @@
 package com.light672.zinc.item
 
-import com.light672.zinc.ast.Expr
-import com.light672.zinc.ast.Pattern
 import com.light672.zinc.ast.Token
-import com.light672.zinc.ast.Type
-import com.light672.zinc.ir.IRExpr
 import com.light672.zinc.ir.IRPattern
 import com.light672.zinc.ir.IRType
 
 internal sealed interface ValueItem {
-	class Function(
-		val keyword: Token,
-		val name: Token,
-		val parameters: List<Pair<Pattern, Type>>,
-		val returnType: Type?,
-		val block: Expr.Block?,
-		val semicolon: Token?,
-		val parentType: ParentType
-	) : ValueItem {
-		lateinit var irParameters: List<Pair<IRPattern, IRType>>
-		lateinit var irReturnType: IRType
-		var irBlock: IRExpr.Block? = null
-
-		enum class ParentType {
-			MODULE,
-			IMPL,
-			INHERIT_IMPL,
-			INTERFACE
-		}
+	class Function : ValueItem {
+		lateinit var parameters: List<Pair<IRPattern, IRType>>
+		lateinit var returnType: IRType
 	}
 
 	class Variable(
