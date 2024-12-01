@@ -20,8 +20,8 @@ object Zinc {
 
 		fun run() {
 			val scope = Scope(this)
-			Parser(this).parse(scope)
-			Resolver(this).resolve(scope)
+			val statements = Parser(this).parse(scope)
+			Resolver(this).resolve(statements, scope)
 		}
 
 		internal fun reportCompileError(error: CompilerError) {

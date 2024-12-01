@@ -18,7 +18,7 @@ internal sealed interface ValueItem {
 	}
 
 	class UnitStruct(
-		val struct: TypeItem.Struct // TODO: turn this into a struct item
+		val struct: TypeItem.Struct
 	) : ValueItem
 
 	data object Ambiguous : ValueItem

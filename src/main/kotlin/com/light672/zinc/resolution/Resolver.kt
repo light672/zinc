@@ -14,16 +14,8 @@ import com.light672.zinc.item.TypeItem
 import com.light672.zinc.item.ValueItem
 
 internal class Resolver(private val zinc: Zinc.Runtime) {
-	fun resolve(scope: Scope) {
-		for (impl in scope.implementationItems) resolveImplementation(impl, scope)
-		for (impl in scope.implementationItems) resolveImplementationInterior(impl, scope)
-		for ((name, item) in scope.types) {
-			resolveTypeItem(item, scope)
-		}
-
-		for ((name, item) in scope.values) {
-			resolveValueItem(item, scope)
-		}
+	fun resolve(statements: List<Stmt>, scope: Scope) {
+		resolveBlock()
 	}
 
 	// implementations

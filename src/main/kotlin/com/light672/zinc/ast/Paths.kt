@@ -26,6 +26,7 @@ internal sealed interface ComplexPath : Type {
 	}
 
 	class Segment(
-		val token: Token
+		val token: Token,
+		val genericArgs: GenericArgs?
 	)
 }

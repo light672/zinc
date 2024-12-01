@@ -14,9 +14,13 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 	private var previous = Token.empty()
 	private var current = lexer.scanToken()
 
-	fun parse(scope: Scope) {
-		while (!atEnd())
-			when (val decl = declaration(scope) ?: return) {
+	fun parse(scope: Scope): List<Stmt> {
+		val declarations = ArrayList<Stmt>()
+		while (!atEnd()) {
+			val decl = declaration(scope) ?: return declarations
+			declarations.add(decl)
+
+			when (decl) {
 				is Stmt.Function -> scope.values.add(decl.name, decl.item)
 				is Stmt.Interface -> scope.types.add(decl.name, decl.item)
 				is Stmt.Module -> scope.types.add(decl.name, decl.item)
@@ -28,21 +32,33 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 
 				is Stmt.Let, is Stmt.Expression -> {}
 			}
+		}
+		return declarations
 	}
 
 	// declarations
 
 	// only occurs at the module level
 	private fun declaration(scope: Scope): Stmt? {
-		if (match(STRUCT)) return structDecl(previous, scope)
-		if (match(INTERFACE)) return interfaceDecl(previous, scope)
-		if (match(IMPL)) return implDecl(previous, scope)
-		if (match(FN)) return functionDecl(previous, scope.values)
-		zinc.reportCompileError(CompilerError.expectedDeclaration(current))
+		when (current.type) {
+			STRUCT -> structDecl(consume())
+			INTERFACE -> interfaceDecl(consume())
+			IMPL -> implDecl(consume())
+			FN -> functionDecl(consume())
+			else -> {
+				zinc.reportCompileError(CompilerError.expectedDeclaration(current))
+				null
+			}
+		}
+		if (match(STRUCT)) return structDecl(previous)
+		if (match(INTERFACE)) return interfaceDecl(previous)
+		if (match(IMPL)) return implDecl(previous)
+		if (match(FN)) return functionDecl(previous)
+
 		return null
 	}
 
-	private fun structDecl(keyword: Token, scope: Scope): Stmt.Struct? {
+	private fun structDecl(keyword: Token): Stmt.Struct? {
 		val name = expect(IDENTIFIER) ?: return null
 		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
 		if (!isNext(SEMICOLON)) expect(LEFT_BRACE) ?: return null
@@ -54,20 +70,19 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 			Pair(name, type)
 		} ?: return null
 
-		val structItem = TypeItem.Struct()
+		val structItem = TypeItem.Struct(fields.associate { (token, _) -> Pair(token.lexeme, null) })
 		val struct = Stmt.Struct(keyword, name, genericParams, fields, structItem)
 		return struct
 	}
 
-	private fun interfaceDecl(keyword: Token, scope: Scope): Stmt? {
+	private fun interfaceDecl(keyword: Token): Stmt.Interface? {
 		val name = expect(IDENTIFIER) ?: return null
 		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
 		expect(LEFT_BRACE) ?: return null
-		val values = Branch<ValueItem>(zinc)
 		val functions = ArrayList<Stmt.Function>()
 		while (!isNext(RIGHT_BRACE)) {
 			val keyword = expect(FN) ?: return null
-			functions.add(functionDecl(keyword, values) ?: return null)
+			functions.add(functionDecl(keyword) ?: return null)
 		}
 		val close = expect(RIGHT_BRACE) ?: return null
 		val interfaceItem = TypeItem.Interface(name, functions.associate { fn -> Pair(fn.name.lexeme, fn.item) })
@@ -75,7 +90,7 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 		return interfaceStmt
 	}
 
-	private fun implDecl(keyword: Token, scope: Scope): Stmt.Implementation? {
+	private fun implDecl(keyword: Token): Stmt.Implementation? {
 		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
 		val type = expectType() ?: return null
 		val inheritedInterface = if (match(COLON)) {
@@ -94,7 +109,7 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 		return impl
 	}
 
-	private fun functionDecl(keyword: Token, values: Branch<ValueItem>): Stmt.Function? {
+	private fun functionDecl(keyword: Token): Stmt.Function? {
 		val name = expect(IDENTIFIER) ?: return null
 		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
 		expect(LEFT_PAREN) ?: return null
@@ -343,10 +358,10 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 
 	private fun complexPath(start: Token): ComplexPath.Normal? {
 		val body = ArrayList<ComplexPath.Segment>()
-		body.add(typePathSegment(start))
+		body.add(typePathSegment(start) ?: return null)
 		while (isPrevious(COLON_COLON)) {
 			val start = expect(IDENTIFIER) ?: return null
-			body.add(typePathSegment(start))
+			body.add(typePathSegment(start) ?: return null)
 		}
 		return ComplexPath.Normal(body)
 	}
@@ -366,7 +381,7 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 		val body = ArrayList<ComplexPath.Segment>()
 		while (isPrevious(COLON_COLON)) {
 			val start = expect(IDENTIFIER) ?: return null
-			body.add(typePathSegment(start))
+			body.add(typePathSegment(start) ?: return null)
 		}
 		return ComplexPath.Qualified(
 			ComplexPath.Qualified.QualifiedSegment(open, type, cast, close),
@@ -374,9 +389,10 @@ internal class Parser(private val zinc: Zinc.Runtime) {
 		)
 	}
 
-	private fun typePathSegment(start: Token): ComplexPath.Segment {
+	private fun typePathSegment(start: Token): ComplexPath.Segment? {
 		match(COLON_COLON)
-		return ComplexPath.Segment(start)
+		if (!match(LESS)) return ComplexPath.Segment(start, null)
+		return ComplexPath.Segment(start, genericArgs(previous) ?: return null)
 	}
 
 	// utility

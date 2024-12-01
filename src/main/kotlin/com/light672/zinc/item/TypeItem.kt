@@ -10,9 +10,7 @@ internal sealed interface TypeItem {
 		val scope: Scope
 	) : TypeItem
 
-	class Struct : TypeItem {
-		lateinit var fields: Map<CharSequence, IRType>
-	}
+	class Struct(val fields: Map<CharSequence, IRType?>) : TypeItem
 
 	class Interface(
 		val name: Token,
