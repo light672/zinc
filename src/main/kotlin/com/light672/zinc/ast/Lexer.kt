@@ -102,7 +102,9 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 			"_" -> UNDERSCORE
 			"fn" -> FN
 			"as" -> AS
+			"in" -> IN
 			"if" -> IF
+			"for" -> FOR
 			"let" -> LET
 			"mut" -> MUT
 			"mod" -> MOD
@@ -113,6 +115,8 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 			"enum" -> ENUM
 			"true" -> TRUE
 			"false" -> FALSE
+			"while" -> WHILE
+			"match" -> MATCH
 			"break" -> BREAK
 			"const" -> CONST
 			"return" -> RETURN

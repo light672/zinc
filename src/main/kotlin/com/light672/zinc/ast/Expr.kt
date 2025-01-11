@@ -16,7 +16,10 @@ internal sealed interface Expr {
 	data class Break(val keyword: Token, val expr: Expr?) : Expr
 
 	data class Block(val start: Token, val stmts: List<Stmt>, val end: Token) : Expr
-	data class If(val keyword: Token, val predicate: Expr, val thenBlock: Block, val elseBlock: Block?) : Expr
+	data class If(val keyword: Token, val condition: Expr, val thenBlock: Block, val elseBlock: Block?) : Expr
+	data class While(val keyword: Token, val condition: Expr, val block: Block) : Expr
+	data class For(val keyword: Token, val pattern: Pattern, val iterator: Expr, val block: Block) : Expr
+	data class Match(val keyword: Token, val expr: Expr, val branches: List<Pair<Pattern, Expr>>, val close: Token) : Expr
 	data class Loop(val keyword: Token, val block: Block) : Expr
 
 
@@ -42,7 +45,10 @@ internal sealed interface Expr {
 
 			is Block -> start..end
 			is If -> keyword..(elseBlock?.end ?: thenBlock.end)
+			is While -> keyword..block.end
 			is Loop -> keyword..block.end
+			is For -> keyword..block.end
+			is Match -> keyword..close
 			is FieldGet -> callee.range().start..(segment.generics?.end ?: segment.id)
 		}
 	}
@@ -62,7 +68,10 @@ internal sealed interface Expr {
 		is Variable -> "variable expression"
 		is Block -> "block expression"
 		is If -> "if expression"
+		is While -> "while expression"
 		is Loop -> "loop expression"
+		is For -> "for expression"
+		is Match -> "match expression"
 		is FieldGet -> "field access"
 	}
 

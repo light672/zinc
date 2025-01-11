@@ -112,28 +112,67 @@ internal class Parser(val zinc: Zinc.Runtime) {
 	// expressions
 
 	fun expressionWithBlock(): ParseResult<Expr> = with(combinator) {
-		val ifParser = {
-			val keyword = token(IF)
-			val condition = keyword
-				.then { expect(expression()) }
-			val thenBlock = condition.then { expect(block()) }
-			thenBlock
-				.then { optional(token(ELSE).then { expect(block()) }) }
-				.map { elseBlock -> Expr.If(+keyword, +condition, +thenBlock, elseBlock) }
-		}
-
-		val loopParser = {
-			val keyword = token(LOOP)
-			keyword
-				.then { expect(block()) }
-				.map { block -> Expr.Loop(+keyword, block) }
-		}
-
-		ifParser() or loopParser or ::block
+		ifExpr() or ::whileExpr or ::loop or ::forExpr or ::match or ::block
 	}
 
 	fun expression(): ParseResult<Expr> = with(combinator) {
 		assignment().error { CompilerError.expectedExpression(current) }
+	}
+
+	fun ifExpr() = with(combinator) {
+		val keyword = token(IF)
+		val condition = keyword
+			.then { expect(expression()) }
+		val thenBlock = condition.then { expect(block()) }
+		thenBlock
+			.then { optional(token(ELSE).then { expect(block()) }) }
+			.map { elseBlock -> Expr.If(+keyword, +condition, +thenBlock, elseBlock) }
+	}
+
+	fun whileExpr() = with(combinator) {
+		val keyword = token(WHILE)
+		val condition = keyword
+			.then { expect(expression()) }
+		condition
+			.then { expect(block()) }
+			.map { block -> Expr.While(+keyword, +condition, block) }
+	}
+
+	fun loop() = with(combinator) {
+		val keyword = token(LOOP)
+		keyword
+			.then { expect(block()) }
+			.map { block -> Expr.Loop(+keyword, block) }
+	}
+
+	fun forExpr() = with(combinator) {
+		val keyword = token(FOR)
+		val pattern = keyword
+			.then { expect(pattern()) }
+		val iterator = pattern
+			.then { expect(token(IN)) }
+			.then { expect(expression()) }
+		iterator
+			.then { expect(block()) }
+			.map { block -> Expr.For(+keyword, +pattern, +iterator, block) }
+	}
+
+	fun match() = with(combinator) {
+		val branchParser = {
+			val pattern = pattern()
+			pattern
+				.then { expect(token(EQUALS_ARROW)) }
+				.then { expect(expression()) }
+				.map { expr -> Pair(+pattern, expr) }
+		}
+
+		val keyword = token(MATCH)
+		val expr = keyword
+			.then { expect(expression()) }
+		expr
+			.then { expect(token(LEFT_BRACE)) }
+			.then { expect(manyTrailingUntil(branchParser, COMMA, RIGHT_BRACE)) }
+			.map { (branches, close) -> Expr.Match(+keyword, +expr, branches, close) }
 	}
 
 	fun primary() = with(combinator) {
