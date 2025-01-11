@@ -193,7 +193,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 		}
 		val variable = { token(IDENTIFIER).map { Expr.Variable(it) } }
 
-		group() or literal or variable or ::returnExpr or ::breakExpr or ::closure or ::expressionWithBlock
+		group() or literal or variable or { qualifiedPath().map { path -> Expr.Path(path) } } or ::returnExpr or ::breakExpr or ::closure or ::expressionWithBlock
 	}
 
 	fun args(open: TokenType, close: TokenType): ParseResult<Triple<Token, List<Expr>, Token>> {
@@ -444,23 +444,26 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			.map { segments -> ComplexPath.Normal(segments) }
 	}
 
-	fun complexPath(): ParseResult<ComplexPath> = with(combinator) {
+	fun qualifiedPath() = with(combinator) {
 		val asParser = { token(AS).then { expect(normalComplexPath()) } }
 
-		val qualified = { openToken: Token ->
-			val type = expect(type())
-			val trait = type
-				.then { optional(asParser()) }
-			val close = trait
-				.then { expect(token(GREATER)) }
-			val firstSegment = close
-				.then { expect(token(COLON_COLON).error { CompilerError.expectedPathSegment(current) }.then(::pathSegment)) }
-			firstSegment
-				.then { many({ token(COLON_COLON).then { expect(pathSegment()) } }, listOf(+firstSegment)) }
-				.map { segments -> ComplexPath.Qualified(openToken, +type, +trait, +close, segments) }
-		}
+		val openToken = token(LESS)
+		val type = openToken
+			.then { expect(type()) }
+		val trait = type
+			.then { optional(asParser()) }
+		val close = trait
+			.then { expect(token(GREATER)) }
+		val firstSegment = close
+			.then { expect(token(COLON_COLON).error { CompilerError.expectedPathSegment(current) }.then(::pathSegment)) }
+		firstSegment
+			.then { many({ token(COLON_COLON).then { expect(pathSegment()) } }, listOf(+firstSegment)) }
+			.map { segments -> ComplexPath.Qualified(+openToken, +type, +trait, +close, segments) }
 
-		token(LESS).flatMap { token -> qualified(token) } or ::normalComplexPath
+	}
+
+	fun complexPath(): ParseResult<ComplexPath> = with(combinator) {
+		qualifiedPath() or ::normalComplexPath
 	}
 
 
