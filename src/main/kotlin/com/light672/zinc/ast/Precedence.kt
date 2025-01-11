@@ -2,6 +2,7 @@ package com.light672.zinc.ast
 
 internal enum class Precedence {
 	NONE,
+	RETURN,
 	ASSIGNMENT,
 	OR,
 	AND,
@@ -14,5 +15,6 @@ internal enum class Precedence {
 	TERM,
 	FACTOR,
 	UNARY,
-	CALL
+	CALL,
+	PATH
 }

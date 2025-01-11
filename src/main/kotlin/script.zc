@@ -1,21 +1,6 @@
+fn a() {
+	if true {
 
-
-fn main() {
-	struct A;
-	interface T {
-		fn c();
 	}
-	impl A {
-		fn a() {}
-		fn b() {}
-	}
-
-	impl A : T {
-		fn c() {}
-	}
-
-	A::a();
-    A::b();
-    A::c();
-
+	a
 }

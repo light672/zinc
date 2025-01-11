@@ -1,32 +1,9 @@
 package com.light672.zinc.ast
 
-internal sealed interface ComplexPath : Type {
-	override fun first(): Token
-	override fun last(): Token
 
-	class Normal(
-		val body: List<Segment>
-	) : ComplexPath {
-		override fun first() = body.first().token
-		override fun last() = body.last().token
-	}
-
-	class Qualified(
-		val head: QualifiedSegment,
-		val body: List<Segment>
-	) : ComplexPath {
-		override fun first() = head.open
-		override fun last() = body.lastOrNull()?.token ?: head.close
-		class QualifiedSegment(
-			val open: Token,
-			val type: Type,
-			val cast: ComplexPath,
-			val close: Token
-		)
-	}
-
-	class Segment(
-		val token: Token,
-		val genericArgs: GenericArgs?
-	)
+internal data class ComplexSegment(val id: Token, val generics: GenericArgs?)
+internal sealed interface ComplexPath {
+	data class Normal(val body: List<ComplexSegment>) : ComplexPath
+	data class Qualified(val start: Token, val type: Type, val trait: Normal?, val end: Token, val body: List<ComplexSegment>) : ComplexPath
+	data class Error(val range: Token.Range) : ComplexPath
 }

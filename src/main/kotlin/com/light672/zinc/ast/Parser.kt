@@ -1,440 +1,492 @@
 package com.light672.zinc.ast
 
 import com.light672.zinc.CompilerError
-import com.light672.zinc.Scope
-import com.light672.zinc.Scope.Branch
 import com.light672.zinc.Zinc
 import com.light672.zinc.ast.TokenType.*
-import com.light672.zinc.item.TypeItem
-import com.light672.zinc.item.ValueItem
-import com.light672.zinc.or
 
-internal class Parser(private val zinc: Zinc.Runtime) {
-	private val lexer = Lexer(zinc.source, zinc)
-	private var previous = Token.empty()
-	private var current = lexer.scanToken()
+internal class Parser(val zinc: Zinc.Runtime) {
+	val combinator = CombinatorParser(zinc)
 
-	fun parse(scope: Scope): List<Stmt> {
-		val declarations = ArrayList<Stmt>()
-		while (!atEnd()) {
-			val decl = declaration(scope) ?: return declarations
-			declarations.add(decl)
+	fun declaration(): ParseResult<Stmt> = with(combinator) {
+		(function() or ::struct or ::module).error { CompilerError.expectedStatement(current) }
+	}
 
-			when (decl) {
-				is Stmt.Function -> scope.values.add(decl.name, decl.item)
-				is Stmt.Interface -> scope.types.add(decl.name, decl.item)
-				is Stmt.Module -> scope.types.add(decl.name, decl.item)
-				is Stmt.Implementation -> {}
-				is Stmt.Struct -> {
-					scope.types.add(decl.name, decl.item)
-					if (decl.fields.isEmpty()) scope.values.add(decl.name, ValueItem.UnitStruct(decl.item))
-				}
-
-				is Stmt.Let, is Stmt.Expression -> {}
-			}
+	fun function(): ParseResult<Stmt> = with(combinator) {
+		val keyword = token(FN)
+		val name = keyword
+			.then { expect(token(IDENTIFIER)) }
+		val genericParams = name
+			.then { optional(genericParams()) }
+		val params = genericParams.then {
+			expect(run {
+				val open = token(LEFT_PAREN)
+				open
+					.then { expect(manyTrailingUntil(::functionParam, COMMA, RIGHT_PAREN)) }
+					.map { (list, close) -> Triple(open, list, close) }
+			})
 		}
-		return declarations
+		val returnType = params.then { optional(token(COLON).then { expect(type()) }) }
+
+		val functionNoBlock =
+			token(SEMICOLON).map { token -> Stmt.FunctionNoBlock(+keyword, +name, +genericParams, (+params).second, +returnType, token) }
+		val functionWithBlockParser =
+			{ block().map { block -> Stmt.Function(+keyword, +name, +genericParams, (+params).second, +returnType, block) } }
+
+		returnType
+			.then { expect(functionNoBlock or functionWithBlockParser) }
 	}
 
-	// declarations
-
-	// only occurs at the module level
-	private fun declaration(scope: Scope): Stmt? {
-		when (current.type) {
-			STRUCT -> structDecl(consume())
-			INTERFACE -> interfaceDecl(consume())
-			IMPL -> implDecl(consume())
-			FN -> functionDecl(consume())
-			else -> {
-				zinc.reportCompileError(CompilerError.expectedDeclaration(current))
-				null
-			}
+	fun functionParam() = with(combinator) {
+		val selfParser = {
+			val token = token(SELF)
+			token
+				.then { optional(token(COLON).then { expect(type()) }) }
+				.map { type -> FunctionParam.SelfParam(+token, type) }
 		}
-		if (match(STRUCT)) return structDecl(previous)
-		if (match(INTERFACE)) return interfaceDecl(previous)
-		if (match(IMPL)) return implDecl(previous)
-		if (match(FN)) return functionDecl(previous)
 
-		return null
+		val patternParser = { patternAndType().map { (pattern, type) -> FunctionParam.PatternParam(pattern, type) } }
+
+		selfParser() or patternParser
 	}
 
-	private fun structDecl(keyword: Token): Stmt.Struct? {
-		val name = expect(IDENTIFIER) ?: return null
-		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
-		if (!isNext(SEMICOLON)) expect(LEFT_BRACE) ?: return null
+	fun struct(): ParseResult<Stmt> = with(combinator) {
+		val keyword = token(STRUCT)
+		val name = keyword
+			.then { expect(token(IDENTIFIER)) }
+		val genericParams = name
+			.then { optional(genericParams()) }
 
-		val (fields, close) = if (match(SEMICOLON)) Pair(emptyList(), previous) else trailingCommaGroup(RIGHT_PAREN) {
-			val name = expect(IDENTIFIER) ?: return null
-			expect(COLON) ?: return null
-			val type = expectType() ?: return null
-			Pair(name, type)
-		} ?: return null
-
-		val structItem = TypeItem.Struct(fields.associate { (token, _) -> Pair(token.lexeme, null) })
-		val struct = Stmt.Struct(keyword, name, genericParams, fields, structItem)
-		return struct
-	}
-
-	private fun interfaceDecl(keyword: Token): Stmt.Interface? {
-		val name = expect(IDENTIFIER) ?: return null
-		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
-		expect(LEFT_BRACE) ?: return null
-		val functions = ArrayList<Stmt.Function>()
-		while (!isNext(RIGHT_BRACE)) {
-			val keyword = expect(FN) ?: return null
-			functions.add(functionDecl(keyword) ?: return null)
+		val structFieldParser = {
+			val name = token(IDENTIFIER)
+			name
+				.then { expect(token(COLON)) }
+				.then { expect(type()) }
+				.map { type -> Pair(+name, type) }
 		}
-		val close = expect(RIGHT_BRACE) ?: return null
-		val interfaceItem = TypeItem.Interface(name, functions.associate { fn -> Pair(fn.name.lexeme, fn.item) })
-		val interfaceStmt = Stmt.Interface(keyword, name, genericParams, functions, interfaceItem)
-		return interfaceStmt
-	}
 
-	private fun implDecl(keyword: Token): Stmt.Implementation? {
-		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
-		val type = expectType() ?: return null
-		val inheritedInterface = if (match(COLON)) {
-			expectType() ?: return null
-		} else null
-
-		expect(LEFT_BRACE) ?: return null
-		val values = Branch<ValueItem>(zinc)
-		val functions = ArrayList<Stmt.Function>()
-		while (!isNext(RIGHT_BRACE)) {
-			val keyword = expect(FN) ?: return null
-			functions.add(functionDecl(keyword, values) ?: return null)
+		val structParser = {
+			token(LEFT_BRACE)
+				.then { manyTrailingUntil(structFieldParser, COMMA, RIGHT_BRACE) }
+				.map { (list, close) -> Stmt.Struct(+keyword, +name, +genericParams, list, close) }
 		}
-		val close = expect(RIGHT_BRACE) ?: return null
-		val impl = Stmt.Implementation(genericParams, type, inheritedInterface, functions)
-		return impl
-	}
-
-	private fun functionDecl(keyword: Token): Stmt.Function? {
-		val name = expect(IDENTIFIER) ?: return null
-		val genericParams = if (match(LESS)) genericParams(previous) ?: return null else null
-		expect(LEFT_PAREN) ?: return null
-		val (parameters, close) = trailingCommaGroup(RIGHT_PAREN) {
-			val pattern = expectPattern() ?: return null
-			expect(COLON) ?: return null
-			val type = expectType() ?: return null
-			Pair(pattern, type)
-		} ?: return null
-
-		val returnType = if (match(MINUS_ARROW)) {
-			expectType() ?: return null
-		} else null
-
-		val block = if (match(SEMICOLON)) null else (expectBlock() ?: return null)
-		val functionItem = ValueItem.Function()
-		val function = Stmt.Function(keyword, name, genericParams, parameters, returnType, block.or(previous), functionItem)
-		return function
-	}
-
-	// statements
-	private fun statement(scope: Scope): Stmt? {
-		if (match(STRUCT)) return structDecl(previous, scope)
-		if (match(INTERFACE)) return interfaceDecl(previous, scope)
-		if (match(IMPL)) return implDecl(previous, scope)
-		if (match(FN)) return functionDecl(previous, scope.values)
-		if (match(LET)) return letStatement(previous)
-		return expressionStatement()
-	}
-
-	private fun letStatement(keyword: Token): Stmt.Let? {
-		val pattern = expectPattern() ?: return null
-		val type = if (match(COLON)) expectType() ?: return null else null
-		val initializer = if (match(EQUAL)) expression() ?: return null else null
-		expect(SEMICOLON) ?: return null
-		return Stmt.Let(keyword, pattern, type, initializer)
-	}
-
-	private fun expressionStatement(): Stmt.Expression? {
-		val expression = parsePrecedence(Precedence.ASSIGNMENT, CompilerError::expectedStatement) ?: return null
-		val trailing = when (expression) {
-			is Expr.Block -> !match(SEMICOLON)
-			else -> isNext(RIGHT_BRACE) || run {
-				expect(SEMICOLON) ?: return null
-				false
-			}
+		val tupleParser = {
+			val result = token(LEFT_PAREN)
+				.then { manyTrailingUntil(::type, COMMA, RIGHT_PAREN) }
+				.map { (list, close) -> Stmt.TupleStruct(+keyword, +name, +genericParams, list, close) }
+			result
+				.then { expect(token(SEMICOLON)) }
+				.flatMap { result }
 		}
-		return Stmt.Expression(expression, trailing)
+		val unitParser = { token(SEMICOLON).map { semicolon -> Stmt.UnitStruct(+keyword, +name, +genericParams, semicolon) } }
+
+
+		genericParams
+			.then { expect(structParser() or tupleParser or unitParser) }
 	}
+
+	fun module(): ParseResult<Stmt> = with(combinator) {
+		val keyword = token(MOD)
+		val name = keyword
+			.then { expect(token(IDENTIFIER)) }
+		name
+			.then { expect(token(LEFT_BRACE)) }
+			.then { expect(manyUntil(::declaration, RIGHT_BRACE)) }
+			.map { (list, close) -> Stmt.Module(+keyword, +name, list, close) }
+	}
+
+	fun let(): ParseResult<Stmt> = with(combinator) {
+		val keyword = token(LET)
+		val patternAndType = keyword
+			.then { expect(patternAndOptionalType()) }
+
+		val initializer = patternAndType
+			.then { optional(token(EQUAL).then { expect(expression()) }) }
+
+		initializer.then {
+			expect(token(SEMICOLON))
+				.map { Stmt.Let(+keyword, (+patternAndType).first, (+patternAndType).second, +initializer) }
+		}
+	}
+
 
 	// expressions
-	private fun expression() = parsePrecedence(Precedence.ASSIGNMENT, CompilerError::expectedExpression)
 
-	private fun parsePrecedence(
-		precedence: Precedence,
-		expected: (Token) -> CompilerError,
-	): Expr? {
-		val prefixToken = consume()
-		val rule = prefixToken.type.prefix ?: run {
-			zinc.reportCompileError(expected(previous))
-			return null
+	fun expressionWithBlock(): ParseResult<Expr> = with(combinator) {
+		val ifParser = {
+			val keyword = token(IF)
+			val condition = keyword
+				.then { expect(expression()) }
+			val thenBlock = condition.then { expect(block()) }
+			thenBlock
+				.then { optional(token(ELSE).then { expect(block()) }) }
+				.map { elseBlock -> Expr.If(+keyword, +condition, +thenBlock, elseBlock) }
 		}
-		var left = rule(prefixToken) ?: return null
-		while (precedence.ordinal <= ((current as? Token)?.type?.precedence ?: Precedence.NONE).ordinal) {
-			val infixOperator = consume()
-			val infix = infixOperator.type.infix!!
-			left = infix(left, infixOperator) ?: return null
+
+		val loopParser = {
+			val keyword = token(LOOP)
+			keyword
+				.then { expect(block()) }
+				.map { block -> Expr.Loop(+keyword, block) }
 		}
-		return left
+
+		ifParser() or loopParser or ::block
 	}
 
-	private fun binary(left: Expr, operator: Token, precedence: Precedence): Expr.Binary? {
-		val right = parsePrecedence(precedence, CompilerError::expectedExpression) ?: return null
-		return Expr.Binary(left, operator, right)
+	fun expression(): ParseResult<Expr> = with(combinator) {
+		assignment().error { CompilerError.expectedExpression(current) }
 	}
 
-	// prefix: NUMBER, STRING
-	fun literal(token: Token): Expr {
-		return Expr.Literal(token)
-	}
-
-	// prefix: IDENTIFIER
-	fun path(start: Token): Expr? {
-		val path = complexPath(start) ?: return null
-		return Expr.Variable(path)
-	}
-
-	// prefix: '{'
-	fun block(brace: Token): Expr.Block? {
-		val stmts = ArrayList<Stmt>()
-		val innerScope = Scope(zinc)
-		while (!isNext(RIGHT_BRACE)) {
-			val stmt = statement(innerScope) ?: return null // TODO: error recovery is too much work
-			stmts.add(stmt)
+	fun primary() = with(combinator) {
+		lateinit var open: Token
+		val group = {
+			token(LEFT_PAREN)
+				.with { open = it }
+				.then { expect(manySeparatedUntil(::expression, COMMA, RIGHT_PAREN)) }
+				.map { (list, close) -> Expr.Group(open, list, close) }
 		}
-		val close = expect(RIGHT_BRACE) ?: return null
-		return Expr.Block(stmts, innerScope)
-	}
-
-	private fun expectBlock(): Expr.Block? {
-		if (!match(LEFT_BRACE)) {
-			zinc.reportCompileError(CompilerError.expectedBlock(current))
-			return null
+		val literal = {
+			token(
+				NUMBER,
+				STRING,
+				TRUE,
+				FALSE
+			).map { Expr.Literal(it) }
 		}
-		return block(previous)
+		val variable = { token(IDENTIFIER).map { Expr.Variable(it) } }
+
+		group() or literal or variable or ::returnExpr or ::breakExpr or ::closure or ::expressionWithBlock
 	}
 
-	// prefix: '('
-	fun group(paren: Token): Expr? {
-		val (list, close) = group(RIGHT_PAREN, ::expression) ?: return null
-		if (list.size == 1) return list[0]
-		return Expr.Tuple(list)
-	}
-
-	// infix: '=', '+=', '-=', '*=', '/=', '|=', '&=', '^='
-	fun assignment(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.ASSIGNMENT)
-
-	// infix: '||'
-	fun or(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.AND)
-
-	// infix: '&&'
-	fun and(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.EQUALITY)
-
-	// infix: '==', '!='
-	fun equality(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.COMPARISON)
-
-	// infix: '<', '>', '<=', '>='
-	fun comparison(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.BIT_OR)
-
-	// infix: '|'
-	fun bitOr(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.BIT_XOR)
-
-	// infix: '^'
-	fun bitXor(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.BIT_AND)
-
-	// infix: '&'
-	fun bitAnd(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.TERM)
-
-	// infix: '+', '-'
-	fun term(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.FACTOR)
-
-	// infix: '*', '/'
-	fun factor(left: Expr, operator: Token) =
-		binary(left, operator, Precedence.UNARY)
-
-	// infix: '-', '!', '~'
-	fun unary(operator: Token): Expr.Unary? {
-		val right = parsePrecedence(Precedence.UNARY, CompilerError::expectedExpression) ?: return null
-		return Expr.Unary(operator, right)
-	}
-
-	// infix: '('
-	fun call(callee: Expr, operator: Token): Expr? {
-		val (arguments, close) = trailingCommaGroup(RIGHT_PAREN, ::expression) ?: return null
-		return Expr.Call(callee, arguments)
-	}
-
-
-	// types
-	private fun expectType(): Type? {
-		if (match(LEFT_PAREN)) return tupleType(previous)
-		if (match(LESS)) return qualifiedComplexPath(previous)
-		if (match(IDENTIFIER)) return complexPath(previous)
-		zinc.reportCompileError(CompilerError.expectedType(current))
-		return null
-	}
-
-	private fun tupleType(start: Token): Type.Tuple? {
-		val (list, end) = group(RIGHT_PAREN, ::expectType) ?: return null
-		return Type.Tuple(start, list, end)
-	}
-
-	private fun expectTypeBounds(): TypeParamBounds? {
-		val types = ArrayList<Type>()
-		types.add(expectType() ?: return null)
-		while (match(PLUS)) {
-			types.add(expectType() ?: return null)
+	fun args(open: TokenType, close: TokenType): ParseResult<Triple<Token, List<Expr>, Token>> {
+		return with(combinator) {
+			lateinit var openToken: Token
+			token(open)
+				.with { openToken = it }
+				.then { expect(manyTrailingUntil(::expression, COMMA, close)) }
+				.map { (list, closeToken) -> Triple(openToken, list, closeToken) }
 		}
-		return TypeParamBounds(types)
 	}
 
-	private fun genericParams(start: Token): GenericParams? {
-		return trailingCommaGroup(GREATER) {
-			val name = expect(IDENTIFIER) ?: return null
-			val bounds = if (match(COLON)) expectTypeBounds() ?: return null else null
-			Pair(name, bounds)
-		}?.let { GenericParams(it.first) }
+	fun call(): ParseResult<Expr> = with(combinator) {
+		primary().flatMap { expr -> callPrime(expr) }
 	}
 
-	private fun genericArgs(start: Token): GenericArgs? {
-		return group(RIGHT_PAREN, ::expectType)?.let { GenericArgs(it.first) }
+	fun callPrime(callee: Expr): ParseResult<Expr> = with(combinator) {
+		val callArgs = { args(LEFT_PAREN, RIGHT_PAREN).map { (open, args, close) -> Expr.Call(callee, open, args, close) } }
+		val indexArgs = { args(LEFT_BRACKET, RIGHT_BRACKET).map { (open, args, close) -> Expr.Index(callee, open, args, close) } }
+		val dot = { token(DOT).then { expect(pathSegment()) }.map { seg -> Expr.FieldGet(callee, seg) } }
+		val path = {
+			pathAfterExpr().map { list ->
+				val path = exprLeadingPath(callee, list)
+				if (path is ComplexPath.Error) return@map Expr.Path(path)
+				Expr.Path(path)
+			}
+		}
+
+		val args = { callArgs() or indexArgs or dot or path }
+
+		args().flatMap { expr -> callPrime(expr) } or { success(callee) }
 	}
+
+
+	fun unary(): ParseResult<Expr> = with(combinator) {
+		val operator = token(MINUS, BANG, TILDA)
+		val unary = operator
+			.then(::unary)
+			.map { expr -> Expr.Unary(+operator, expr) }
+
+		unary or ::call
+	}
+
+	fun cast(): ParseResult<Expr> =
+		binary(::unary, ::cast, AS)
+
+	fun factor(): ParseResult<Expr> =
+		binary(::cast, ::factor, STAR, SLASH, PERCENT)
+
+	fun term(): ParseResult<Expr> =
+		binary(::factor, ::term, PLUS, MINUS)
+
+	fun range(): ParseResult<Expr> = with(combinator) {
+		val left = optional(term())
+		val rightParser = {
+			val operator = token(DOT_DOT)
+			operator
+				.then { optional(range()) }
+				.map { expr -> Expr.Range(+left, +operator, expr) }
+		}
+
+		left
+			.then { optional(rightParser()) }
+			.flatMap { it?.let { success(it) } ?: (+left)?.let { success(it) } ?: noMatch(CompilerError.expectedExpression(current)) }
+	}
+
+	fun shift(): ParseResult<Expr> =
+		binary(::range, ::shift) // TODO: lex << >> >>>
+
+	fun bitAnd(): ParseResult<Expr> =
+		binary(::shift, ::bitAnd, AMP)
+
+	fun xor(): ParseResult<Expr> =
+		binary(::bitAnd, ::xor, CARET)
+
+	fun bitOr(): ParseResult<Expr> =
+		binary(::xor, ::bitOr, PIPE)
+
+	fun comparison(): ParseResult<Expr> =
+		binary(::bitOr, ::comparison, EQUAL_EQUAL, BANG_EQUAL, LESS, LESS_EQUAL, GREATER, GREATER_EQUAL)
+
+	fun and(): ParseResult<Expr> =
+		binary(::comparison, ::and, AMP_AMP)
+
+	fun or(): ParseResult<Expr> =
+		binary(::and, ::or, PIPE_PIPE)
+
+	fun assignment(): ParseResult<Expr> = // TODO: lex <<= >>= >>>=
+		binary(::or, ::assignment, EQUAL, PLUS_EQUAL, MINUS_EQUAL, STAR_EQUAL, SLASH_EQUAL, PERCENT_EQUAL, PIPE_EQUAL, AMP_EQUAL, CARET_EQUAL)
+
+
+	inline fun binary(left: () -> ParseResult<Expr>, crossinline right: () -> ParseResult<Expr>, vararg symbols: TokenType) = with(combinator) {
+		val left = left()
+
+		val rightParser = {
+			val operator = token(*symbols)
+			operator
+				.then { expect(right()) }
+				.map { expr -> Expr.Binary(+left, +operator, expr) }
+		}
+
+		left
+			.then { optional(rightParser()) }
+			.map { it ?: +left }
+	}
+
+	fun returnExpr() = with(combinator) {
+		val keyword = token(RETURN)
+		keyword
+			.then { optional(expression()) }
+			.map { expr -> Expr.Return(+keyword, expr) }
+	}
+
+	fun breakExpr() = with(combinator) {
+		val keyword = token(BREAK)
+		keyword
+			.then { optional(expression()) }
+			.map { expr -> Expr.Break(+keyword, expr) }
+	}
+
+	fun closure(): ParseResult<Expr.Closure> = with(combinator) {
+		val beginNoArgs = {
+			val doublePipe = token(PIPE_PIPE)
+			doublePipe.map { token -> Triple(token, emptyList<Pair<Pattern, Type?>>(), token) }
+		}
+		val beginArgs = {
+			val open = token(PIPE)
+			open
+				.then { expect(manyTrailingUntil(::patternAndOptionalType, COMMA, PIPE)) }
+				.map { (list, close) -> Triple(+open, list, close) }
+		}
+		val params = (beginArgs() or beginNoArgs)
+		params
+			.then { expect(expression()) }
+			.map { expr -> (+params).let { (open, list, close) -> Expr.Closure(open, list, close, expr) } }
+	}
+
+	fun block(): ParseResult<Expr.Block> = with(combinator) {
+		fun trailingCheck(expr: Expr) =
+			when (expr) {
+				is Expr.Block, is Expr.Loop, is Expr.If -> Stmt.Expression(expr, null)
+				else -> {
+					val semicolon = token(SEMICOLON)
+					if (semicolon.isSuccess()) Stmt.Expression(expr, +semicolon)
+					else {
+						val expr = Stmt.Expression(expr, null)
+						if (!isNext(RIGHT_BRACE)) {
+							expect(token(SEMICOLON)) // create error message
+							null
+						} else expr
+					}
+				}
+			}
+
+
+		val open = token(LEFT_BRACE)
+		open
+			.then {
+				expect(
+					manyUntil(
+						{ declaration() or ::let or { expression().flatMap { trailingCheck(it)?.let { success(it) } ?: failure() } } },
+						RIGHT_BRACE
+					)
+				)
+			}
+			.map { (list, close) -> Expr.Block(+open, list, close) }
+
+	}
+
 
 	// patterns
-	private fun expectPattern(): Pattern? {
-		if (match(LEFT_PAREN)) return tuplePattern(previous)
-		if (match(MUT)) return mutIdentifierPattern(previous)
-		if (match(IDENTIFIER)) return pathPattern(previous)
-		if (match(LESS)) return Pattern.TypePath(qualifiedComplexPath(previous) ?: return null)
-		if (match(UNDERSCORE)) return Pattern.Underscore(previous)
-		zinc.reportCompileError(CompilerError.expectedPattern(current))
-		return null
+	fun pattern(): ParseResult<Pattern> = with(combinator) {
+		(pathPattern() or ::wildCard or ::literalPattern or ::tuplePattern)
+			.error { CompilerError.expectedPattern(current) }
 	}
 
-	private fun tuplePattern(start: Token): Pattern.Tuple? {
-		val (fields, close) = group(RIGHT_PAREN, ::expectPattern) ?: return null
-		return Pattern.Tuple(start, fields, close)
+	fun pathPattern() = with(combinator) { token(IDENTIFIER).map { t -> Pattern.Identifier(t) } }
+	fun wildCard() = with(combinator) { token(UNDERSCORE).map { t -> Pattern.Wildcard(t) } }
+	fun literalPattern() = with(combinator) { token(NUMBER, STRING, TRUE, FALSE).map { t -> Pattern.Literal(t) } }
+	fun tuplePattern() = with(combinator) {
+		val open = token(LEFT_PAREN)
+		open
+			.then { expect(manyTrailingUntil(::pattern, COMMA, RIGHT_PAREN)) }
+			.map { (list, close) -> Pattern.Tuple(+open, list, close) }
 	}
 
-	private fun pathPattern(start: Token): Pattern? {
-		val path = complexPath(start) ?: return null
-		if (match(LEFT_PAREN)) {
-			val tuple = tuplePattern(previous) ?: return null
-			return Pattern.TupleStruct(path, tuple.fields, tuple.close)
+	fun patternAndType(): ParseResult<Pair<Pattern, Type>> = with(combinator) {
+		val pattern = pattern()
+		pattern
+			.then { expect(token(COLON)) }
+			.then { expect(type()) }
+			.map { type -> Pair(+pattern, type) }
+	}
+
+	fun patternAndOptionalType(): ParseResult<Pair<Pattern, Type?>> = with(combinator) {
+		val pattern = pattern()
+		pattern
+			.then { optional(token(COLON).then { expect(type()) }) }
+			.map { type -> Pair(+pattern, type) }
+	}
+
+	// types
+	fun type(): ParseResult<Type> = with(combinator) {
+		val tupleParser = {
+			val open = token(LEFT_PAREN)
+			open
+				.then { expect(manyTrailingUntil({ expect(type()) }, COMMA, RIGHT_PAREN)) }
+				.map { (list, close) -> Type.Tuple(+open, list, close) }
 		}
-		if (match(LEFT_BRACE)) {
-			val (body, close) = trailingCommaGroup(RIGHT_BRACE) {
-				val field = expect(IDENTIFIER) ?: return null
-				val pattern = if (match(COLON)) {
-					expectPattern() ?: return null
-				} else null
 
-				Pair(field, pattern)
-			} ?: return null
-			return Pattern.Struct(path, body, null, close)
-		}
-		if (path.body.size == 1) return Pattern.Identifier(null, start)
-		return Pattern.TypePath(path)
+		(tupleParser() or { complexPath().map { path -> Type.Path(path) } })
+			.error { CompilerError.expectedType(current) }
 	}
 
-	private fun mutIdentifierPattern(mut: Token): Pattern? {
-		val identifier = expect(IDENTIFIER) ?: return null
-		return Pattern.Identifier(mut, identifier)
+	fun genericArgs(): ParseResult<GenericArgs> = with(combinator) {
+		val open = token(LEFT_BRACKET)
+		open
+			.then { expect(manyTrailingUntil({ expect(type()) }, COMMA, RIGHT_BRACKET)) }
+			.map { (list, close) -> GenericArgs(+open, list, close) }
+	}
+
+	fun genericParams(): ParseResult<GenericParams> = with(combinator) {
+		val open = token(LEFT_BRACKET)
+		val typeParamParser = {
+			val identifier = token(IDENTIFIER)
+			identifier
+				.then { optional(token(COLON).then { expect(typeBounds()) }) }
+				.map { bounds -> Pair(+identifier, bounds) }
+		}
+		open
+			.then { expect(manyTrailingUntil(typeParamParser, COMMA, RIGHT_BRACKET)) }
+			.map { (list, close) -> GenericParams(+open, list, close) }
+	}
+
+	fun typeBounds(): ParseResult<TypeParamBounds> = with(combinator) {
+		val first = normalComplexPath()
+		first
+			.then { many({ token(AMP).then { expect(normalComplexPath()) } }, listOf(+first)) }
+			.map { list -> TypeParamBounds(list) }
 	}
 
 	// paths
 
-	private fun complexPath(start: Token): ComplexPath.Normal? {
-		val body = ArrayList<ComplexPath.Segment>()
-		body.add(typePathSegment(start) ?: return null)
-		while (isPrevious(COLON_COLON)) {
-			val start = expect(IDENTIFIER) ?: return null
-			body.add(typePathSegment(start) ?: return null)
+	fun normalComplexPath() = with(combinator) {
+		val firstSegment = pathSegment()
+		firstSegment
+			.then { expect(many({ token(COLON_COLON).then { expect(pathSegment()) } }, listOf(+firstSegment))) }
+			.map { segments -> ComplexPath.Normal(segments) }
+	}
+
+	fun complexPath(): ParseResult<ComplexPath> = with(combinator) {
+		val asParser = { token(AS).then { expect(normalComplexPath()) } }
+
+		val qualified = { openToken: Token ->
+			val type = expect(type())
+			val trait = type
+				.then { optional(asParser()) }
+			val close = trait
+				.then { expect(token(GREATER)) }
+			val firstSegment = close
+				.then { expect(token(COLON_COLON).error { CompilerError.expectedPathSegment(current) }.then(::pathSegment)) }
+			firstSegment
+				.then { many({ token(COLON_COLON).then { expect(pathSegment()) } }, listOf(+firstSegment)) }
+				.map { segments -> ComplexPath.Qualified(openToken, +type, +trait, +close, segments) }
 		}
-		return ComplexPath.Normal(body)
+
+		token(LESS).flatMap { token -> qualified(token) } or ::normalComplexPath
 	}
 
-	private fun expectComplexPath(): ComplexPath? {
-		if (match(IDENTIFIER)) return complexPath(previous)
-		zinc.reportCompileError(CompilerError.expectedTypePath(current))
-		return null
+
+	fun pathAfterExpr(): ParseResult<List<ComplexSegment>> = with(combinator) {
+		val first = token(COLON_COLON)
+			.then { expect(pathSegment()) }
+		first
+			.then { many({ token(COLON_COLON).then { expect(pathSegment()) } }, listOf(+first)) }
 	}
 
-	private fun qualifiedComplexPath(open: Token): ComplexPath? {
-		val type = expectType() ?: return null
-		expect(AS) ?: return null
-		val cast = expectComplexPath() ?: return null
-		val close = expect(GREATER) ?: return null
-		match(COLON_COLON)
-		val body = ArrayList<ComplexPath.Segment>()
-		while (isPrevious(COLON_COLON)) {
-			val start = expect(IDENTIFIER) ?: return null
-			body.add(typePathSegment(start) ?: return null)
-		}
-		return ComplexPath.Qualified(
-			ComplexPath.Qualified.QualifiedSegment(open, type, cast, close),
-			body
-		)
-	}
-
-	private fun typePathSegment(start: Token): ComplexPath.Segment? {
-		match(COLON_COLON)
-		if (!match(LESS)) return ComplexPath.Segment(start, null)
-		return ComplexPath.Segment(start, genericArgs(previous) ?: return null)
+	fun pathSegment(): ParseResult<ComplexSegment> = with(combinator) {
+		val identifier = token(IDENTIFIER)
+		identifier
+			.then { optional(genericArgs()) }
+			.map { generics -> ComplexSegment(+identifier, generics) }
 	}
 
 	// utility
 
-	private inline fun <T> group(closeType: TokenType, action: () -> T?, whileAction: () -> Boolean = { match(COMMA) }): Pair<List<T>, Token>? {
-		if (match(closeType)) return Pair(emptyList(), previous)
-		val list = ArrayList<T>()
-		do {
-			list.add(action() ?: return null)
-		} while (whileAction())
-		expect(closeType) ?: return null
+	private fun exprLeadingPath(expr: Expr, segments: List<ComplexSegment>): ComplexPath {
+		return when (expr) {
+			is Expr.Index ->
+				if (expr.callee is Expr.Variable)
+					ComplexPath.Normal(buildList {
+						add(ComplexSegment(expr.callee.identifier, GenericArgs(expr.argOpen, expr.args.map { exprToType(it) }, expr.argClose)))
+						addAll(segments)
+					})
+				else {
+					zinc.reportCompileError(CompilerError.expectedPathSegment(expr))
+					ComplexPath.Error(expr.range().start..segments.last().let { it.generics?.end ?: it.id })
+				}
 
-		return Pair(list, previous)
+			is Expr.Variable ->
+				ComplexPath.Normal(buildList {
+					add(ComplexSegment(expr.identifier, null))
+					addAll(segments)
+				})
+
+			else -> {
+				zinc.reportCompileError(CompilerError.expectedPathSegment(expr))
+				ComplexPath.Error(expr.range().start..segments.last().let { it.generics?.end ?: it.id })
+			}
+		}
 	}
 
-	private inline fun <T> trailingCommaGroup(closeType: TokenType, action: () -> T?) =
-		group(closeType, action, { !isNext(closeType) && !match(COMMA) || !isNext(closeType) })
+	private fun exprToType(expr: Expr): Type {
+		return when (expr) {
+			is Expr.Variable -> Type.Path(ComplexPath.Normal(listOf(ComplexSegment(expr.identifier, null))))
 
-	// tokenization
+			is Expr.Index -> if (expr.callee !is Expr.Variable) {
+				zinc.reportCompileError(CompilerError.expectedType(expr))
+				Type.Error
+			} else Type.Path(
+				ComplexPath.Normal(
+					listOf(ComplexSegment(expr.callee.identifier, GenericArgs(expr.argOpen, expr.args.map { exprToType(it) }, expr.argClose)))
+				)
+			)
 
-	private fun consume(): Token {
-		previous = current
-		current = lexer.scanToken()
-		return previous
+			is Expr.Path -> Type.Path(expr.path)
+			is Expr.Group -> Type.Tuple(expr.open, expr.expressions.map { exprToType(it) }, expr.close)
+			else -> {
+				zinc.reportCompileError(CompilerError.expectedType(expr))
+				Type.Error
+			}
+		}
 	}
 
-	private fun expect(type: TokenType) =
-		if (!match(type)) {
-			zinc.reportCompileError(CompilerError.unexpectedToken(current, type))
-			null
-		} else previous
-
-
-	private fun match(type: TokenType) =
-		if (isNext(type)) {
-			consume()
-			true
-		} else false
-
-	private fun atEnd() = isNext(EOF)
-
-	private fun isNext(type: TokenType) = current.type == type
-
-	private fun isPrevious(type: TokenType) = previous.type == type
 }

@@ -1,15 +1,8 @@
 package com.light672.zinc.ast
 
 internal sealed interface Type {
-	class Tuple(
-		val open: Token,
-		val types: List<Type>,
-		val close: Token
-	) : Type {
-		override fun first() = open
-		override fun last() = close
-	}
+	data class Tuple(val start: Token, val fields: List<Type>, val end: Token) : Type
+	data class Path(val path: ComplexPath) : Type
+	data object Error : Type
 
-	fun first(): Token
-	fun last(): Token
 }

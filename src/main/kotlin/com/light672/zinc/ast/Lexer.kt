@@ -1,25 +1,10 @@
 package com.light672.zinc.ast
 
 import com.light672.zinc.CompilerError
-import com.light672.zinc.PrefixTree
 import com.light672.zinc.Zinc
 import com.light672.zinc.ast.TokenType.*
 
 internal class Lexer(private val source: String, private val zinc: Zinc.Runtime) {
-
-	companion object {
-		val keywords = PrefixTree<TokenType>().also {
-			it["fn"] = FN
-			it["as"] = AS
-			it["let"] = LET
-			it["impl"] = IMPL
-			it["self"] = SELF
-			it["return"] = RETURN
-			it["struct"] = STRUCT
-			it["interface"] = INTERFACE
-			it["_"] = UNDERSCORE
-		}
-	}
 
 	private var start = 0
 	private var current = 0
@@ -57,6 +42,8 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 			')' -> create(RIGHT_PAREN)
 			'{' -> create(LEFT_BRACE)
 			'}' -> create(RIGHT_BRACE)
+			'[' -> create(LEFT_BRACKET)
+			']' -> create(RIGHT_BRACKET)
 			',' -> create(COMMA)
 			'~' -> create(TILDA)
 			':' -> create(normalOrDouble(COLON, COLON_COLON))
@@ -66,6 +53,7 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 			'!' -> create(normalOrEqual(BANG, BANG_EQUAL))
 			'*' -> create(normalOrEqual(STAR, STAR_EQUAL))
 			'/' -> create(normalOrEqual(SLASH, SLASH_EQUAL))
+			'%' -> create(normalOrEqual(PERCENT, PERCENT_EQUAL))
 			'<' -> create(normalOrEqual(LESS, LESS_EQUAL))
 			'>' -> create(normalOrEqual(GREATER, GREATER_EQUAL))
 			'+' -> create(normalDoubleOrEqual(PLUS, PLUS_PLUS, PLUS_EQUAL))
@@ -88,7 +76,7 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 			consume()
 			while (isNumeric(char)) consume()
 		}
-		return create(NUMBER)
+		return createWithLexeme(NUMBER)
 	}
 
 	private fun string(): Token {
@@ -102,7 +90,7 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 			consume()
 		}
 		if (atEnd()) error(CompilerError.unterminatedString(char, currentOnLine, line))
-		val string = create(STRING)
+		val string = createWithLexeme(STRING)
 		consume()
 		return string
 	}
@@ -110,7 +98,31 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 	private fun keyword(): Token {
 		while (isAlphaNumeric(char)) consume()
 		val lexeme = source.subSequence(start, current)
-		return create(keywords[lexeme] ?: IDENTIFIER)
+		val type = when (lexeme) {
+			"_" -> UNDERSCORE
+			"fn" -> FN
+			"as" -> AS
+			"if" -> IF
+			"let" -> LET
+			"mut" -> MUT
+			"mod" -> MOD
+			"else" -> ELSE
+			"loop" -> LOOP
+			"impl" -> IMPL
+			"self" -> SELF
+			"enum" -> ENUM
+			"true" -> TRUE
+			"false" -> FALSE
+			"break" -> BREAK
+			"const" -> CONST
+			"return" -> RETURN
+			"struct" -> STRUCT
+			"interface" -> INTERFACE
+			"typealias" -> TYPEALIAS
+			else -> IDENTIFIER
+		}
+		return if (type == IDENTIFIER) createWithLexeme(type)
+		else create(type)
 	}
 
 
@@ -139,6 +151,13 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 	}
 
 	private fun create(type: TokenType): Token {
+		start = current
+		val previousRange = startOnLine..currentOnLine
+		startOnLine = currentOnLine
+		return Token(type, null, line, previousRange)
+	}
+
+	private fun createWithLexeme(type: TokenType): Token {
 		val lexeme = source.subSequence(start, current)
 		start = current
 		val previousRange = startOnLine..currentOnLine

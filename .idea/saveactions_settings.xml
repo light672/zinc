@@ -7,7 +7,6 @@
         <option value="activateOnBatch" />
         <option value="organizeImports" />
         <option value="reformat" />
-        <option value="unqualifiedFieldAccess" />
         <option value="unnecessarySemicolon" />
       </set>
     </option>

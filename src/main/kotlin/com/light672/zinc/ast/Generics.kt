@@ -1,5 +1,6 @@
 package com.light672.zinc.ast
 
-internal class GenericParams(val params: List<Pair<Token, TypeParamBounds?>>)
-internal class GenericArgs(val args: List<Type>)
-internal class TypeParamBounds(val bounds: List<Type>)
+internal data class GenericArgs(val start: Token, val types: List<Type>, val end: Token)
+internal data class GenericParams(val start: Token, val params: List<Pair<Token, TypeParamBounds?>>, val end: Token)
+
+internal data class TypeParamBounds(val bounds: List<ComplexPath.Normal>)
