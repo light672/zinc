@@ -22,15 +22,18 @@ internal class Parser(val zinc: Zinc.Runtime) {
 				val open = token(LEFT_PAREN)
 				open
 					.then { expect(manyTrailingUntil(::functionParam, COMMA, RIGHT_PAREN)) }
-					.map { (list, close) -> Triple(open, list, close) }
+					.map { (list, close) -> Triple(+open, list, close) }
 			})
 		}
 		val returnType = params.then { optional(token(COLON).then { expect(type()) }) }
 
 		val functionNoBlock =
-			token(SEMICOLON).map { token -> Stmt.FunctionNoBlock(+keyword, +name, +genericParams, (+params).second, +returnType, token) }
+			token(SEMICOLON).map { token ->
+				Stmt.FunctionNoBlock(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, token)
+			}
+
 		val functionWithBlockParser =
-			{ block().map { block -> Stmt.Function(+keyword, +name, +genericParams, (+params).second, +returnType, block) } }
+			{ block().map { block -> Stmt.Function(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, block) } }
 
 		returnType
 			.then { expect(functionNoBlock or functionWithBlockParser) }
@@ -525,7 +528,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 
 			is Expr.Index -> if (expr.callee !is Expr.Variable) {
 				zinc.reportCompileError(CompilerError.expectedType(expr))
-				Type.Error
+				Type.Error(expr.range())
 			} else Type.Path(
 				ComplexPath.Normal(
 					listOf(ComplexSegment(expr.callee.identifier, GenericArgs(expr.argOpen, expr.args.map { exprToType(it) }, expr.argClose)))
@@ -536,7 +539,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			is Expr.Group -> Type.Tuple(expr.open, expr.expressions.map { exprToType(it) }, expr.close)
 			else -> {
 				zinc.reportCompileError(CompilerError.expectedType(expr))
-				Type.Error
+				Type.Error(expr.range())
 			}
 		}
 	}

@@ -6,6 +6,7 @@ internal sealed interface Stmt {
 		val name: Token,
 		val genericParams: GenericParams?,
 		val params: List<FunctionParam>,
+		val paramClose: Token,
 		val returnType: Type?,
 		val block: Expr.Block
 	) : Stmt
@@ -15,6 +16,7 @@ internal sealed interface Stmt {
 		val name: Token,
 		val genericParams: GenericParams?,
 		val params: List<FunctionParam>,
+		val paramClose: Token,
 		val returnType: Type?,
 		val semicolon: Token
 	) : Stmt
@@ -57,6 +59,17 @@ internal sealed interface Stmt {
 	) : Stmt
 
 	data class Expression(val expr: Expr, val semicolon: Token?) : Stmt
+
+	fun range() = when (this) {
+		is Expression -> expr.range().let { it.start..(semicolon?.asRange()?.end ?: it.end) }
+		is Function -> keyword..(returnType?.range()?.end ?: paramClose)
+		is FunctionNoBlock -> keyword..(returnType?.range()?.end ?: paramClose)
+		is Let -> keyword..(initializer?.range()?.end ?: type?.range()?.end ?: pattern.range().end)
+		is Module -> keyword..name
+		is Struct -> keyword..(genericParams?.end ?: name)
+		is TupleStruct -> keyword..(genericParams?.end ?: name)
+		is UnitStruct -> keyword..(genericParams?.end ?: name)
+	}
 }
 
 internal sealed interface FunctionParam {
