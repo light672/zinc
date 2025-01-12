@@ -16,7 +16,7 @@ internal sealed interface Expr {
 	data class Break(val keyword: Token, val expr: Expr?) : Expr
 
 	data class Block(val start: Token, val stmts: List<Stmt>, val end: Token) : Expr
-	data class If(val keyword: Token, val condition: Expr, val thenBlock: Block, val elseBlock: Block?) : Expr
+	data class If(val keyword: Token, val condition: Expr, val thenBlock: Block, val elseExpr: Expr?) : Expr
 	data class While(val keyword: Token, val condition: Expr, val block: Block) : Expr
 	data class For(val keyword: Token, val pattern: Pattern, val iterator: Expr, val block: Block) : Expr
 	data class Match(val keyword: Token, val expr: Expr, val branches: List<Pair<Pattern, Expr>>, val close: Token) : Expr
@@ -44,7 +44,7 @@ internal sealed interface Expr {
 			is Variable -> identifier.asRange()
 
 			is Block -> start..end
-			is If -> keyword..(elseBlock?.end ?: thenBlock.end)
+			is If -> keyword..(elseExpr?.range()?.end ?: thenBlock.end)
 			is While -> keyword..block.end
 			is Loop -> keyword..block.end
 			is For -> keyword..block.end

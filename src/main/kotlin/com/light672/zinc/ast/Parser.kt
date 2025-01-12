@@ -120,13 +120,23 @@ internal class Parser(val zinc: Zinc.Runtime) {
 	}
 
 	fun ifExpr() = with(combinator) {
-		val keyword = token(IF)
-		val condition = keyword
-			.then { expect(expression()) }
-		val thenBlock = condition.then { expect(block()) }
-		thenBlock
-			.then { optional(token(ELSE).then { expect(block()) }) }
-			.map { elseBlock -> Expr.If(+keyword, +condition, +thenBlock, elseBlock) }
+		fun ifParser(keyword: Token): ParseResult<Expr> {
+			fun elseParser(): ParseResult<Expr> {
+				return token(ELSE)
+					.then {
+						token(IF).flatMap { t -> ifParser(t) } or ::block
+					}
+			}
+
+			val condition = expect(expression())
+			val block = condition
+				.then { expect(block()) }
+			return block
+				.then { optional(elseParser()) }
+				.map { elseExpr -> Expr.If(keyword, +condition, +block, elseExpr) }
+		}
+
+		token(IF).flatMap { token -> ifParser(token) }
 	}
 
 	fun whileExpr() = with(combinator) {
