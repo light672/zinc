@@ -339,9 +339,22 @@ internal class Parser(val zinc: Zinc.Runtime) {
 				.map { (list, close) -> Triple(+open, list, close) }
 		}
 		val params = (beginArgs() or beginNoArgs)
-		params
-			.then { expect(expression()) }
-			.map { expr -> (+params).let { (open, list, close) -> Expr.Closure(open, list, close, expr) } }
+
+		val returnTypeParser = {
+			val type = token(MINUS_ARROW).then { expect(type()) }
+			type.then { expect(block()) }
+				.map { block -> Pair(+type, block) }
+		}
+
+		val withoutReturnType = {
+			expression()
+				.map { expr -> Pair(null, expr) }
+		}
+
+		val returnTypeAndExpr = params
+			.then { returnTypeParser() or withoutReturnType }
+		returnTypeAndExpr
+			.map { (type, expr) -> (+params).let { (open, list, close) -> Expr.Closure(open, list, close, type, expr) } }
 	}
 
 	fun block(): ParseResult<Expr.Block> = with(combinator) {

@@ -11,7 +11,7 @@ internal sealed interface Expr {
 	data class Unary(val operator: Token, val right: Expr) : Expr
 	data class Range(val left: Expr?, val operator: Token, val right: Expr?) : Expr
 	data class Binary(val left: Expr, val operator: Token, val right: Expr) : Expr
-	data class Closure(val open: Token, val params: List<Pair<Pattern, Type?>>, val close: Token, val expr: Expr) : Expr
+	data class Closure(val open: Token, val params: List<Pair<Pattern, Type?>>, val close: Token, val type: Type?, val expr: Expr) : Expr
 	data class Return(val keyword: Token, val expr: Expr?) : Expr
 	data class Break(val keyword: Token, val expr: Expr?) : Expr
 
