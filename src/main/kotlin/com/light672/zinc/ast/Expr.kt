@@ -8,7 +8,7 @@ internal sealed interface Expr {
 	data class FieldGet(val callee: Expr, val segment: ComplexSegment) : Expr
 	data class Call(val callee: Expr, val argOpen: Token, val args: List<Expr>, val argClose: Token) : Expr
 	data class Index(val callee: Expr, val argOpen: Token, val args: List<Expr>, val argClose: Token) : Expr
-	data class Unary(val operator: Token, val expr: Expr) : Expr
+	data class Unary(val operator: Token, val right: Expr) : Expr
 	data class Range(val left: Expr?, val operator: Token, val right: Expr?) : Expr
 	data class Binary(val left: Expr, val operator: Token, val right: Expr) : Expr
 	data class Closure(val open: Token, val params: List<Pair<Pattern, Type?>>, val close: Token, val expr: Expr) : Expr
@@ -40,7 +40,7 @@ internal sealed interface Expr {
 
 			is Range -> (left?.range()?.start ?: operator)..(right?.range()?.end ?: operator)
 			is Return -> keyword..(expr?.range()?.end ?: keyword)
-			is Unary -> operator..expr.range().end
+			is Unary -> operator..right.range().end
 			is Variable -> identifier.asRange()
 
 			is Block -> start..end
