@@ -25,7 +25,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 					.map { (list, close) -> Triple(+open, list, close) }
 			})
 		}
-		val returnType = params.then { optional(token(COLON).then { expect(type()) }) }
+		val returnType = params.then { optional(token(MINUS_ARROW).then { expect(type()) }) }
 
 		val functionNoBlock =
 			token(SEMICOLON).map { token ->
