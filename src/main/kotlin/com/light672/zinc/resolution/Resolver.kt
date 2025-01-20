@@ -69,7 +69,6 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 
 	// statements
 	fun stmt(stmt: ASTStmt, scope: Scope): Stmt {
-		defineScope(stmt, scope)
 		return when (stmt) {
 			is ASTStmt.Expression -> Stmt.Expression(expr(stmt.expr, scope), stmt)
 			is ASTStmt.Function -> function(stmt, scope)
@@ -113,6 +112,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 
 	private fun module(stmt: ASTStmt.Module): Stmt {
 		val moduleScope = Scope()
+		stmt.statements.forEach { defineScope(it, moduleScope) }
 		return Stmt.Module(stmt.statements.map { stmt(it, moduleScope) }, stmt)
 	}
 
@@ -441,7 +441,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 	// scope
 
 	private fun <T> getFromBranch(name: CharSequence, branch: Scope.Branch<T>, depth: Int = branch.depthSinceItem): Pair<T, Int>? {
-		return branch.data[name]?.let { Pair(it, depth) } ?: branch.parent?.let { getFromBranch(name, it, depth - 1) }
+		return branch.data[name]?.let { Pair(it, depth) } ?: branch.parent?.let { getFromBranch(name, it, depth - 2) }
 	}
 
 	private fun getValue(name: Token, scope: Scope, envName: String = "scope"): ValueItem? {

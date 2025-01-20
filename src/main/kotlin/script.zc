@@ -1,6 +1,9 @@
-fn check(a: int, a: int) {
-	match a {
-		b => { c },
-		_ => panic()
+fn anotherOver(c: ()) {
+	fn over(b: ()) {
+		let d = 3;
+		fn check(a: ()) {
+			b;
+			d
+		}
 	}
 }

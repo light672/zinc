@@ -3,7 +3,7 @@ package com.light672.zinc.resolution
 internal class Scope private constructor(val types: Branch<TypeItem>, val values: Branch<ValueItem>) {
 	constructor() : this(Branch(), Branch())
 
-	data class Branch<T>(val data: HashMap<CharSequence, T>, var parent: Branch<T>?, var depthSinceItem: Int) {
+	data class Branch<T>(val data: HashMap<CharSequence, T>, var parent: Branch<T>?, val depthSinceItem: Int) {
 		constructor() : this(HashMap(), null, 0)
 		constructor(parent: Branch<T>, depthSinceItem: Int) : this(HashMap(), parent, depthSinceItem)
 	}

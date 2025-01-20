@@ -27,6 +27,7 @@ object Zinc {
 			val (stmts, eof) = +stmtsResult
 			val scope = Scope()
 			val resolver = Resolver(this)
+			stmts.forEach { resolver.defineScope(it, scope) }
 			val irStmts = stmts.map { resolver.stmt(it, scope) }
 			println(stmts)
 		}
