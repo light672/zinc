@@ -1,6 +1,6 @@
-fn check(a: int) {
+fn check(a: int, a: int) {
 	match a {
-		b => b,
+		b => { c },
 		_ => panic()
 	}
 }

@@ -20,6 +20,8 @@ internal class CompilerError(
 		fun unterminatedString(char: Char, line: Int, currentOnLine: Int) =
 			CompilerError("unterminated string", Token.empty(line, currentOnLine..currentOnLine).asRange(), "expected `\"`")
 
+		// parser
+
 		fun unexpectedToken(token: Token, expected: TokenType) =
 			CompilerError("unexpected token `$token`, expected `$expected`", token.asRange(), "expected `$expected`")
 
@@ -37,7 +39,7 @@ internal class CompilerError(
 
 		fun expectedExpression(token: Token) =
 			CompilerError("expected expression but got `$token`", token.asRange(), "expected expression")
-		
+
 		fun expectedStatement(token: Token) =
 			CompilerError("expected statement but got `$token`", token.asRange(), "expected statement")
 
@@ -47,11 +49,31 @@ internal class CompilerError(
 		fun expectedPathSegment(token: Token) =
 			CompilerError("expected a path segment leading with `::` after qualified segment", token.asRange(), "expected `::`")
 
-		fun expectedUnqualifiedPath(expr: Expr) =
-			CompilerError("expected unqualified path", expr.range(), "expected unqualified path")
+		// resolver
 
-		fun expectedItem(expr: Expr) =
-			CompilerError("expected item path", expr.range(), "expected item path")
+		fun nameAlreadyExists(name: CharSequence, declRange: Token.Range, inEnvironment: String) =
+			CompilerError("item `$name` already exists in $inEnvironment", declRange, "previously declared")
+
+		fun cannotShadowName(name: CharSequence, declRange: Token.Range) =
+			CompilerError("item `$name` cannot be shadowed in scope", declRange, "previously declared")
+
+		fun nameNotFound(name: CharSequence, range: Token.Range, inEnvironment: String) =
+			CompilerError("item `$name` does not exist in $inEnvironment", range, "not found in $inEnvironment")
+
+		fun genericsNotAllowedIn(range: Token.Range, item: String) =
+			CompilerError("generic arguments should not be provided for $item", range, "remove generic arguments")
+
+		fun useQualifiedPath(name: Token, range: Token.Range) =
+			CompilerError("a qualified path must be used to verify the use of `$name`", range, "use qualified path")
+
+		fun patternMustBeIrrefutable(pattern: Token.Range) =
+			CompilerError("pattern must be able to match any value", pattern, "pattern is refutable")
+
+		fun cannotCaptureDynamicEnvironment(token: Token) =
+			CompilerError("cannot capture dynamic environment outside of item", token.asRange(), "`$token` is declared outside of item")
+
+		fun itemDoesNotHaveAssociatedItems(name: Token, item: String) =
+			CompilerError("item $item does not contain associated items", name.asRange(), "cannot access in $item")
 
 	}
 }

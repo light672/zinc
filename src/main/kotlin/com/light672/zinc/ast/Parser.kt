@@ -26,7 +26,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			})
 		}
 		val returnType = params.then { optional(token(MINUS_ARROW).then { expect(type()) }) }
-
+		// val whereClause = returnType.then { optional(where()) }
 		val functionNoBlock =
 			token(SEMICOLON).map { token ->
 				Stmt.FunctionNoBlock(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, token)
@@ -34,8 +34,8 @@ internal class Parser(val zinc: Zinc.Runtime) {
 
 		val functionWithBlockParser =
 			{ block().map { block -> Stmt.Function(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, block) } }
-
 		returnType
+			//whereClause
 			.then { expect(functionNoBlock or functionWithBlockParser) }
 	}
 
@@ -58,6 +58,8 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			.then { expect(token(IDENTIFIER)) }
 		val genericParams = name
 			.then { optional(genericParams()) }
+
+		// val whereClause = genericParams.then { optional(where()) }
 
 		val structFieldParser = {
 			val name = token(IDENTIFIER)
@@ -82,8 +84,8 @@ internal class Parser(val zinc: Zinc.Runtime) {
 		}
 		val unitParser = { token(SEMICOLON).map { semicolon -> Stmt.UnitStruct(+keyword, +name, +genericParams, semicolon) } }
 
-
 		genericParams
+			// whereClause
 			.then { expect(structParser() or tupleParser or unitParser) }
 	}
 
@@ -189,12 +191,11 @@ internal class Parser(val zinc: Zinc.Runtime) {
 	}
 
 	fun primary() = with(combinator) {
-		lateinit var open: Token
 		val group = {
-			token(LEFT_PAREN)
-				.with { open = it }
+			val open = token(LEFT_PAREN)
+			open
 				.then { expect(manySeparatedUntil(::expression, COMMA, RIGHT_PAREN)) }
-				.map { (list, close) -> Expr.Group(open, list, close) }
+				.map { (list, close) -> Expr.Group(+open, list, close) }
 		}
 		val literal = {
 			token(
@@ -204,18 +205,16 @@ internal class Parser(val zinc: Zinc.Runtime) {
 				FALSE
 			).map { Expr.Literal(it) }
 		}
-		val variable = { token(IDENTIFIER).map { Expr.Variable(it) } }
 
-		group() or literal or variable or { qualifiedPath().map { path -> Expr.Path(path) } } or ::returnExpr or ::breakExpr or ::closure or ::expressionWithBlock
+		group() or ::exprPath or literal or { qualifiedPath().map { path -> Expr.Path(path) } } or ::returnExpr or ::breakExpr or ::closure or ::expressionWithBlock
 	}
 
 	fun args(open: TokenType, close: TokenType): ParseResult<Triple<Token, List<Expr>, Token>> {
 		return with(combinator) {
-			lateinit var openToken: Token
-			token(open)
-				.with { openToken = it }
+			val openToken = token(open)
+			openToken
 				.then { expect(manyTrailingUntil(::expression, COMMA, close)) }
-				.map { (list, closeToken) -> Triple(openToken, list, closeToken) }
+				.map { (list, closeToken) -> Triple(+openToken, list, closeToken) }
 		}
 	}
 
@@ -226,16 +225,9 @@ internal class Parser(val zinc: Zinc.Runtime) {
 	fun callPrime(callee: Expr): ParseResult<Expr> = with(combinator) {
 		val callArgs = { args(LEFT_PAREN, RIGHT_PAREN).map { (open, args, close) -> Expr.Call(callee, open, args, close) } }
 		val indexArgs = { args(LEFT_BRACKET, RIGHT_BRACKET).map { (open, args, close) -> Expr.Index(callee, open, args, close) } }
-		val dot = { token(DOT).then { expect(pathSegment()) }.map { seg -> Expr.FieldGet(callee, seg) } }
-		val path = {
-			pathAfterExpr().map { list ->
-				val path = exprLeadingPath(callee, list)
-				if (path is ComplexPath.Error) return@map Expr.Path(path)
-				Expr.Path(path)
-			}
-		}
+		val dot = { token(DOT).then { expect(fieldSegment()) }.map { seg -> Expr.FieldGet(callee, seg) } }
 
-		val args = { callArgs() or indexArgs or dot or path }
+		val args = { callArgs() or indexArgs or dot }
 
 		args().flatMap { expr -> callPrime(expr) } or { success(callee) }
 	}
@@ -435,43 +427,74 @@ internal class Parser(val zinc: Zinc.Runtime) {
 	}
 
 	fun genericArgs(): ParseResult<GenericArgs> = with(combinator) {
-		val open = token(LEFT_BRACKET)
+		val open = token(LESS)
 		open
-			.then { expect(manyTrailingUntil({ expect(type()) }, COMMA, RIGHT_BRACKET)) }
+			.then { expect(manyTrailingUntil({ expect(type()) }, COMMA, GREATER)) }
 			.map { (list, close) -> GenericArgs(+open, list, close) }
 	}
 
 	fun genericParams(): ParseResult<GenericParams> = with(combinator) {
-		val open = token(LEFT_BRACKET)
+		val open = token(LESS)
 		val typeParamParser = {
 			val identifier = token(IDENTIFIER)
 			identifier
-				.then { optional(token(COLON).then { expect(typeBounds()) }) }
-				.map { bounds -> Pair(+identifier, bounds) }
+			// identifier
+			// .then { optional(token(COLON).then { expect(typeParamBound()) }) }
+			// .map { bounds -> Pair(+identifier, bounds) }
 		}
 		open
-			.then { expect(manyTrailingUntil(typeParamParser, COMMA, RIGHT_BRACKET)) }
+			.then { expect(manyTrailingUntil(typeParamParser, COMMA, GREATER)) }
 			.map { (list, close) -> GenericParams(+open, list, close) }
 	}
 
-	fun typeBounds(): ParseResult<TypeParamBounds> = with(combinator) {
-		val first = normalComplexPath()
+	fun where(): ParseResult<WhereClause> = with(combinator) {
+		val keyword = token(WHERE)
+		val clauseParser = {
+			val type = type()
+			val bounds = type
+				.then { expect(token(COLON)).then { expect(typeParamBound()) } }
+			bounds.map { bounds -> Pair(+type, bounds) }
+		}
+		val first = clauseParser()
 		first
-			.then { many({ token(AMP).then { expect(normalComplexPath()) } }, listOf(+first)) }
+			.then { manyTrailing(clauseParser, COMMA) }
+			.map { clauseItems -> WhereClause(+keyword, clauseItems) }
+	}
+
+	fun typeParamBound(): ParseResult<TypeParamBounds> = with(combinator) {
+		val first = typePath()
+		first
+			.then { many({ token(AMP).then { expect(typePath()) } }, listOf(+first)) }
 			.map { list -> TypeParamBounds(list) }
 	}
 
 	// paths
 
-	fun normalComplexPath() = with(combinator) {
-		val firstSegment = pathSegment()
-		firstSegment
-			.then { expect(many({ token(COLON_COLON).then { expect(pathSegment()) } }, listOf(+firstSegment))) }
-			.map { segments -> ComplexPath.Normal(segments) }
+	fun path(segmentParser: () -> ParseResult<ComplexSegment>) = with(combinator) {
+		val list = ArrayList<ComplexSegment>()
+
+		var topSegment = segmentParser()
+		if (!topSegment.isSuccess()) return ParseResult.NoMatch(CompilerError.EMPTY)
+		list.add(+topSegment)
+
+		while (isPrevious(COLON_COLON))
+			topSegment = topSegment
+				.then { expect(segmentParser()) }
+				.with { seg -> list.add(seg) }
+
+		topSegment
+			.flatMap { success(ComplexPath.Normal(list)) }
 	}
 
+	fun typePath() = path(::pathSegment)
+	fun exprPath() = with(combinator) {
+		path(::exprPathSegment)
+			.map { path -> Expr.Path(path) }
+	}
+
+
 	fun qualifiedPath() = with(combinator) {
-		val asParser = { token(AS).then { expect(normalComplexPath()) } }
+		val asParser = { token(AS).then { expect(typePath()) } }
 
 		val openToken = token(LESS)
 		val type = openToken
@@ -480,81 +503,39 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			.then { optional(asParser()) }
 		val close = trait
 			.then { expect(token(GREATER)) }
-		val firstSegment = close
-			.then { expect(token(COLON_COLON).error { CompilerError.expectedPathSegment(current) }.then(::pathSegment)) }
-		firstSegment
-			.then { many({ token(COLON_COLON).then { expect(pathSegment()) } }, listOf(+firstSegment)) }
-			.map { segments -> ComplexPath.Qualified(+openToken, +type, +trait, +close, segments) }
+		close
+			.then { expect(token(COLON_COLON)) }
+			.then { expect(typePath()) }
+			.map { typePath -> ComplexPath.Qualified(+openToken, +type, +trait, +close, typePath.body) }
 
 	}
 
 	fun complexPath(): ParseResult<ComplexPath> = with(combinator) {
-		qualifiedPath() or ::normalComplexPath
-	}
-
-
-	fun pathAfterExpr(): ParseResult<List<ComplexSegment>> = with(combinator) {
-		val first = token(COLON_COLON)
-			.then { expect(pathSegment()) }
-		first
-			.then { many({ token(COLON_COLON).then { expect(pathSegment()) } }, listOf(+first)) }
+		qualifiedPath() or ::typePath
 	}
 
 	fun pathSegment(): ParseResult<ComplexSegment> = with(combinator) {
 		val identifier = token(IDENTIFIER)
 		identifier
-			.then { optional(genericArgs()) }
+			.then { optional(token(COLON_COLON)) } // consumes the `::` in between ident and generics if people use that for some reason
+			.then { optional(genericArgs().with { token(COLON_COLON) }) } // consumes terminator `::` after generic args if present
 			.map { generics -> ComplexSegment(+identifier, generics) }
 	}
 
-	// utility
 
-	private fun exprLeadingPath(expr: Expr, segments: List<ComplexSegment>): ComplexPath {
-		return when (expr) {
-			is Expr.Index ->
-				if (expr.callee is Expr.Variable)
-					ComplexPath.Normal(buildList {
-						add(ComplexSegment(expr.callee.identifier, GenericArgs(expr.argOpen, expr.args.map { exprToType(it) }, expr.argClose)))
-						addAll(segments)
-					})
-				else {
-					zinc.reportCompileError(CompilerError.expectedPathSegment(expr))
-					ComplexPath.Error(expr.range().start..segments.last().let { it.generics?.end ?: it.id })
-				}
-
-			is Expr.Variable ->
-				ComplexPath.Normal(buildList {
-					add(ComplexSegment(expr.identifier, null))
-					addAll(segments)
-				})
-
-			else -> {
-				zinc.reportCompileError(CompilerError.expectedPathSegment(expr))
-				ComplexPath.Error(expr.range().start..segments.last().let { it.generics?.end ?: it.id })
-			}
-		}
+	// only difference between this and `pathSegment` is that a `::` must be present before parsing any generics
+	fun exprPathSegment(): ParseResult<ComplexSegment> = with(combinator) {
+		val identifier = token(IDENTIFIER)
+		identifier
+			.then { optional(token(COLON_COLON).then { optional(genericArgs().with { token(COLON_COLON) }) }) } // consumes terminator `::` after generic args if present
+			.map { generics -> ComplexSegment(+identifier, generics) }
 	}
 
-	private fun exprToType(expr: Expr): Type {
-		return when (expr) {
-			is Expr.Variable -> Type.Path(ComplexPath.Normal(listOf(ComplexSegment(expr.identifier, null))))
-
-			is Expr.Index -> if (expr.callee !is Expr.Variable) {
-				zinc.reportCompileError(CompilerError.expectedType(expr))
-				Type.Error(expr.range())
-			} else Type.Path(
-				ComplexPath.Normal(
-					listOf(ComplexSegment(expr.callee.identifier, GenericArgs(expr.argOpen, expr.args.map { exprToType(it) }, expr.argClose)))
-				)
-			)
-
-			is Expr.Path -> Type.Path(expr.path)
-			is Expr.Group -> Type.Tuple(expr.open, expr.expressions.map { exprToType(it) }, expr.close)
-			else -> {
-				zinc.reportCompileError(CompilerError.expectedType(expr))
-				Type.Error(expr.range())
-			}
-		}
+	fun fieldSegment(): ParseResult<ComplexSegment> = with(combinator) {
+		val identifier = token(IDENTIFIER)
+		identifier
+			.then { optional(token(COLON_COLON).then { expect(genericArgs()) }) }
+			.map { generics -> ComplexSegment(+identifier, generics) }
 	}
 
 }

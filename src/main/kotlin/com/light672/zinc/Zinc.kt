@@ -2,6 +2,8 @@ package com.light672.zinc
 
 import com.light672.zinc.ast.Parser
 import com.light672.zinc.ast.TokenType
+import com.light672.zinc.resolution.Resolver
+import com.light672.zinc.resolution.Scope
 import java.io.PrintStream
 
 object Zinc {
@@ -19,36 +21,14 @@ object Zinc {
 
 
 		fun run() {
-			/*val combinator = CombinatorParser(this)
-
-			val negativeParser = {
-				with(combinator) {
-					var negative: Token? = null
-					optional(token(TokenType.MINUS))
-						.with { negative = it }
-						.then { token(TokenType.NUMBER) }
-						.map { t -> parseInt(t.lexeme!!.toString()) * if (negative == null) 1 else -1 }
-				}
-			}
-
-			val rangeParser = {
-				with(combinator) {
-					var first: Int? = null
-					optional(negativeParser())
-						.with { first = it }
-						.then { token(TokenType.DOT_DOT) }
-						.then { optional(negativeParser()) }
-						.map { t -> (first ?: Int.MIN_VALUE)..(t ?: Int.MAX_VALUE) }
-				}
-			}
-
-			println(rangeParser())*/
-
-			println(with(Parser(this)) {
-				with(combinator) {
-					expect(manyUntil(::declaration, TokenType.EOF))
-				}
-			})
+			val parser = Parser(this)
+			val stmtsResult = with(parser) { with(combinator) { expect(manyUntil(::declaration, TokenType.EOF)) } }
+			if (!stmtsResult.isSuccess()) return
+			val (stmts, eof) = +stmtsResult
+			val scope = Scope()
+			val resolver = Resolver(this)
+			val irStmts = stmts.map { resolver.stmt(it, scope) }
+			println(stmts)
 		}
 
 		internal fun reportCompileError(error: CompilerError) {

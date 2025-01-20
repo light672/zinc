@@ -64,6 +64,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		else ParseResult.NoMatch(CompilerError.unexpectedToken(current, types))
 	}
 
+
 	inline fun <T, R> ParseResult<T>.map(transform: (T) -> R) = map(this, transform)
 
 	@JvmName("mapFunc")
@@ -102,6 +103,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		throw IllegalArgumentException()
 	}
 
+
 	inline fun <T> loop(parser: () -> ParseResult<T>): ParseResult<T> {
 		var previous = parser()
 		while (true) {
@@ -130,11 +132,11 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 			)
 		} while (!isNext(end))
 		expect(end) ?: return ParseResult.Error
-		return ParseResult.Success(Pair(list, previous))
+		return success(Pair(list, previous))
 	}
 
 	inline fun <T> manySeparatedUntil(parser: () -> ParseResult<T>, separator: TokenType, end: TokenType): ParseResult<Pair<List<T>, Token>> {
-		if (consumeIfMatch(end)) return ParseResult.Success(Pair(emptyList<T>(), previous))
+		if (consumeIfMatch(end)) return success(Pair(emptyList<T>(), previous))
 		val list = ArrayList<T>()
 		do {
 			list.add(
@@ -146,7 +148,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 			)
 		} while (consumeIfMatch(separator))
 		expect(separator, end) ?: return ParseResult.Error
-		return ParseResult.Success(Pair(list, previous))
+		return success(Pair(list, previous))
 	}
 
 	inline fun <T> manyTrailingUntil(
@@ -154,7 +156,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		separator: TokenType,
 		end: TokenType
 	): ParseResult<Pair<List<T>, Token>> {
-		if (consumeIfMatch(end)) return ParseResult.Success(Pair(emptyList(), previous))
+		if (consumeIfMatch(end)) return success(Pair(emptyList(), previous))
 		val list = ArrayList<T>()
 		do {
 			list.add(
@@ -166,7 +168,24 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 			)
 		} while (consumeIfMatch(separator) && !isNext(end))
 		expect(separator, end) ?: return ParseResult.Error
-		return ParseResult.Success(Pair(list, previous))
+		return success(Pair(list, previous))
+	}
+
+	inline fun <T> manyTrailing(
+		parser: () -> ParseResult<T>,
+		separator: TokenType,
+	): ParseResult<List<T>> {
+		val list = ArrayList<T>()
+		do {
+			list.add(
+				when (val result = expect(parser())) {
+					is ParseResult.Error -> return result
+					is ParseResult.NoMatch -> return success(list)
+					is ParseResult.Success -> result.value
+				}
+			)
+		} while (consumeIfMatch(separator))
+		return success(list)
 	}
 
 	fun <T> ParseResult<T>.error(createError: () -> CompilerError): ParseResult<T> {
@@ -214,6 +233,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 	private fun atEnd() = isNext(EOF)
 
 	fun isNext(type: TokenType) = current.type == type
+	fun isPrevious(type: TokenType) = previous.type == type
+
 	private fun isNext(types: Array<out TokenType>) = current.type in types
-	private fun isPrevious(type: TokenType) = previous.type == type
 }

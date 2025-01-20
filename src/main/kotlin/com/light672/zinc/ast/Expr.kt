@@ -3,7 +3,6 @@ package com.light672.zinc.ast
 internal sealed interface Expr {
 	data class Literal(val token: Token) : Expr
 	data class Path(val path: ComplexPath) : Expr
-	data class Variable(val identifier: Token) : Expr
 	data class Group(val open: Token, val expressions: List<Expr>, val close: Token) : Expr
 	data class FieldGet(val callee: Expr, val segment: ComplexSegment) : Expr
 	data class Call(val callee: Expr, val argOpen: Token, val args: List<Expr>, val argClose: Token) : Expr
@@ -16,6 +15,7 @@ internal sealed interface Expr {
 	data class Break(val keyword: Token, val expr: Expr?) : Expr
 
 	data class Block(val start: Token, val stmts: List<Stmt>, val end: Token) : Expr
+
 	data class If(val keyword: Token, val condition: Expr, val thenBlock: Block, val elseExpr: Expr?) : Expr
 	data class While(val keyword: Token, val condition: Expr, val block: Block) : Expr
 	data class For(val keyword: Token, val pattern: Pattern, val iterator: Expr, val block: Block) : Expr
@@ -41,7 +41,6 @@ internal sealed interface Expr {
 			is Range -> (left?.range()?.start ?: operator)..(right?.range()?.end ?: operator)
 			is Return -> keyword..(expr?.range()?.end ?: keyword)
 			is Unary -> operator..right.range().end
-			is Variable -> identifier.asRange()
 
 			is Block -> start..end
 			is If -> keyword..(elseExpr?.range()?.end ?: thenBlock.end)
@@ -65,7 +64,6 @@ internal sealed interface Expr {
 		is Range -> "range expression"
 		is Return -> "return expression"
 		is Unary -> "unary expression"
-		is Variable -> "variable expression"
 		is Block -> "block expression"
 		is If -> "if expression"
 		is While -> "while expression"

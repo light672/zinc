@@ -115,6 +115,7 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 			"enum" -> ENUM
 			"true" -> TRUE
 			"false" -> FALSE
+			"where" -> WHERE
 			"while" -> WHILE
 			"match" -> MATCH
 			"break" -> BREAK

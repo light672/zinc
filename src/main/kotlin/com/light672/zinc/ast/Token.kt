@@ -36,6 +36,7 @@ internal enum class TokenType(
 	ENUM("enum"),
 	TRUE("true"),
 	FALSE("false"),
+	WHERE("where"),
 	WHILE("while"),
 	MATCH("match"),
 	BREAK("break"),

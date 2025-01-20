@@ -8,6 +8,7 @@ internal sealed interface Stmt {
 		val params: List<FunctionParam>,
 		val paramClose: Token,
 		val returnType: Type?,
+		// val whereClause: WhereClause?,
 		val block: Expr.Block
 	) : Stmt
 
@@ -18,6 +19,7 @@ internal sealed interface Stmt {
 		val params: List<FunctionParam>,
 		val paramClose: Token,
 		val returnType: Type?,
+		// val whereClause: WhereClause?,
 		val semicolon: Token
 	) : Stmt
 
@@ -25,6 +27,7 @@ internal sealed interface Stmt {
 		val keyword: Token,
 		val name: Token,
 		val genericParams: GenericParams?,
+		// val whereClause: WhereClause?,
 		val semicolon: Token
 	) : Stmt
 
@@ -33,6 +36,7 @@ internal sealed interface Stmt {
 		val name: Token,
 		val genericParams: GenericParams?,
 		val fields: List<Type>,
+		// val whereClause: WhereClause?,
 		val close: Token
 	) : Stmt
 
@@ -41,6 +45,7 @@ internal sealed interface Stmt {
 		val name: Token,
 		val genericParams: GenericParams?,
 		val fields: List<Pair<Token, Type>>,
+		// val whereClause: WhereClause?,
 		val close: Token
 	) : Stmt
 
