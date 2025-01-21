@@ -55,7 +55,7 @@ internal sealed interface Stmt {
 
 }
 
-internal interface FunctionParam {
+internal sealed interface FunctionParam {
 	data class SelfParam(val type: Type?, val ast: ASTFunctionParam.SelfParam) : FunctionParam
 	data class PatternParam(val pattern: Pattern, val type: Type) : FunctionParam
 }
