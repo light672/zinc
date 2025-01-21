@@ -1,9 +1,9 @@
-fn main() {
-	let a = 3;
+mod a {
+	fn a() {
 
+	}
 }
 
-struct a<T> {
-	a: T,
-	b: List<T>
+fn main() {
+	a::c();
 }

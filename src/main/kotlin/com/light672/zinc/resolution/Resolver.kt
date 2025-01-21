@@ -338,8 +338,12 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 	private fun getTypeInItem(item: TypeItemReference, name: Token, generics: GenericArgs?): TypeItemReference? {
 		val (item, _generics) = unwrapItemFromTypeRef(item)
 		return when (item) {
-			is TypeItem.Module ->
-				item.scope.types.data[name.lexeme!!]?.let { TypeItemReference.Simple(it, generics) }
+			is TypeItem.Module -> {
+				val ref = item.scope.types.data[name.lexeme!!]?.let { TypeItemReference.Simple(it, generics) }
+				ref ?: zinc.reportCompileError(CompilerError.nameNotFound(name.lexeme, name.asRange(), "module"))
+				ref
+			}
+
 
 			is TypeItem.Struct, is TypeItem.TupleStruct, is TypeItem.UnitStruct -> {
 				zinc.reportCompileError(CompilerError.useQualifiedPath(name, name.asRange()))
@@ -355,8 +359,11 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 		val (item, _generics) = unwrapItemFromTypeRef(item)
 		return when (item) {
 			TypeItem.Ambiguous -> null
-			is TypeItem.Module ->
-				item.scope.values.data[name.lexeme!!]?.let { ValueItemReference.Simple(it, generics) }
+			is TypeItem.Module -> {
+				val ref = item.scope.values.data[name.lexeme!!]?.let { ValueItemReference.Simple(it, generics) }
+				ref ?: zinc.reportCompileError(CompilerError.nameNotFound(name.lexeme, name.asRange(), "module"))
+				ref
+			}
 
 			is TypeItem.Struct, is TypeItem.TupleStruct, is TypeItem.UnitStruct, is TypeItem.Generic -> {
 				zinc.reportCompileError(CompilerError.useQualifiedPath(name, name.asRange()))
