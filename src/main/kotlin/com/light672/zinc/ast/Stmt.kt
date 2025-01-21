@@ -1,5 +1,6 @@
 package com.light672.zinc.ast
 
+import com.light672.zinc.resolution.Scope
 import com.light672.zinc.resolution.TypeItem
 import com.light672.zinc.resolution.ValueItem
 
@@ -15,6 +16,7 @@ internal sealed interface Stmt {
 		val block: Expr.Block
 	) : Stmt {
 		lateinit var item: ValueItem.Function
+		lateinit var genericScope: Scope
 	}
 
 	data class FunctionNoBlock(
@@ -28,6 +30,7 @@ internal sealed interface Stmt {
 		val semicolon: Token
 	) : Stmt {
 		lateinit var item: ValueItem.Function
+		lateinit var genericScope: Scope
 	}
 
 	data class UnitStruct(
@@ -38,6 +41,7 @@ internal sealed interface Stmt {
 		val semicolon: Token
 	) : Stmt {
 		lateinit var item: TypeItem.UnitStruct
+		lateinit var genericScope: Scope
 	}
 
 	data class TupleStruct(
@@ -49,6 +53,7 @@ internal sealed interface Stmt {
 		val close: Token
 	) : Stmt {
 		lateinit var item: TypeItem.TupleStruct
+		lateinit var genericScope: Scope
 	}
 
 	data class Struct(
@@ -60,6 +65,7 @@ internal sealed interface Stmt {
 		val close: Token
 	) : Stmt {
 		lateinit var item: TypeItem.Struct
+		lateinit var genericScope: Scope
 	}
 
 	data class Module(

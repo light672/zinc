@@ -1,9 +1,9 @@
-fn anotherOver(c: ()) {
-	fn over(b: ()) {
-		let d = 3;
-		fn check(a: ()) {
-			b;
-			d
-		}
-	}
+fn main() {
+	let a = 3;
+
+}
+
+struct a<T> {
+	a: T,
+	b: List<T>
 }

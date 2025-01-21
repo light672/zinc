@@ -23,12 +23,14 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 			is ASTStmt.Function -> {
 				val item = ValueItem.Function(stmt)
 				stmt.item = item
+				stmt.genericScope = scope.newItem()
 				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
 			}
 
 			is ASTStmt.FunctionNoBlock -> {
 				val item = ValueItem.Function(stmt)
 				stmt.item = item
+				stmt.genericScope = scope.newItem()
 				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
 			}
 
@@ -43,18 +45,21 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 			is ASTStmt.Struct -> {
 				val item = TypeItem.Struct(stmt.fields.associate { (token, type) -> Pair(token.lexeme!!, type) }, stmt)
 				stmt.item = item
+				stmt.genericScope = scope.newItem()
 				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
 			}
 
 			is ASTStmt.TupleStruct -> {
 				val item = TypeItem.TupleStruct(stmt)
 				stmt.item = item
+				stmt.genericScope = scope.newItem()
 				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
 			}
 
 			is ASTStmt.UnitStruct -> {
 				val item = TypeItem.UnitStruct(stmt)
 				stmt.item = item
+				stmt.genericScope = scope.newItem()
 				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
 			}
 		}
@@ -95,17 +100,21 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 	}
 
 	private fun function(stmt: ASTStmt.Function, scope: Scope): Stmt {
-		val (genericParams, scope) = genericParams(stmt.genericParams, scope)
-		val params = stmt.params.map { param -> functionParam(param, scope) }
-		val returnType = stmt.returnType?.let { type(it, scope) }
-		val block = block(stmt.block, scope)
+		stmt.genericScope.values.parent = scope.values
+		stmt.genericScope.types.parent = scope.types
+		val genericParams = genericParams(stmt.genericParams, stmt.genericScope)
+		val params = stmt.params.map { param -> functionParam(param, stmt.genericScope) }
+		val returnType = stmt.returnType?.let { type(it, stmt.genericScope) }
+		val block = block(stmt.block, stmt.genericScope)
 		return Stmt.Function(genericParams, params, returnType, block, stmt)
 	}
 
 	private fun functionNoBlock(stmt: ASTStmt.FunctionNoBlock, scope: Scope): Stmt {
-		val (genericParams, scope) = genericParams(stmt.genericParams, scope)
-		val params = stmt.params.map { param -> functionParam(param, scope) }
-		val returnType = stmt.returnType?.let { type(it, scope) }
+		stmt.genericScope.values.parent = scope.values
+		stmt.genericScope.types.parent = scope.types
+		val genericParams = genericParams(stmt.genericParams, stmt.genericScope)
+		val params = stmt.params.map { param -> functionParam(param, stmt.genericScope) }
+		val returnType = stmt.returnType?.let { type(it, stmt.genericScope) }
 		return Stmt.FunctionNoBlock(genericParams, params, returnType, stmt)
 	}
 
@@ -129,19 +138,25 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 	}
 
 	private fun struct(stmt: ASTStmt.Struct, scope: Scope): Stmt {
-		val (genericParams, scope) = genericParams(stmt.genericParams, scope)
-		val fields = stmt.fields.associate { (token, type) -> Pair(token.lexeme!!, type(type, scope)) }
+		stmt.genericScope.values.parent = scope.values
+		stmt.genericScope.types.parent = scope.types
+		val genericParams = genericParams(stmt.genericParams, stmt.genericScope)
+		val fields = stmt.fields.associate { (token, type) -> Pair(token.lexeme!!, type(type, stmt.genericScope)) }
 		return Stmt.Struct(genericParams, fields, stmt)
 	}
 
 	private fun tupleStruct(stmt: ASTStmt.TupleStruct, scope: Scope): Stmt {
-		val (genericParams, scope) = genericParams(stmt.genericParams, scope)
-		val fields = stmt.fields.map { type -> type(type, scope) }
+		stmt.genericScope.values.parent = scope.values
+		stmt.genericScope.types.parent = scope.types
+		val genericParams = genericParams(stmt.genericParams, stmt.genericScope)
+		val fields = stmt.fields.map { type -> type(type, stmt.genericScope) }
 		return Stmt.TupleStruct(genericParams, fields, stmt)
 	}
 
 	private fun unitStruct(stmt: ASTStmt.UnitStruct, scope: Scope): Stmt {
-		val (genericParams, scope) = genericParams(stmt.genericParams, scope)
+		stmt.genericScope.values.parent = scope.values
+		stmt.genericScope.types.parent = scope.types
+		val genericParams = genericParams(stmt.genericParams, stmt.genericScope)
 		return Stmt.UnitStruct(genericParams, stmt)
 	}
 
@@ -213,7 +228,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 		val irStmts = block.stmts.map { stmt ->
 			if (stmt is ASTStmt.Let) scope = scope.newValues()
 			stmt(stmt, scope)
-		}
+		} // need to define function scopes inside of functions
 
 		return Expr.Block(irStmts, block)
 	}
@@ -307,11 +322,10 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 		return GenericArgs(generics.types.map { type(it, scope) }, generics)
 	}
 
-	private fun genericParams(genericParams: ASTGenericParams?, scope: Scope): Pair<GenericParams?, Scope> {
-		val newScope = scope.newItem()
-		genericParams ?: return Pair(null, scope)
-		val parameters = genericParams.params.map { ident -> declareGeneric(ident, scope) }
-		return Pair(GenericParams(parameters, genericParams), newScope)
+	private fun genericParams(genericParams: ASTGenericParams?, genericScope: Scope): GenericParams? {
+		genericParams ?: return null
+		val parameters = genericParams.params.map { ident -> declareGeneric(ident, genericScope) }
+		return GenericParams(parameters, genericParams)
 	}
 
 	private fun declareGeneric(name: Token, scope: Scope): TypeItem.Generic {
@@ -453,7 +467,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 	// scope
 
 	private fun <T> getFromBranch(name: CharSequence, branch: Scope.Branch<T>, depth: Int = branch.depthSinceItem): Pair<T, Int>? {
-		return branch.data[name]?.let { Pair(it, depth) } ?: branch.parent?.let { getFromBranch(name, it, depth - 2) }
+		return branch.data[name]?.let { Pair(it, depth) } ?: branch.parent?.let { getFromBranch(name, it, depth - 1) }
 	}
 
 	private fun getValue(name: Token, scope: Scope, envName: String = "scope"): ValueItem? {
