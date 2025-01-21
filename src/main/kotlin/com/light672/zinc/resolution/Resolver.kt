@@ -387,7 +387,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 		val (item, generics) = unwrapItemFromTypeRef(itemRef)
 		if (generics != null)
 			when (item) {
-				is TypeItem.Module ->
+				is TypeItem.Module, is TypeItem.Generic, is TypeItem.Primitive ->
 					zinc.reportCompileError(CompilerError.genericsNotAllowedIn(segment.range(), "module"))
 
 				else -> {}
