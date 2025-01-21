@@ -20,30 +20,43 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 	fun defineScope(stmt: ASTStmt, scope: Scope) {
 		when (stmt) {
 			is ASTStmt.Expression, is ASTStmt.Let -> {}
-			is ASTStmt.Function ->
-				addToScope(stmt.name.lexeme!!, stmt.range(), ValueItem.Function(stmt), scope, true)
+			is ASTStmt.Function -> {
+				val item = ValueItem.Function(stmt)
+				stmt.item = item
+				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
+			}
 
-			is ASTStmt.FunctionNoBlock ->
-				addToScope(stmt.name.lexeme!!, stmt.range(), ValueItem.Function(stmt), scope, true)
+			is ASTStmt.FunctionNoBlock -> {
+				val item = ValueItem.Function(stmt)
+				stmt.item = item
+				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
+			}
 
 			is ASTStmt.Module -> {
 				val moduleScope = Scope()
 				val module = TypeItem.Module(scope, stmt)
 				stmt.statements.forEach { defineScope(it, moduleScope) }
+				stmt.item = module
 				addToScope(stmt.name.lexeme!!, stmt.range(), module, scope, true)
 			}
 
-			is ASTStmt.Struct ->
-				addToScope(
-					stmt.name.lexeme!!,
-					stmt.range(),
-					TypeItem.Struct(stmt.fields.associate { (token, type) -> Pair(token.lexeme!!, type) }, stmt),
-					scope,
-					true
-				)
+			is ASTStmt.Struct -> {
+				val item = TypeItem.Struct(stmt.fields.associate { (token, type) -> Pair(token.lexeme!!, type) }, stmt)
+				stmt.item = item
+				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
+			}
 
-			is ASTStmt.TupleStruct -> addToScope(stmt.name.lexeme!!, stmt.range(), TypeItem.TupleStruct(stmt), scope, true)
-			is ASTStmt.UnitStruct -> addToScope(stmt.name.lexeme!!, stmt.range(), TypeItem.UnitStruct(stmt), scope, true)
+			is ASTStmt.TupleStruct -> {
+				val item = TypeItem.TupleStruct(stmt)
+				stmt.item = item
+				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
+			}
+
+			is ASTStmt.UnitStruct -> {
+				val item = TypeItem.UnitStruct(stmt)
+				stmt.item = item
+				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
+			}
 		}
 	}
 
@@ -111,8 +124,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 	}
 
 	private fun module(stmt: ASTStmt.Module): Stmt {
-		val moduleScope = Scope()
-		stmt.statements.forEach { defineScope(it, moduleScope) }
+		val moduleScope = stmt.item.scope
 		return Stmt.Module(stmt.statements.map { stmt(it, moduleScope) }, stmt)
 	}
 

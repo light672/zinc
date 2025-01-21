@@ -1,5 +1,8 @@
 package com.light672.zinc.ast
 
+import com.light672.zinc.resolution.TypeItem
+import com.light672.zinc.resolution.ValueItem
+
 internal sealed interface Stmt {
 	data class Function(
 		val keyword: Token,
@@ -10,7 +13,9 @@ internal sealed interface Stmt {
 		val returnType: Type?,
 		// val whereClause: WhereClause?,
 		val block: Expr.Block
-	) : Stmt
+	) : Stmt {
+		lateinit var item: ValueItem.Function
+	}
 
 	data class FunctionNoBlock(
 		val keyword: Token,
@@ -21,7 +26,9 @@ internal sealed interface Stmt {
 		val returnType: Type?,
 		// val whereClause: WhereClause?,
 		val semicolon: Token
-	) : Stmt
+	) : Stmt {
+		lateinit var item: ValueItem.Function
+	}
 
 	data class UnitStruct(
 		val keyword: Token,
@@ -29,7 +36,9 @@ internal sealed interface Stmt {
 		val genericParams: GenericParams?,
 		// val whereClause: WhereClause?,
 		val semicolon: Token
-	) : Stmt
+	) : Stmt {
+		lateinit var item: TypeItem.UnitStruct
+	}
 
 	data class TupleStruct(
 		val keyword: Token,
@@ -38,7 +47,9 @@ internal sealed interface Stmt {
 		val fields: List<Type>,
 		// val whereClause: WhereClause?,
 		val close: Token
-	) : Stmt
+	) : Stmt {
+		lateinit var item: TypeItem.TupleStruct
+	}
 
 	data class Struct(
 		val keyword: Token,
@@ -47,14 +58,18 @@ internal sealed interface Stmt {
 		val fields: List<Pair<Token, Type>>,
 		// val whereClause: WhereClause?,
 		val close: Token
-	) : Stmt
+	) : Stmt {
+		lateinit var item: TypeItem.Struct
+	}
 
 	data class Module(
 		val keyword: Token,
 		val name: Token,
 		val statements: List<Stmt>,
 		val close: Token
-	) : Stmt
+	) : Stmt {
+		lateinit var item: TypeItem.Module
+	}
 
 	data class Let(
 		val keyword: Token,
