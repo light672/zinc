@@ -24,5 +24,6 @@ internal sealed interface TypeItem : Item {
 	class UnitStruct(val ast: ASTStmt.UnitStruct) : TypeItem
 	class Module(val scope: Scope, val ast: ASTStmt.Module) : TypeItem
 	class Generic(val ast: Token) : TypeItem
+	class Primitive() : TypeItem
 	data object Ambiguous : TypeItem
 }

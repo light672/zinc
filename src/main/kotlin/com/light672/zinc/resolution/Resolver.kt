@@ -345,13 +345,12 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 			}
 
 
-			is TypeItem.Struct, is TypeItem.TupleStruct, is TypeItem.UnitStruct -> {
+			is TypeItem.Struct, is TypeItem.TupleStruct, is TypeItem.UnitStruct, is TypeItem.Generic, is TypeItem.Primitive -> {
 				zinc.reportCompileError(CompilerError.useQualifiedPath(name, name.asRange()))
 				null
 			}
 
 			TypeItem.Ambiguous -> null
-			is TypeItem.Generic -> TODO()
 		}
 	}
 
@@ -365,11 +364,10 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 				ref
 			}
 
-			is TypeItem.Struct, is TypeItem.TupleStruct, is TypeItem.UnitStruct, is TypeItem.Generic -> {
+			is TypeItem.Struct, is TypeItem.TupleStruct, is TypeItem.UnitStruct, is TypeItem.Generic, is TypeItem.Primitive -> {
 				zinc.reportCompileError(CompilerError.useQualifiedPath(name, name.asRange()))
 				null
 			}
-
 		}
 	}
 
