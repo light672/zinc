@@ -15,12 +15,26 @@ internal sealed interface Expr {
 	data class Binary(val left: Expr, val operator: Token, val right: Expr, val ast: ASTExpr) : Expr
 	data class Closure(val parameters: List<Pair<Pattern, Type?>>, val expr: Expr, val ast: ASTExpr) : Expr
 	data class Return(val expr: Expr?, val ast: ASTExpr) : Expr
-	data class Break(val expr: Expr?, val ast: ASTExpr) : Expr
-	data class Continue(val ast: ASTExpr) : Expr
-	data class Block(val stmts: List<Stmt>, val ast: ASTExpr) : Expr
-	data class If(val condition: Expr, val then: Block, val elseBlock: Expr?, val ast: ASTExpr) : Expr
-	data class While(val condition: Expr, val block: Block, val ast: ASTExpr) : Expr
-	data class For(val pattern: Pattern, val iterator: Expr, val block: Block, val ast: ASTExpr) : Expr
+	data class Break(val breakFrom: Expr?, val expr: Expr?, val ast: ASTExpr) : Expr
+	data class Continue(val continueAfter: Expr?, val ast: ASTExpr) : Expr
+	data class Block(var stmts: List<Stmt>, val ast: ASTExpr) : Expr
+
+	data class If(val condition: Expr, val ast: ASTExpr) : Expr {
+		lateinit var then: Block
+		var elseExpr: Expr? = null
+	}
+
+	data class While(val condition: Expr, val ast: ASTExpr) : Expr {
+		lateinit var block: Block
+	}
+
+	data class For(val iterator: Expr, val ast: ASTExpr) : Expr {
+		lateinit var pattern: Pattern
+		lateinit var block: Block
+	}
+
 	data class Match(val expr: Expr, val branches: List<Pair<Pattern, Expr>>, val ast: ASTExpr) : Expr
-	data class Loop(val block: Block, val ast: ASTExpr) : Expr
+	data class Loop(val ast: ASTExpr) : Expr {
+		lateinit var block: Block
+	}
 }

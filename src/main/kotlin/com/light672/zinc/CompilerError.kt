@@ -63,6 +63,12 @@ internal class CompilerError(
 		fun nameNotFound(name: CharSequence, range: Token.Range, inEnvironment: String) =
 			CompilerError("item `$name` does not exist in $inEnvironment", range, "not found in $inEnvironment")
 
+		fun labelNotFound(name: CharSequence, range: Token.Range) =
+			CompilerError("label `$name` does not exist in scope", range, "not found in scope")
+
+		fun loopNotFound(expr: Expr) =
+			CompilerError("could not find loop for ${expr.name()}", expr.range(), "no loop found, consider using a label")
+
 		fun genericsNotAllowedIn(range: Token.Range, item: String) =
 			CompilerError("generic arguments should not be provided for $item", range, "remove generic arguments")
 

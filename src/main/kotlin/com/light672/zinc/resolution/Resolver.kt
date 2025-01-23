@@ -73,7 +73,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 
 
 	private fun <T> addToBranch(name: CharSequence, declRange: Token.Range, item: T, branch: Scope.Branch<T>, ambigiousItem: T, shadowable: Boolean) {
-		val existing = if (shadowable) branch.data[name] else getFromBranch(name, branch)
+		val existing = if (shadowable) branch.data[name] else getFromBranch(name, branch)?.first
 		if (existing != null) {
 			zinc.reportCompileError(
 				if (shadowable)
@@ -172,9 +172,9 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 				block(expr, scope)
 
 			is ASTExpr.Break ->
-				Expr.Break(expr.expr?.let { expr(it, scope) }, expr)
+				breakExpr(expr, scope)
 
-			is ASTExpr.Continue -> Expr.Continue(expr)
+			is ASTExpr.Continue -> continueExpr(expr, scope)
 
 			is ASTExpr.Call ->
 				Expr.Call(expr(expr.callee, scope), expr.args.map { expr(it, scope) }, expr)
@@ -192,7 +192,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 				group(expr, scope)
 
 			is ASTExpr.If ->
-				Expr.If(expr(expr.condition, scope), block(expr.thenBlock, scope), expr.elseExpr?.let { expr(it, scope) }, expr)
+				ifExpr(expr, scope)
 
 			is ASTExpr.Index ->
 				Expr.Index(expr(expr.callee, scope), expr.args.map { expr(it, scope) }, expr)
@@ -201,7 +201,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 				Expr.Literal(expr)
 
 			is ASTExpr.Loop ->
-				Expr.Loop(block(expr.block, scope), expr)
+				loop(expr, scope)
 
 			is ASTExpr.Match ->
 				match(expr, scope)
@@ -220,20 +220,47 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 				Expr.Unary(expr.operator, expr(expr.right, scope), expr)
 
 			is ASTExpr.While ->
-				Expr.While(expr(expr.condition, scope), block(expr.block, scope), expr)
+				whileExpr(expr, scope)
 
 		}
 	}
 
+	private fun breakExpr(expr: ASTExpr.Break, scope: Scope): Expr.Break {
+		return Expr.Break(getLabelOrLoop(expr, expr.label, scope), expr.expr?.let { expr(it, scope) }, expr)
+	}
+
+	private fun continueExpr(expr: ASTExpr.Continue, scope: Scope): Expr.Continue {
+		return Expr.Continue(getLabelOrLoop(expr, expr.label, scope), expr)
+	}
+
+	private fun searchForLoop(label: Label, expr: ASTExpr): Expr? = when (label.expr) {
+		is Expr.For, is Expr.Loop, is Expr.While -> label.expr
+		null -> {
+			zinc.reportCompileError(CompilerError.loopNotFound(expr))
+			null
+		}
+
+		else -> label.parent?.let { searchForLoop(it, expr) }
+	}
+
+	private fun getLabelOrLoop(expr: ASTExpr, label: Token?, scope: Scope): Expr? {
+		return if (label != null) {
+			getLabel(label, scope)
+		} else {
+			searchForLoop(scope.label, expr)
+		}
+	}
+
 	private fun block(block: ASTExpr.Block, scope: Scope): Expr.Block {
-		var scope = scope.newScope()
+		val irStmts = ArrayList<Stmt>(block.stmts.size)
+		val newExpr = Expr.Block(irStmts, block)
+		var scope = scope.newScope(Pair(block.label, newExpr))
 		block.stmts.forEach { defineScope(it, scope) }
-		val irStmts = block.stmts.map { stmt ->
+		block.stmts.mapTo(irStmts) { stmt ->
 			if (stmt is ASTStmt.Let) scope = scope.newValues()
 			stmt(stmt, scope)
 		} // need to define function scopes inside of functions
-
-		return Expr.Block(irStmts, block)
+		return newExpr
 	}
 
 	private fun closure(closure: ASTExpr.Closure, scope: Scope): Expr.Closure {
@@ -251,11 +278,37 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 	}
 
 	private fun forExpr(forExpr: ASTExpr.For, scope: Scope): Expr.For {
-		val paramScope = scope.newScope()
-		val pattern = pattern(forExpr.pattern, paramScope).affirmIrrefutable()
 		val iterator = expr(forExpr.iterator, scope)
-		val block = block(forExpr.block, scope)
-		return Expr.For(pattern, iterator, block, forExpr)
+		val newExpr = Expr.For(iterator, forExpr)
+
+		val paramScope = scope.newScope(Pair(forExpr.label, newExpr))
+		newExpr.pattern = pattern(forExpr.pattern, paramScope).affirmIrrefutable()
+		newExpr.block = block(forExpr.block, paramScope)
+		return newExpr
+	}
+
+	private fun ifExpr(ifExpr: ASTExpr.If, scope: Scope): Expr.If {
+		val condition = expr(ifExpr.condition, scope)
+		val newExpr = Expr.If(condition, ifExpr)
+		val scope = scope.newScope(Pair(ifExpr.label, newExpr))
+		newExpr.then = block(ifExpr.thenBlock, scope)
+		newExpr.elseExpr = ifExpr.elseExpr?.let { expr(it, scope) }
+		return newExpr
+	}
+
+	private fun loop(expr: ASTExpr.Loop, scope: Scope): Expr.Loop {
+		val newExpr = Expr.Loop(expr)
+		val scope = scope.newScope(Pair(expr.label, newExpr))
+		newExpr.block = block(expr.block, scope)
+		return newExpr
+	}
+
+	private fun whileExpr(whileExpr: ASTExpr.While, scope: Scope): Expr.While {
+		val condition = expr(whileExpr.condition, scope)
+		val newExpr = Expr.While(condition, whileExpr)
+		val scope = scope.newScope(Pair(whileExpr.label, newExpr))
+		newExpr.block = block(whileExpr.block, scope)
+		return newExpr
 	}
 
 	private fun group(expr: ASTExpr.Group, scope: Scope): Expr {
@@ -495,6 +548,16 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 		val item = getFromBranch(name.lexeme!!, scope.types)
 		item ?: zinc.reportCompileError(CompilerError.nameNotFound(name.lexeme, name.asRange(), envName))
 		return item?.first
+	}
+
+	private fun getLabel(name: Token, scope: Scope): Expr? {
+		fun findLabel(name: CharSequence, label: Label, depth: Int = scope.label.depthSinceItem): Pair<Expr, Int>? {
+			return if (label.name?.lexeme == name) Pair(label.expr!!, depth) else label.parent?.let { findLabel(name, it, depth - 1) }
+		}
+
+		val expr = findLabel(name.lexeme!!, scope.label)
+		expr ?: zinc.reportCompileError(CompilerError.labelNotFound(name.lexeme, name.asRange()))
+		return expr?.first
 	}
 
 
