@@ -37,6 +37,7 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 				scanToken()
 			}
 
+			'@' -> create(AT)
 			';' -> create(SEMICOLON)
 			'(' -> create(LEFT_PAREN)
 			')' -> create(RIGHT_PAREN)
@@ -122,6 +123,7 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 			"const" -> CONST
 			"return" -> RETURN
 			"struct" -> STRUCT
+			"continue" -> CONTINUE
 			"interface" -> INTERFACE
 			"typealias" -> TYPEALIAS
 			else -> IDENTIFIER

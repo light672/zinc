@@ -174,6 +174,8 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 			is ASTExpr.Break ->
 				Expr.Break(expr.expr?.let { expr(it, scope) }, expr)
 
+			is ASTExpr.Continue -> Expr.Continue(expr)
+
 			is ASTExpr.Call ->
 				Expr.Call(expr(expr.callee, scope), expr.args.map { expr(it, scope) }, expr)
 
@@ -219,6 +221,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 
 			is ASTExpr.While ->
 				Expr.While(expr(expr.condition, scope), block(expr.block, scope), expr)
+
 		}
 	}
 

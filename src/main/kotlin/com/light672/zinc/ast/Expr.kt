@@ -12,15 +12,15 @@ internal sealed interface Expr {
 	data class Binary(val left: Expr, val operator: Token, val right: Expr) : Expr
 	data class Closure(val open: Token, val params: List<Pair<Pattern, Type?>>, val close: Token, val type: Type?, val expr: Expr) : Expr
 	data class Return(val keyword: Token, val expr: Expr?) : Expr
-	data class Break(val keyword: Token, val expr: Expr?) : Expr
+	data class Break(val keyword: Token, val label: Token?, val expr: Expr?) : Expr
+	data class Continue(val keyword: Token, val label: Token?) : Expr
+	data class Block(val label: Token?, val start: Token, val stmts: List<Stmt>, val end: Token) : Expr
 
-	data class Block(val start: Token, val stmts: List<Stmt>, val end: Token) : Expr
-
-	data class If(val keyword: Token, val condition: Expr, val thenBlock: Block, val elseExpr: Expr?) : Expr
-	data class While(val keyword: Token, val condition: Expr, val block: Block) : Expr
-	data class For(val keyword: Token, val pattern: Pattern, val iterator: Expr, val block: Block) : Expr
+	data class If(val label: Token?, val keyword: Token, val condition: Expr, val thenBlock: Block, val elseExpr: Expr?) : Expr
+	data class While(val label: Token?, val keyword: Token, val condition: Expr, val block: Block) : Expr
+	data class For(val label: Token?, val keyword: Token, val pattern: Pattern, val iterator: Expr, val block: Block) : Expr
 	data class Match(val keyword: Token, val expr: Expr, val branches: List<Pair<Pattern, Expr>>, val close: Token) : Expr
-	data class Loop(val keyword: Token, val block: Block) : Expr
+	data class Loop(val label: Token?, val keyword: Token, val block: Block) : Expr
 
 
 	fun range(): Token.Range {
@@ -49,6 +49,7 @@ internal sealed interface Expr {
 			is For -> keyword..block.end
 			is Match -> keyword..close
 			is FieldGet -> callee.range().start..(segment.generics?.end ?: segment.id)
+			is Continue -> keyword..(label ?: keyword)
 		}
 	}
 
@@ -71,6 +72,7 @@ internal sealed interface Expr {
 		is For -> "for expression"
 		is Match -> "match expression"
 		is FieldGet -> "field access"
+		is Continue -> "continue expression"
 	}
 
 

@@ -33,7 +33,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			}
 
 		val functionWithBlockParser =
-			{ block().map { block -> Stmt.Function(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, block) } }
+			{ block(null).map { block -> Stmt.Function(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, block) } }
 		returnType
 			//whereClause
 			.then { expect(functionNoBlock or functionWithBlockParser) }
@@ -116,51 +116,62 @@ internal class Parser(val zinc: Zinc.Runtime) {
 
 	// expressions
 
-	fun expressionWithBlock(): ParseResult<Expr> = with(combinator) {
-		ifExpr() or ::whileExpr or ::loop or ::forExpr or ::match or ::block
+	fun exprWithLabel(): ParseResult<Expr> = with(combinator) {
+		val label = token(IDENTIFIER)
+		if (label.isSuccess() && !isNext(COLON)) return label.flatMap { begin -> exprPath(begin) }
+
+
+		val parser = { label: Token? -> ifExpr(label) or { whileExpr(label) } or { loop(label) } or { forExpr(label) } or { block(label) } }
+
+		label
+			.then {
+				expect(token(COLON))
+					.then { expect(parser(+label).error { CompilerError.expectedBlockExpr(current) }) }
+			}
+			.or { parser(null) }
 	}
 
 	fun expression(): ParseResult<Expr> = with(combinator) {
 		assignment().error { CompilerError.expectedExpression(current) }
 	}
 
-	fun ifExpr() = with(combinator) {
+	fun ifExpr(label: Token?) = with(combinator) {
 		fun ifParser(keyword: Token): ParseResult<Expr> {
 			fun elseParser(): ParseResult<Expr> {
 				return token(ELSE)
 					.then {
-						token(IF).flatMap { t -> ifParser(t) } or ::block
+						token(IF).flatMap { t -> ifParser(t) } or { block(null) }
 					}
 			}
 
 			val condition = expect(expression())
 			val block = condition
-				.then { expect(block()) }
+				.then { expect(block(null)) }
 			return block
 				.then { optional(elseParser()) }
-				.map { elseExpr -> Expr.If(keyword, +condition, +block, elseExpr) }
+				.map { elseExpr -> Expr.If(label, keyword, +condition, +block, elseExpr) }
 		}
 
 		token(IF).flatMap { token -> ifParser(token) }
 	}
 
-	fun whileExpr() = with(combinator) {
+	fun whileExpr(label: Token?) = with(combinator) {
 		val keyword = token(WHILE)
 		val condition = keyword
 			.then { expect(expression()) }
 		condition
-			.then { expect(block()) }
-			.map { block -> Expr.While(+keyword, +condition, block) }
+			.then { expect(block(null)) }
+			.map { block -> Expr.While(label, +keyword, +condition, block) }
 	}
 
-	fun loop() = with(combinator) {
+	fun loop(label: Token?) = with(combinator) {
 		val keyword = token(LOOP)
 		keyword
-			.then { expect(block()) }
-			.map { block -> Expr.Loop(+keyword, block) }
+			.then { expect(block(null)) }
+			.map { block -> Expr.Loop(label, +keyword, block) }
 	}
 
-	fun forExpr() = with(combinator) {
+	fun forExpr(label: Token?) = with(combinator) {
 		val keyword = token(FOR)
 		val pattern = keyword
 			.then { expect(pattern()) }
@@ -168,8 +179,8 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			.then { expect(token(IN)) }
 			.then { expect(expression()) }
 		iterator
-			.then { expect(block()) }
-			.map { block -> Expr.For(+keyword, +pattern, +iterator, block) }
+			.then { expect(block(null)) }
+			.map { block -> Expr.For(label, +keyword, +pattern, +iterator, block) }
 	}
 
 	fun match() = with(combinator) {
@@ -206,7 +217,15 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			).map { Expr.Literal(it) }
 		}
 
-		group() or ::exprPath or literal or { qualifiedPath().map { path -> Expr.Path(path) } } or ::returnExpr or ::breakExpr or ::closure or ::expressionWithBlock
+		group() or
+				literal or
+				{ qualifiedPath().map { path -> Expr.Path(path) } } or
+				::returnExpr or
+				::breakExpr or
+				::continueExpr or
+				::closure or
+				::match or
+				::exprWithLabel
 	}
 
 	fun args(open: TokenType, close: TokenType): ParseResult<Triple<Token, List<Expr>, Token>> {
@@ -314,9 +333,18 @@ internal class Parser(val zinc: Zinc.Runtime) {
 
 	fun breakExpr() = with(combinator) {
 		val keyword = token(BREAK)
-		keyword
+		val label = keyword
+			.then { optional(token(AT).then { expect(token(IDENTIFIER)) }) }
+		label
 			.then { optional(expression()) }
-			.map { expr -> Expr.Break(+keyword, expr) }
+			.map { expr -> Expr.Break(+keyword, +label, expr) }
+	}
+
+	fun continueExpr() = with(combinator) {
+		val keyword = token(CONTINUE)
+		keyword
+			.then { optional(token(AT).then { expect(token(IDENTIFIER)) }) }
+			.map { label -> Expr.Continue(+keyword, label) }
 	}
 
 	fun closure(): ParseResult<Expr.Closure> = with(combinator) {
@@ -334,7 +362,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 
 		val returnTypeParser = {
 			val type = token(MINUS_ARROW).then { expect(type()) }
-			type.then { expect(block()) }
+			type.then { expect(block(null)) }
 				.map { block -> Pair(+type, block) }
 		}
 
@@ -349,7 +377,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			.map { (type, expr) -> (+params).let { (open, list, close) -> Expr.Closure(open, list, close, type, expr) } }
 	}
 
-	fun block(): ParseResult<Expr.Block> = with(combinator) {
+	fun block(label: Token?): ParseResult<Expr.Block> = with(combinator) {
 		fun trailingCheck(expr: Expr) =
 			when (expr) {
 				is Expr.Block, is Expr.Loop, is Expr.If -> Stmt.Expression(expr, null)
@@ -377,7 +405,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 					)
 				)
 			}
-			.map { (list, close) -> Expr.Block(+open, list, close) }
+			.map { (list, close) -> Expr.Block(label, +open, list, close) }
 
 	}
 
@@ -470,16 +498,18 @@ internal class Parser(val zinc: Zinc.Runtime) {
 
 	// paths
 
-	fun path(segmentParser: () -> ParseResult<ComplexSegment>) = with(combinator) {
+	fun path(segmentParser: () -> ParseResult<ComplexSegment>) = path(segmentParser, segmentParser)
+
+	fun path(beginParser: () -> ParseResult<ComplexSegment>, restParser: () -> ParseResult<ComplexSegment>) = with(combinator) {
 		val list = ArrayList<ComplexSegment>()
 
-		var topSegment = segmentParser()
+		var topSegment = beginParser()
 		if (!topSegment.isSuccess()) return ParseResult.NoMatch(CompilerError.EMPTY)
 		list.add(+topSegment)
 
 		while (isPrevious(COLON_COLON))
 			topSegment = topSegment
-				.then { expect(segmentParser()) }
+				.then { expect(restParser()) }
 				.with { seg -> list.add(seg) }
 
 		topSegment
@@ -487,8 +517,8 @@ internal class Parser(val zinc: Zinc.Runtime) {
 	}
 
 	fun typePath() = path(::pathSegment)
-	fun exprPath() = with(combinator) {
-		path(::exprPathSegment)
+	fun exprPath(beginToken: Token) = with(combinator) {
+		path({ exprPathSegment(beginToken) }, ::exprPathSegment)
 			.map { path -> Expr.Path(path) }
 	}
 
@@ -524,8 +554,8 @@ internal class Parser(val zinc: Zinc.Runtime) {
 
 
 	// only difference between this and `pathSegment` is that a `::` must be present before parsing any generics
-	fun exprPathSegment(): ParseResult<ComplexSegment> = with(combinator) {
-		val identifier = token(IDENTIFIER)
+	fun exprPathSegment(identifier: Token? = null): ParseResult<ComplexSegment> = with(combinator) {
+		val identifier = identifier?.let { success(it) } ?: token(IDENTIFIER)
 		identifier
 			.then { optional(token(COLON_COLON).then { optional(genericArgs().with { token(COLON_COLON) }) }) } // consumes terminator `::` after generic args if present
 			.map { generics -> ComplexSegment(+identifier, generics) }

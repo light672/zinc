@@ -196,6 +196,14 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		}
 	}
 
+	fun <T> ParseResult<T>.errorIf(boolean: Boolean, createError: () -> CompilerError): ParseResult<T> {
+		return if (boolean) when (this) {
+			ParseResult.Error -> this
+			is ParseResult.NoMatch -> ParseResult.NoMatch(createError())
+			is ParseResult.Success -> this
+		} else this
+	}
+
 
 	// tokenization
 	private fun consume(): Token {

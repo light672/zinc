@@ -40,6 +40,9 @@ internal class CompilerError(
 		fun expectedExpression(token: Token) =
 			CompilerError("expected expression but got `$token`", token.asRange(), "expected expression")
 
+		fun expectedBlockExpr(token: Token) =
+			unexpectedToken(token, arrayOf(TokenType.IF, TokenType.WHILE, TokenType.FOR, TokenType.LOOP, TokenType.LEFT_BRACE))
+
 		fun expectedStatement(token: Token) =
 			CompilerError("expected statement but got `$token`", token.asRange(), "expected statement")
 

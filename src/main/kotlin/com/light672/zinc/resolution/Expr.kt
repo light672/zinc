@@ -16,7 +16,7 @@ internal sealed interface Expr {
 	data class Closure(val parameters: List<Pair<Pattern, Type?>>, val expr: Expr, val ast: ASTExpr) : Expr
 	data class Return(val expr: Expr?, val ast: ASTExpr) : Expr
 	data class Break(val expr: Expr?, val ast: ASTExpr) : Expr
-
+	data class Continue(val ast: ASTExpr) : Expr
 	data class Block(val stmts: List<Stmt>, val ast: ASTExpr) : Expr
 	data class If(val condition: Expr, val then: Block, val elseBlock: Expr?, val ast: ASTExpr) : Expr
 	data class While(val condition: Expr, val block: Block, val ast: ASTExpr) : Expr

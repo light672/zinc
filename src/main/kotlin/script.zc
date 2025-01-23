@@ -1,9 +1,5 @@
-mod a {
-	fn a() {
 
-	}
-}
 
 fn main() {
-	a::c();
+
 }
