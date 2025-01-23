@@ -1,5 +1,7 @@
 fn main() {
-	a: {
-		break@a 3;
+	loop {
+		fn func() {
+			break 3;
+		}
 	}
 }

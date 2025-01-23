@@ -233,15 +233,15 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 		return Expr.Continue(getLabelOrLoop(expr, expr.label, scope), expr)
 	}
 
-	private fun searchForLoop(label: Label, expr: ASTExpr): Expr? = when (label.expr) {
+	private fun searchForLoop(label: Label, expr: ASTExpr, depth: Int = label.depthSinceItem): Expr? = if (depth >= 0) when (label.expr) {
 		is Expr.For, is Expr.Loop, is Expr.While -> label.expr
 		null -> {
 			zinc.reportCompileError(CompilerError.loopNotFound(expr))
 			null
 		}
 
-		else -> label.parent?.let { searchForLoop(it, expr) }
-	}
+		else -> label.parent?.let { searchForLoop(it, expr, depth - 1) }
+	} else null
 
 	private fun getLabelOrLoop(expr: ASTExpr, label: Token?, scope: Scope): Expr? {
 		return if (label != null) {
@@ -556,8 +556,15 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 		}
 
 		val expr = findLabel(name.lexeme!!, scope.label)
-		expr ?: zinc.reportCompileError(CompilerError.labelNotFound(name.lexeme, name.asRange()))
-		return expr?.first
+		if (expr == null) {
+			zinc.reportCompileError(CompilerError.labelNotFound(name.lexeme, name.asRange()))
+			return null
+		}
+		if (expr.second < 0) {
+			zinc.reportCompileError(CompilerError.cannotUseLabelsOutsideItem(name))
+			return null
+		}
+		return expr.first
 	}
 
 

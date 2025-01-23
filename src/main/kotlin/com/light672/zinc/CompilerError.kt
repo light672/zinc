@@ -81,6 +81,13 @@ internal class CompilerError(
 		fun cannotCaptureDynamicEnvironment(token: Token) =
 			CompilerError("cannot capture dynamic environment outside of item", token.asRange(), "`$token` is declared outside of item")
 
+		fun cannotUseLabelsOutsideItem(token: Token) =
+			CompilerError(
+				"cannot use label `$token` as it is defined outside the current function",
+				token.asRange(),
+				"`$token` is declared outside of item"
+			)
+
 		fun itemDoesNotHaveAssociatedItems(name: Token, item: String) =
 			CompilerError("item $item does not contain associated items", name.asRange(), "cannot access in $item")
 
