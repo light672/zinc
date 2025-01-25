@@ -141,15 +141,14 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 		stmt.genericScope.values.parent = scope.values
 		stmt.genericScope.types.parent = scope.types
 		val genericParams = genericParams(stmt.genericParams, stmt.genericScope)
-		val map = HashMap<CharSequence, Type>(stmt.fields.size)
+		val fields = HashMap<CharSequence, Type>(stmt.fields.size)
 		for ((field, type) in stmt.fields) {
-			val previous = map[field.lexeme!!]
-			if (previous != null && previous !is Type.Error) {
+			val previous = fields[field.lexeme!!]
+			if (previous != null) {
 				zinc.reportCompileError(CompilerError.fieldAlreadyExists(field))
-				map[field.lexeme] = Type.Error(stmt.range())
-			} else map[field.lexeme] = type(type, scope)
+				fields[field.lexeme] = Type.Error(stmt.range())
+			} else fields[field.lexeme] = type(type, scope)
 		}
-		val fields = stmt.fields.associate { (token, type) -> Pair(token.lexeme!!, type(type, stmt.genericScope)) }
 		return Stmt.Struct(genericParams, fields, stmt)
 	}
 
