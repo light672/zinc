@@ -57,6 +57,9 @@ internal class CompilerError(
 		fun nameAlreadyExists(name: CharSequence, declRange: Token.Range, inEnvironment: String) =
 			CompilerError("item `$name` already exists in $inEnvironment", declRange, "previously declared")
 
+		fun fieldAlreadyExists(field: Token) =
+			CompilerError("field `$field` already exists in struct", field.asRange(), "field name `$field` used more than once")
+
 		fun cannotShadowName(name: CharSequence, declRange: Token.Range) =
 			CompilerError("item `$name` cannot be shadowed in scope", declRange, "previously declared")
 
