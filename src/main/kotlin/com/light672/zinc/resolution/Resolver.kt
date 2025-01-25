@@ -43,7 +43,7 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 			}
 
 			is ASTStmt.Struct -> {
-				val item = TypeItem.Struct(stmt.fields.associate { (token, type) -> Pair(token.lexeme!!, type) }, stmt)
+				val item = TypeItem.Struct(stmt)
 				stmt.item = item
 				stmt.genericScope = scope.newItem()
 				addToScope(stmt.name.lexeme!!, stmt.range(), item, scope, true)
@@ -387,12 +387,12 @@ internal class Resolver(val zinc: Zinc.Runtime) {
 
 	private fun genericParams(genericParams: ASTGenericParams?, genericScope: Scope): GenericParams? {
 		genericParams ?: return null
-		val parameters = genericParams.params.map { ident -> declareGeneric(ident, genericScope) }
+		val parameters = genericParams.params.withIndex().map { (i, ident) -> declareGeneric(ident, genericScope, i) }
 		return GenericParams(parameters, genericParams)
 	}
 
-	private fun declareGeneric(name: Token, scope: Scope): TypeItem.Generic {
-		val genericItem = TypeItem.Generic(name)
+	private fun declareGeneric(name: Token, scope: Scope, genericIndex: Int): TypeItem.Generic {
+		val genericItem = TypeItem.Generic(genericIndex, name)
 		addToScope(name.lexeme!!, name.asRange(), genericItem, scope, false)
 		return genericItem
 	}
