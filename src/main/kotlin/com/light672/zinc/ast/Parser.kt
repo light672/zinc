@@ -11,7 +11,42 @@ internal class Parser(val zinc: Zinc.Runtime) {
 		(function() or ::struct or ::module).error { CompilerError.expectedStatement(current) }
 	}
 
-	fun function(): ParseResult<Stmt> = with(combinator) {
+	fun associatedStmt(): ParseResult<AssociatedStmt> = with(combinator) {
+		(function()).error { CompilerError.expectedAssociatedStatement(current) }
+	}
+
+	fun trait(): ParseResult<Stmt.Trait> = with(combinator) {
+		val keyword = token(INTERFACE)
+		val name = keyword
+			.then { expect(token(IDENTIFIER)) }
+		val genericParams = name
+			.then { optional(genericParams()) }
+		val whereClause = genericParams
+			.then { optional(where()) }
+		whereClause
+			.then { expect(token(LEFT_BRACE)) }
+			.then { manyUntil(::associatedStmt, RIGHT_BRACE) }
+			.map { (stmts, close) -> Stmt.Trait(+keyword, +name, +genericParams, +whereClause, stmts) }
+	}
+
+	fun implementation(): ParseResult<Stmt.Implementation> = with(combinator) {
+		val keyword = token(IMPL)
+		val genericParams = keyword
+			.then { optional(genericParams()) }
+		val type = genericParams
+			.then { expect(type()) }
+		val trait = type
+			.then { optional(token(COLON).then { expect(typePath()) }) }
+		val whereClause = trait
+			.then { optional(where()) }
+
+		whereClause
+			.then { expect(token(LEFT_BRACE)) }
+			.then { manyUntil(::associatedStmt, RIGHT_BRACE) }
+			.map { (stmts, close) -> Stmt.Implementation(+keyword, +genericParams, +type, +trait, +whereClause, stmts) }
+	}
+
+	fun function(): ParseResult<Stmt.Function> = with(combinator) {
 		val keyword = token(FN)
 		val name = keyword
 			.then { expect(token(IDENTIFIER)) }
@@ -26,16 +61,19 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			})
 		}
 		val returnType = params.then { optional(token(MINUS_ARROW).then { expect(type()) }) }
-		// val whereClause = returnType.then { optional(where()) }
+		val whereClause = returnType.then { optional(where()) }
 		val functionNoBlock =
-			token(SEMICOLON).map { token ->
-				Stmt.FunctionNoBlock(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, token)
+			token(SEMICOLON).map { _ ->
+				Stmt.Function(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, +whereClause, null)
 			}
 
 		val functionWithBlockParser =
-			{ block(null).map { block -> Stmt.Function(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, block) } }
-		returnType
-			//whereClause
+			{
+				block(null).map { block ->
+					Stmt.Function(+keyword, +name, +genericParams, (+params).second, (+params).third, +returnType, +whereClause, block)
+				}
+			}
+		whereClause
 			.then { expect(functionNoBlock or functionWithBlockParser) }
 	}
 
@@ -59,7 +97,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 		val genericParams = name
 			.then { optional(genericParams()) }
 
-		// val whereClause = genericParams.then { optional(where()) }
+		val whereClause = genericParams.then { optional(where()) }
 
 		val structFieldParser = {
 			val name = token(IDENTIFIER)
@@ -72,24 +110,23 @@ internal class Parser(val zinc: Zinc.Runtime) {
 		val structParser = {
 			token(LEFT_BRACE)
 				.then { manyTrailingUntil(structFieldParser, COMMA, RIGHT_BRACE) }
-				.map { (list, close) -> Stmt.Struct(+keyword, +name, +genericParams, list, close) }
+				.map { (list, close) -> Stmt.Struct(+keyword, +name, +genericParams, list, +whereClause, close) }
 		}
 		val tupleParser = {
 			val result = token(LEFT_PAREN)
 				.then { manyTrailingUntil(::type, COMMA, RIGHT_PAREN) }
-				.map { (list, close) -> Stmt.TupleStruct(+keyword, +name, +genericParams, list, close) }
+				.map { (list, close) -> Stmt.TupleStruct(+keyword, +name, +genericParams, list, +whereClause, close) }
 			result
 				.then { expect(token(SEMICOLON)) }
 				.flatMap { result }
 		}
-		val unitParser = { token(SEMICOLON).map { semicolon -> Stmt.UnitStruct(+keyword, +name, +genericParams, semicolon) } }
+		val unitParser = { token(SEMICOLON).map { semicolon -> Stmt.UnitStruct(+keyword, +name, +genericParams, +whereClause, semicolon) } }
 
-		genericParams
-			// whereClause
+		whereClause
 			.then { expect(structParser() or tupleParser or unitParser) }
 	}
 
-	fun module(): ParseResult<Stmt> = with(combinator) {
+	fun module(): ParseResult<Stmt.Module> = with(combinator) {
 		val keyword = token(MOD)
 		val name = keyword
 			.then { expect(token(IDENTIFIER)) }
@@ -99,7 +136,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			.map { (list, close) -> Stmt.Module(+keyword, +name, list, close) }
 	}
 
-	fun let(): ParseResult<Stmt> = with(combinator) {
+	fun let(): ParseResult<Stmt.Let> = with(combinator) {
 		val keyword = token(LET)
 		val patternAndType = keyword
 			.then { expect(patternAndOptionalType()) }
@@ -466,9 +503,8 @@ internal class Parser(val zinc: Zinc.Runtime) {
 		val typeParamParser = {
 			val identifier = token(IDENTIFIER)
 			identifier
-			// identifier
-			// .then { optional(token(COLON).then { expect(typeParamBound()) }) }
-			// .map { bounds -> Pair(+identifier, bounds) }
+				.then { optional(token(COLON).then { expect(typeParamBound()) }) }
+				.map { bounds -> GenericParam(+identifier, bounds) }
 		}
 		open
 			.then { expect(manyTrailingUntil(typeParamParser, COMMA, GREATER)) }
@@ -481,7 +517,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			val type = type()
 			val bounds = type
 				.then { expect(token(COLON)).then { expect(typeParamBound()) } }
-			bounds.map { bounds -> Pair(+type, bounds) }
+			bounds.map { bounds -> WhereClauseItem(+type, bounds) }
 		}
 		val first = clauseParser()
 		first

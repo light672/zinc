@@ -46,6 +46,13 @@ internal class CompilerError(
 		fun expectedStatement(token: Token) =
 			CompilerError("expected statement but got `$token`", token.asRange(), "expected statement")
 
+		fun expectedAssociatedStatement(token: Token) =
+			CompilerError(
+				"expected function but got `$token`", // TODO: add typealias and const to this once implemented
+				token.asRange(),
+				"expected associated statement"
+			)
+
 		fun expectedPattern(token: Token) =
 			CompilerError("expected pattern but got `$token`", token.asRange(), "expected pattern")
 

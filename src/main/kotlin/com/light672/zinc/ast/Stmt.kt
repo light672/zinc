@@ -12,32 +12,35 @@ internal sealed interface Stmt {
 		val params: List<FunctionParam>,
 		val paramClose: Token,
 		val returnType: Type?,
-		// val whereClause: WhereClause?,
-		val block: Expr.Block
-	) : Stmt {
+		val whereClause: WhereClause?,
+		val block: Expr.Block?
+	) : AssociatedStmt {
 		lateinit var item: ValueItem.Function
 		lateinit var genericScope: Scope
 	}
 
-	data class FunctionNoBlock(
+	data class Trait(
 		val keyword: Token,
 		val name: Token,
 		val genericParams: GenericParams?,
-		val params: List<FunctionParam>,
-		val paramClose: Token,
-		val returnType: Type?,
-		// val whereClause: WhereClause?,
-		val semicolon: Token
-	) : Stmt {
-		lateinit var item: ValueItem.Function
-		lateinit var genericScope: Scope
-	}
+		val whereClause: WhereClause?,
+		val statements: List<AssociatedStmt>
+	) : Stmt
+
+	data class Implementation(
+		val keyword: Token,
+		val genericParams: GenericParams?,
+		val type: Type,
+		val trait: ComplexPath.Normal?,
+		val whereClause: WhereClause?,
+		val statements: List<AssociatedStmt>
+	) : Stmt
 
 	data class UnitStruct(
 		val keyword: Token,
 		val name: Token,
 		val genericParams: GenericParams?,
-		// val whereClause: WhereClause?,
+		val whereClause: WhereClause?,
 		val semicolon: Token
 	) : Stmt {
 		lateinit var item: TypeItem.UnitStruct
@@ -49,7 +52,7 @@ internal sealed interface Stmt {
 		val name: Token,
 		val genericParams: GenericParams?,
 		val fields: List<Type>,
-		// val whereClause: WhereClause?,
+		val whereClause: WhereClause?,
 		val close: Token
 	) : Stmt {
 		lateinit var item: TypeItem.TupleStruct
@@ -61,7 +64,7 @@ internal sealed interface Stmt {
 		val name: Token,
 		val genericParams: GenericParams?,
 		val fields: List<Pair<Token, Type>>,
-		// val whereClause: WhereClause?,
+		val whereClause: WhereClause?,
 		val close: Token
 	) : Stmt {
 		lateinit var item: TypeItem.Struct
@@ -86,15 +89,17 @@ internal sealed interface Stmt {
 
 	data class Expression(val expr: Expr, val semicolon: Token?) : Stmt
 
+	// TODO: include where clauses in range
 	fun range() = when (this) {
 		is Expression -> expr.range().let { it.start..(semicolon?.asRange()?.end ?: it.end) }
 		is Function -> keyword..(returnType?.range()?.end ?: paramClose)
-		is FunctionNoBlock -> keyword..(returnType?.range()?.end ?: paramClose)
 		is Let -> keyword..(initializer?.range()?.end ?: type?.range()?.end ?: pattern.range().end)
 		is Module -> keyword..name
 		is Struct -> keyword..(genericParams?.end ?: name)
 		is TupleStruct -> keyword..(genericParams?.end ?: name)
 		is UnitStruct -> keyword..(genericParams?.end ?: name)
+		is Implementation -> keyword..(trait?.range()?.end ?: type.range().end)
+		is Trait -> keyword..(genericParams?.end ?: name)
 	}
 }
 
@@ -102,3 +107,5 @@ internal sealed interface FunctionParam {
 	data class SelfParam(val self: Token, val type: Type?) : FunctionParam
 	data class PatternParam(val pattern: Pattern, val type: Type) : FunctionParam
 }
+
+internal sealed interface AssociatedStmt : Stmt
