@@ -59,11 +59,20 @@ internal class CompilerError(
 		fun expectedPathSegment(token: Token) =
 			CompilerError("expected a path segment leading with `::` after qualified segment", token.asRange(), "expected `::`")
 
-		// resolver
+
+		// ast contextualizer
+		fun usedGenericParamNameInItem(token: Token) =
+			CompilerError(
+				"the name `$token` is already used as a generic parameter in the current item",
+				token.asRange(),
+				"`$token` declared again here"
+			)
 
 		fun nameAlreadyExists(name: CharSequence, declRange: Token.Range, inEnvironment: String) =
 			CompilerError("item `$name` already exists in $inEnvironment", declRange, "previously declared")
 
+
+		// resolver
 		fun fieldAlreadyExists(field: Token) =
 			CompilerError("field `$field` already exists in struct", field.asRange(), "field name `$field` used more than once")
 
@@ -90,6 +99,7 @@ internal class CompilerError(
 
 		fun cannotCaptureDynamicEnvironment(token: Token) =
 			CompilerError("cannot capture dynamic environment outside of item", token.asRange(), "`$token` is declared outside of item")
+
 
 		fun cannotUseLabelsOutsideItem(token: Token) =
 			CompilerError(
