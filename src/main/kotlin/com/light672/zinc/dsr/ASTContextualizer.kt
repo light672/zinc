@@ -69,8 +69,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 
 
 	/**
-	 * @param module The AST module statement being converted into DSR
-	 * @return       The converted AST module as a DSR module containing scope information
+	 * @param module The AST module statement being converted into DSR.
+	 * @return       The converted AST module as a DSR module containing scope information.
 	 */
 	private fun module(module: ASTStmt.Module): Stmt.Module {
 		val types = Branch<TypeItem>()
@@ -80,8 +80,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param trait The AST trait statement being converted into DSR
-	 * @return      The converted AST trait as a DSR trait containing scope information
+	 * @param trait The AST trait statement being converted into DSR.
+	 * @return      The converted AST trait as a DSR trait containing scope information.
 	 */
 	private fun trait(trait: ASTStmt.Trait): Stmt.Trait {
 		val genericParams = trait.genericParams?.let { params -> genericParams(params) }
@@ -94,8 +94,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param struct The AST struct statement being converted into DSR
-	 * @return       The converted AST struct as a DSR struct containing scope information
+	 * @param struct The AST struct statement being converted into DSR.
+	 * @return       The converted AST struct as a DSR struct containing scope information.
 	 */
 	private fun struct(struct: ASTStmt.Struct): Stmt.Struct {
 		val genericParams = struct.genericParams?.let { params -> genericParams(params) }
@@ -103,8 +103,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param struct The AST unit struct statement being converted into DSR
-	 * @return       The converted AST unit struct as a DSR unit struct containing scope information
+	 * @param struct The AST unit struct statement being converted into DSR.
+	 * @return       The converted AST unit struct as a DSR unit struct containing scope information.
 	 */
 	private fun unitStruct(struct: ASTStmt.UnitStruct): Stmt.UnitStruct {
 		val genericParams = struct.genericParams?.let { params -> genericParams(params) }
@@ -112,8 +112,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param struct The AST tuple struct statement being converted into DSR
-	 * @return       The converted AST tuple struct as a DSR tuple struct containing scope information
+	 * @param struct The AST tuple struct statement being converted into DSR.
+	 * @return       The converted AST tuple struct as a DSR tuple struct containing scope information.
 	 */
 	private fun tupleStruct(struct: ASTStmt.TupleStruct): Stmt.TupleStruct {
 		val genericParams = struct.genericParams?.let { params -> genericParams(params) }
@@ -143,8 +143,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param impl The AST implementation statement being converted into DSR
-	 * @return     The converted AST implementation as a DSR implementation containing scope information
+	 * @param impl The AST implementation statement being converted into DSR.
+	 * @return     The converted AST implementation as a DSR implementation containing scope information.
 	 */
 	private fun implementation(impl: ASTStmt.Implementation): Stmt.Implementation {
 		val genericParams = impl.genericParams?.let { params -> genericParams(params) }
@@ -158,7 +158,7 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param let    The AST let statement being converted into DSR
+	 * @param let The AST let statement being converted into DSR.
 	 */
 	private fun let(let: ASTStmt.Let): Stmt.Let {
 		val branch = Branch<ValueItem>()
@@ -185,8 +185,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param expr   The AST expression being declared in scope and converted into DSR.
-	 * @return       The converted AST expression as a DSR expression containing scope and item information.
+	 * @param expr The AST expression being declared in scope and converted into DSR.
+	 * @return     The converted AST expression as a DSR expression containing scope and item information.
 	 */
 	private fun expr(expr: ASTExpr): Expr {
 		return when (expr) {
@@ -213,8 +213,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param block The AST block expression being converted into DSR
-	 * @return      The converted AST block as a DSR block containing scope information
+	 * @param block The AST block expression being converted into DSR.
+	 * @return      The converted AST block as a DSR block containing scope information.
 	 */
 	private fun block(block: ASTExpr.Block): Expr.Block {
 		val types = Branch<TypeItem>()
@@ -226,8 +226,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param closure The AST closure expression being converted into DSR
-	 * @return        The converted AST closure as a DSR closure containing scope information
+	 * @param closure The AST closure expression being converted into DSR.
+	 * @return        The converted AST closure as a DSR closure containing scope information.
 	 */
 	private fun closure(closure: ASTExpr.Closure): Expr.Closure {
 		val paramBranch = Branch<ValueItem>()
@@ -237,8 +237,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param forExpr The AST for expression being converted into DSR
-	 * @return        The converted AST for loop as a DSR for loop containing scope information
+	 * @param forExpr The AST for expression being converted into DSR.
+	 * @return        The converted AST for loop as a DSR for loop containing scope information.
 	 */
 	private fun forExpr(forExpr: ASTExpr.For): Expr.For {
 		val patternBranch = Branch<ValueItem>()
@@ -249,8 +249,8 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 	/**
-	 * @param match The AST match expression being converted into DSR
-	 * @return      The converted AST match as a DSR match containing scope information
+	 * @param match The AST match expression being converted into DSR.
+	 * @return      The converted AST match as a DSR match containing scope information.
 	 */
 	private fun match(match: ASTExpr.Match): Expr.Match {
 		val expr = expr(match.expr)
@@ -265,6 +265,11 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	}
 
 
+	/**
+	 * @param pattern The pattern being converted into DSR.
+	 * @param branch  The value branch where any variables declared by the pattern are added.
+	 * @return        The converted AST pattern as a DSR pattern containing variable items.
+	 */
 	private fun pattern(pattern: ASTPattern, branch: Branch<ValueItem>): Pattern {
 		return when (pattern) {
 			is ASTPattern.Identifier -> {
@@ -283,7 +288,7 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	/**
 	 * @param name      The name of the item being declared in [branch].
 	 * @param declRange The token range of the declaration statement. Used for error purposes.
-	 * @param item      The item being declared under [name] in [branch]. If you are adding a generic, use [addGenericToBranch]
+	 * @param item      The item being declared under [name] in [branch]. If you are adding a generic, use [addGenericToBranch].
 	 * @param branch    The branch in which the item is declared.
 	 * @param env       The name of the environment the item is being declared in. For example "scope" or "module". Used for error purposes.
 	 *
