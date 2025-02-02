@@ -8,7 +8,7 @@ internal class Parser(val zinc: Zinc.Runtime) {
 	val combinator = CombinatorParser(zinc)
 
 	fun declaration(): ParseResult<Stmt> = with(combinator) {
-		(function() or ::struct or ::module).error { CompilerError.expectedStatement(current) }
+		(function() or ::struct or ::module or ::trait or ::implementation).error { CompilerError.expectedStatement(current) }
 	}
 
 	fun associatedStmt(): ParseResult<AssociatedStmt> = with(combinator) {
@@ -82,10 +82,10 @@ internal class Parser(val zinc: Zinc.Runtime) {
 			val token = token(SELF)
 			token
 				.then { optional(token(COLON).then { expect(type()) }) }
-				.map { type -> FunctionParam.SelfParam(+token, type) }
+				.map { type -> FunctionParam.Self(+token, type) }
 		}
 
-		val patternParser = { patternAndType().map { (pattern, type) -> FunctionParam.PatternParam(pattern, type) } }
+		val patternParser = { patternAndType().map { (pattern, type) -> FunctionParam.Pattern(pattern, type) } }
 
 		selfParser() or patternParser
 	}
