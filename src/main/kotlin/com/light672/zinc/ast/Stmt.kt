@@ -2,7 +2,6 @@ package com.light672.zinc.ast
 
 import com.light672.zinc.resolution.Scope
 import com.light672.zinc.resolution.TypeItem
-import com.light672.zinc.resolution.ValueItem
 
 internal sealed interface Stmt {
 	data class Function(
@@ -14,10 +13,7 @@ internal sealed interface Stmt {
 		val returnType: Type?,
 		val whereClause: WhereClause?,
 		val block: Expr.Block?
-	) : AssociatedStmt {
-		lateinit var item: ValueItem.Function
-		lateinit var genericScope: Scope
-	}
+	) : AssociatedStmt
 
 	data class Trait(
 		val keyword: Token,
@@ -54,10 +50,7 @@ internal sealed interface Stmt {
 		val fields: List<Type>,
 		val whereClause: WhereClause?,
 		val close: Token
-	) : Stmt {
-		lateinit var item: TypeItem.TupleStruct
-		lateinit var genericScope: Scope
-	}
+	) : Stmt
 
 	data class Struct(
 		val keyword: Token,
@@ -66,19 +59,14 @@ internal sealed interface Stmt {
 		val fields: List<Pair<Token, Type>>,
 		val whereClause: WhereClause?,
 		val close: Token
-	) : Stmt {
-		lateinit var item: TypeItem.Struct
-		lateinit var genericScope: Scope
-	}
+	) : Stmt
 
 	data class Module(
 		val keyword: Token,
 		val name: Token,
 		val statements: List<Stmt>,
 		val close: Token
-	) : Stmt {
-		lateinit var item: TypeItem.Module
-	}
+	) : Stmt
 
 	data class Let(
 		val keyword: Token,
@@ -104,8 +92,8 @@ internal sealed interface Stmt {
 }
 
 internal sealed interface FunctionParam {
-	data class SelfParam(val self: Token, val type: Type?) : FunctionParam
-	data class PatternParam(val pattern: Pattern, val type: Type) : FunctionParam
+	data class Self(val self: Token, val type: Type?) : FunctionParam
+	data class Pattern(val pattern: com.light672.zinc.ast.Pattern, val type: Type) : FunctionParam
 }
 
 internal sealed interface AssociatedStmt : Stmt
