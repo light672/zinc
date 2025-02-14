@@ -111,6 +111,9 @@ internal class CompilerError(
 		fun itemDoesNotHaveAssociatedItems(name: Token, item: String) =
 			CompilerError("item $item does not contain associated items", name.asRange(), "cannot access in $item")
 
+		fun expectedTrait(range: Token.Range, got: String) =
+			CompilerError("expected a trait but got `$got`", range, "expected a trait")
+
 	}
 }
 

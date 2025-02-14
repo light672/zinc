@@ -1,27 +1,39 @@
-package com.light672.zinc.dsr
+package com.light672.zinc.hir
 
+import com.light672.zinc.ast.Token
 import com.light672.zinc.ast.Expr as ASTExpr
 
 
-internal sealed interface JumpableExpr : Expr
 internal sealed interface Expr {
 	data class Literal(
 		val ast: ASTExpr.Literal
 	) : Expr
 
-	data class Path(
+	data class Item(
+		val variable: ValueItemRef?,
 		val ast: ASTExpr.Path
 	) : Expr
 
-	data class Group(
+	data class Tuple(
 		val exprs: List<Expr>,
 		val ast: ASTExpr.Group
 	) : Expr
 
 	data class FieldGet(
 		val callee: Expr,
+		val identifier: Token,
+		val genericArgs: GenericArgs?,
 		val ast: ASTExpr.FieldGet
 	) : Expr
+
+	data class MethodCall(
+		val callee: Expr,
+		val identifier: Token,
+		val genericArgs: GenericArgs?,
+		val args: List<Expr>,
+		val ast: ASTExpr.Call
+	) : Expr
+
 
 	data class Call(
 		val callee: Expr,
@@ -53,17 +65,18 @@ internal sealed interface Expr {
 	) : Expr
 
 	data class Closure(
-		val paramScope: Branch<ValueItem>,
 		val patterns: List<Pattern>,
 		val expr: Expr,
 		val ast: ASTExpr.Closure
 	) : Expr
 
+	// TODO: add function to return from
 	data class Return(
 		val value: Expr?,
 		val ast: ASTExpr.Return
 	) : Expr
 
+	// TODO: add labels to break and continue
 	data class Break(
 		val value: Expr?,
 		val ast: ASTExpr.Break
@@ -74,41 +87,40 @@ internal sealed interface Expr {
 	) : Expr
 
 	data class Block(
-		val types: Branch<TypeItem>,
-		val values: Branch<ValueItem>,
 		val stmts: List<Stmt>,
 		val ast: ASTExpr.Block
-	) : JumpableExpr
+	) : Expr
 
 	data class If(
 		val condition: Expr,
 		val then: Block,
 		val orElse: Expr?,
 		val ast: ASTExpr.If
-	) : JumpableExpr
-
-	data class While(
-		val condition: Expr,
-		val then: Block,
-		val ast: ASTExpr.While
-	) : JumpableExpr
-
-	data class For(
-		val patternScope: Branch<ValueItem>,
-		val pattern: Pattern,
-		val iterator: Expr,
-		val block: Block,
-		val ast: ASTExpr.For
-	) : JumpableExpr
+	) : Expr
 
 	data class Match(
 		val expr: Expr,
-		val branches: List<Triple<Branch<ValueItem>, Pattern, Expr>>,
+		val branches: List<Pair<Pattern, Expr>>,
 		val ast: ASTExpr.Match
 	) : Expr
 
 	data class Loop(
 		val block: Block,
 		val ast: ASTExpr.Loop
-	) : JumpableExpr
+	) : Expr
+
+	data class While(
+		val condition: Expr,
+		val block: Block,
+		val ast: ASTExpr.While
+	) : Expr
+
+	data class For(
+		val pattern: Pattern,
+		val iterator: Expr,
+		val block: Block,
+		val ast: ASTExpr.For
+	) : Expr
+
+
 }

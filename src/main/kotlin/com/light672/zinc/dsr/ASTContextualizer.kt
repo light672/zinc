@@ -20,48 +20,48 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	 */
 	private fun stmt(stmt: ASTStmt, types: Branch<TypeItem>, values: Branch<ValueItem>, env: String): Stmt {
 		return when (stmt) {
-			is ASTStmt.Module -> {
-				val item = Module(stmt)
+			is ASTStmt.Module         -> {
+				val item = Module(stmt, Branch(), Branch())
 				addToBranch(stmt.name.lexeme!!, stmt.range(), item, types, env)
-				module(stmt)
+				module(stmt, item)
 			}
 
-			is ASTStmt.Trait -> {
+			is ASTStmt.Trait          -> {
 				val item = Trait(stmt)
 				addToBranch(stmt.name.lexeme!!, stmt.range(), item, types, env)
 				trait(stmt)
 			}
 
-			is ASTStmt.Struct -> {
+			is ASTStmt.Struct         -> {
 				val item = Struct(stmt)
 				addToBranch(stmt.name.lexeme!!, stmt.range(), item, types, env)
 				struct(stmt)
 			}
 
-			is ASTStmt.TupleStruct -> {
+			is ASTStmt.TupleStruct    -> {
 				val item = TupleStruct(stmt)
 				addToBranch(stmt.name.lexeme!!, stmt.range(), item, types, env)
 				tupleStruct(stmt)
 			}
 
-			is ASTStmt.UnitStruct -> {
+			is ASTStmt.UnitStruct     -> {
 				val item = UnitStruct(stmt)
 				addToBranch(stmt.name.lexeme!!, stmt.range(), item, types, env)
 				addToBranch(stmt.name.lexeme, stmt.range(), item, values, env)
 				unitStruct(stmt)
 			}
 
-			is ASTStmt.Function -> {
+			is ASTStmt.Function       -> {
 				val item = Function(stmt)
 				addToBranch(stmt.name.lexeme!!, stmt.range(), item, values, env)
 				function(stmt)
 			}
 
-			is ASTStmt.Expression -> Stmt.Expression(expr(stmt.expr), stmt)
+			is ASTStmt.Expression     -> Stmt.Expression(expr(stmt.expr), stmt)
 
 
 			is ASTStmt.Implementation -> implementation(stmt)
-			is ASTStmt.Let -> let(stmt)
+			is ASTStmt.Let            -> let(stmt)
 
 
 		}
@@ -72,11 +72,9 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	 * @param module The AST module statement being converted into DSR.
 	 * @return       The converted AST module as a DSR module containing scope information.
 	 */
-	private fun module(module: ASTStmt.Module): Stmt.Module {
-		val types = Branch<TypeItem>()
-		val values = Branch<ValueItem>()
-		val stmts = module.statements.map { stmt -> stmt(stmt, types, values, "module") }
-		return Stmt.Module(types, values, stmts, module)
+	private fun module(module: ASTStmt.Module, item: Module): Stmt.Module {
+		val stmts = module.statements.map { stmt -> stmt(stmt, item.types, item.values, "module") }
+		return Stmt.Module(item.types, item.values, stmts, module)
 	}
 
 	/**
@@ -131,7 +129,7 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 		val params = function.params.map { param ->
 			when (param) {
 				is ASTFunctionParam.Pattern -> FunctionParam.Pattern(pattern(param.pattern, paramBranch), param)
-				is ASTFunctionParam.Self -> {
+				is ASTFunctionParam.Self    -> {
 					val selfItem = Self(param)
 					addToBranch("self", param.self.asRange(), selfItem, paramBranch, "function parameters")
 					FunctionParam.Self(selfItem, param)
@@ -190,25 +188,25 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 	 */
 	private fun expr(expr: ASTExpr): Expr {
 		return when (expr) {
-			is ASTExpr.Binary -> Expr.Binary(expr(expr.left), expr(expr.right), expr)
-			is ASTExpr.Block -> block(expr)
-			is ASTExpr.Break -> Expr.Break(expr.expr?.let { value -> expr(value) }, expr)
-			is ASTExpr.Call -> Expr.Call(expr(expr.callee), expr.args.map { arg -> expr(arg) }, expr)
-			is ASTExpr.Closure -> closure(expr)
+			is ASTExpr.Binary   -> Expr.Binary(expr(expr.left), expr(expr.right), expr)
+			is ASTExpr.Block    -> block(expr)
+			is ASTExpr.Break    -> Expr.Break(expr.expr?.let { value -> expr(value) }, expr)
+			is ASTExpr.Call     -> Expr.Call(expr(expr.callee), expr.args.map { arg -> expr(arg) }, expr)
+			is ASTExpr.Closure  -> closure(expr)
 			is ASTExpr.Continue -> Expr.Continue(expr)
 			is ASTExpr.FieldGet -> Expr.FieldGet(expr(expr.callee), expr)
-			is ASTExpr.For -> forExpr(expr)
-			is ASTExpr.Group -> Expr.Group(expr.expressions.map { field -> expr(field) }, expr)
-			is ASTExpr.If -> Expr.If(expr(expr.condition), block(expr.thenBlock), expr.elseExpr?.let { elseExpr -> expr(elseExpr) }, expr)
-			is ASTExpr.Index -> Expr.Index(expr(expr.callee), expr.args.map { arg -> expr(arg) }, expr)
-			is ASTExpr.Literal -> Expr.Literal(expr)
-			is ASTExpr.Loop -> Expr.Loop(block(expr.block), expr)
-			is ASTExpr.Match -> match(expr)
-			is ASTExpr.Path -> Expr.Path(expr)
-			is ASTExpr.Range -> Expr.Range(expr.left?.let { left -> expr(left) }, expr.right?.let { right -> expr(right) }, expr)
-			is ASTExpr.Return -> Expr.Return(expr.expr?.let { value -> expr(value) }, expr)
-			is ASTExpr.Unary -> Expr.Unary(expr(expr.right), expr)
-			is ASTExpr.While -> Expr.While(expr(expr.condition), block(expr.block), expr)
+			is ASTExpr.For      -> forExpr(expr)
+			is ASTExpr.Group    -> Expr.Group(expr.expressions.map { field -> expr(field) }, expr)
+			is ASTExpr.If       -> Expr.If(expr(expr.condition), block(expr.thenBlock), expr.elseExpr?.let { elseExpr -> expr(elseExpr) }, expr)
+			is ASTExpr.Index    -> Expr.Index(expr(expr.callee), expr.args.map { arg -> expr(arg) }, expr)
+			is ASTExpr.Literal  -> Expr.Literal(expr)
+			is ASTExpr.Loop     -> Expr.Loop(block(expr.block), expr)
+			is ASTExpr.Match    -> match(expr)
+			is ASTExpr.Path     -> Expr.Path(expr)
+			is ASTExpr.Range    -> Expr.Range(expr.left?.let { left -> expr(left) }, expr.right?.let { right -> expr(right) }, expr)
+			is ASTExpr.Return   -> Expr.Return(expr.expr?.let { value -> expr(value) }, expr)
+			is ASTExpr.Unary    -> Expr.Unary(expr(expr.right), expr)
+			is ASTExpr.While    -> Expr.While(expr(expr.condition), block(expr.block), expr)
 		}
 	}
 
@@ -278,9 +276,9 @@ internal class ASTContextualizer(val zinc: Zinc.Runtime) {
 				Pattern.Variable(variable, pattern)
 			}
 
-			is ASTPattern.Literal -> Pattern.Literal(pattern)
-			is ASTPattern.Tuple -> Pattern.Tuple(pattern.fields.map { field -> pattern(field, branch) }, pattern)
-			is ASTPattern.Wildcard -> Pattern.Wildcard(pattern)
+			is ASTPattern.Literal    -> Pattern.Literal(pattern)
+			is ASTPattern.Tuple      -> Pattern.Tuple(pattern.fields.map { field -> pattern(field, branch) }, pattern)
+			is ASTPattern.Wildcard   -> Pattern.Wildcard(pattern)
 		}
 	}
 

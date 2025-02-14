@@ -13,7 +13,7 @@ internal sealed interface ParseResult<out T> {
 	operator fun unaryPlus() = unwrap()
 	fun unwrap() = when (this) {
 		is Success -> value
-		else -> throw IllegalArgumentException()
+		else       -> throw IllegalArgumentException()
 	}
 
 	fun isSuccess() = this is Success
@@ -30,7 +30,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 
 	fun <T> optional(result: ParseResult<T>): ParseResult<T?> {
 		return when (result) {
-			is ParseResult.Error -> result
+			is ParseResult.Error   -> result
 			is ParseResult.NoMatch -> ParseResult.Success(null)
 			is ParseResult.Success -> result
 		}
@@ -38,7 +38,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 
 	inline infix fun <T> ParseResult<T>.or(parser: () -> ParseResult<T>): ParseResult<T> {
 		return when (this) {
-			ParseResult.Error -> this
+			ParseResult.Error      -> this
 			is ParseResult.NoMatch -> parser()
 			is ParseResult.Success -> this
 		}
@@ -47,7 +47,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 	fun <T> expect(result: ParseResult<T>): ParseResult<T> {
 		return when (result) {
 			ParseResult.Error, is ParseResult.Success -> result
-			is ParseResult.NoMatch -> {
+			is ParseResult.NoMatch                    -> {
 				zinc.reportCompileError(result.error)
 				ParseResult.Error
 			}
@@ -70,7 +70,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 	@JvmName("mapFunc")
 	inline fun <T, R> map(result: ParseResult<T>, transform: (T) -> R): ParseResult<R> {
 		return when (result) {
-			is ParseResult.Error -> result
+			is ParseResult.Error   -> result
 			is ParseResult.NoMatch -> result
 			is ParseResult.Success -> ParseResult.Success(transform(result.value))
 		}
@@ -78,7 +78,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 
 	inline fun <T, R> ParseResult<T>.flatMap(transform: (T) -> ParseResult<R>): ParseResult<R> {
 		return when (val result = this) {
-			is ParseResult.Error -> result
+			is ParseResult.Error   -> result
 			is ParseResult.NoMatch -> result
 			is ParseResult.Success -> transform(result.value)
 		}
@@ -95,7 +95,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		val list = existing?.toMutableList() ?: ArrayList()
 		while (true) {
 			when (val result = parser()) {
-				is ParseResult.Error -> return result
+				is ParseResult.Error   -> return result
 				is ParseResult.NoMatch -> return ParseResult.Success(list)
 				is ParseResult.Success -> list.add(result.value)
 			}
@@ -108,10 +108,10 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		var previous = parser()
 		while (true) {
 			when (previous) {
-				ParseResult.Error -> return ParseResult.Error
+				ParseResult.Error      -> return ParseResult.Error
 				is ParseResult.NoMatch -> return previous
 				is ParseResult.Success -> when (val b = parser()) {
-					ParseResult.Error -> return ParseResult.Error
+					ParseResult.Error      -> return ParseResult.Error
 					is ParseResult.NoMatch -> return previous
 					is ParseResult.Success -> previous = b
 				}
@@ -125,7 +125,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		do {
 			list.add(
 				when (val result = expect(parser())) {
-					is ParseResult.Error -> return result
+					is ParseResult.Error   -> return result
 					is ParseResult.NoMatch -> return result
 					is ParseResult.Success -> result.value
 				}
@@ -141,7 +141,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		do {
 			list.add(
 				when (val result = expect(parser())) {
-					is ParseResult.Error -> return result
+					is ParseResult.Error   -> return result
 					is ParseResult.NoMatch -> return result
 					is ParseResult.Success -> result.value
 				}
@@ -161,7 +161,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		do {
 			list.add(
 				when (val result = expect(parser())) {
-					is ParseResult.Error -> return result
+					is ParseResult.Error   -> return result
 					is ParseResult.NoMatch -> return result
 					is ParseResult.Success -> result.value
 				}
@@ -179,7 +179,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 		do {
 			list.add(
 				when (val result = expect(parser())) {
-					is ParseResult.Error -> return result
+					is ParseResult.Error   -> return result
 					is ParseResult.NoMatch -> return success(list)
 					is ParseResult.Success -> result.value
 				}
@@ -190,7 +190,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 
 	fun <T> ParseResult<T>.error(createError: () -> CompilerError): ParseResult<T> {
 		return when (this) {
-			ParseResult.Error -> this
+			ParseResult.Error      -> this
 			is ParseResult.NoMatch -> ParseResult.NoMatch(createError())
 			is ParseResult.Success -> this
 		}
@@ -198,7 +198,7 @@ internal class CombinatorParser(private val zinc: Zinc.Runtime) {
 
 	fun <T> ParseResult<T>.errorIf(boolean: Boolean, createError: () -> CompilerError): ParseResult<T> {
 		return if (boolean) when (this) {
-			ParseResult.Error -> this
+			ParseResult.Error      -> this
 			is ParseResult.NoMatch -> ParseResult.NoMatch(createError())
 			is ParseResult.Success -> this
 		} else this

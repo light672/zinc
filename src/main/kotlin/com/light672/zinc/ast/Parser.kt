@@ -417,8 +417,11 @@ internal class Parser(val zinc: Zinc.Runtime) {
 	fun block(label: Token?): ParseResult<Expr.Block> = with(combinator) {
 		fun trailingCheck(expr: Expr) =
 			when (expr) {
-				is Expr.Block, is Expr.Loop, is Expr.If -> Stmt.Expression(expr, null)
-				else -> {
+				is Expr.Block,
+				is Expr.Loop,
+				is Expr.If -> Stmt.Expression(expr, null)
+
+				else       -> {
 					val semicolon = token(SEMICOLON)
 					if (semicolon.isSuccess()) Stmt.Expression(expr, +semicolon)
 					else {

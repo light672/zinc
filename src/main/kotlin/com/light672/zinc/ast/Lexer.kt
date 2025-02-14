@@ -28,41 +28,41 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 		skipWhiteSpace()
 		if (atEnd()) return Token(EOF, "EOF", line, startOnLine..currentOnLine)
 		return when (consume()) {
-			in '0'..'9' -> number()
+			in '0'..'9'                   -> number()
 			in 'a'..'z', in 'A'..'Z', '_' -> keyword()
 
-			'"' -> string()
-			'#' -> {
+			'"'                           -> string()
+			'#'                           -> {
 				while (char != '\n' && !atEnd()) consume()
 				scanToken()
 			}
 
-			'@' -> create(AT)
-			';' -> create(SEMICOLON)
-			'(' -> create(LEFT_PAREN)
-			')' -> create(RIGHT_PAREN)
-			'{' -> create(LEFT_BRACE)
-			'}' -> create(RIGHT_BRACE)
-			'[' -> create(LEFT_BRACKET)
-			']' -> create(RIGHT_BRACKET)
-			',' -> create(COMMA)
-			'~' -> create(TILDA)
-			':' -> create(normalOrDouble(COLON, COLON_COLON))
-			'.' -> create(normalOrDouble(DOT, DOT_DOT))
-			'=' -> create(if (match('>')) EQUALS_ARROW else normalOrEqual(EQUAL, EQUAL_EQUAL))
-			'^' -> create(normalOrEqual(CARET, CARET_EQUAL))
-			'!' -> create(normalOrEqual(BANG, BANG_EQUAL))
-			'*' -> create(normalOrEqual(STAR, STAR_EQUAL))
-			'/' -> create(normalOrEqual(SLASH, SLASH_EQUAL))
-			'%' -> create(normalOrEqual(PERCENT, PERCENT_EQUAL))
-			'<' -> create(normalOrEqual(LESS, LESS_EQUAL))
-			'>' -> create(normalOrEqual(GREATER, GREATER_EQUAL))
-			'+' -> create(normalDoubleOrEqual(PLUS, PLUS_PLUS, PLUS_EQUAL))
-			'-' -> create(if (match('>')) MINUS_ARROW else normalDoubleOrEqual(MINUS, MINUS_MINUS, MINUS_EQUAL))
-			'&' -> create(normalDoubleOrEqual(AMP, AMP_AMP, AMP_EQUAL))
-			'|' -> create(normalDoubleOrEqual(PIPE, PIPE_PIPE, PIPE_EQUAL))
+			'@'                           -> create(AT)
+			';'                           -> create(SEMICOLON)
+			'('                           -> create(LEFT_PAREN)
+			')'                           -> create(RIGHT_PAREN)
+			'{'                           -> create(LEFT_BRACE)
+			'}'                           -> create(RIGHT_BRACE)
+			'['                           -> create(LEFT_BRACKET)
+			']'                           -> create(RIGHT_BRACKET)
+			','                           -> create(COMMA)
+			'~'                           -> create(TILDA)
+			':'                           -> create(normalOrDouble(COLON, COLON_COLON))
+			'.'                           -> create(normalOrDouble(DOT, DOT_DOT))
+			'='                           -> create(if (match('>')) EQUALS_ARROW else normalOrEqual(EQUAL, EQUAL_EQUAL))
+			'^'                           -> create(normalOrEqual(CARET, CARET_EQUAL))
+			'!'                           -> create(normalOrEqual(BANG, BANG_EQUAL))
+			'*'                           -> create(normalOrEqual(STAR, STAR_EQUAL))
+			'/'                           -> create(normalOrEqual(SLASH, SLASH_EQUAL))
+			'%'                           -> create(normalOrEqual(PERCENT, PERCENT_EQUAL))
+			'<'                           -> create(normalOrEqual(LESS, LESS_EQUAL))
+			'>'                           -> create(normalOrEqual(GREATER, GREATER_EQUAL))
+			'+'                           -> create(normalDoubleOrEqual(PLUS, PLUS_PLUS, PLUS_EQUAL))
+			'-'                           -> create(if (match('>')) MINUS_ARROW else normalDoubleOrEqual(MINUS, MINUS_MINUS, MINUS_EQUAL))
+			'&'                           -> create(normalDoubleOrEqual(AMP, AMP_AMP, AMP_EQUAL))
+			'|'                           -> create(normalDoubleOrEqual(PIPE, PIPE_PIPE, PIPE_EQUAL))
 
-			else -> error(CompilerError.unexpectedChar(char, currentOnLine, line))
+			else                          -> error(CompilerError.unexpectedChar(char, currentOnLine, line))
 		}
 	}
 
@@ -100,33 +100,33 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 		while (isAlphaNumeric(char)) consume()
 		val lexeme = source.subSequence(start, current)
 		val type = when (lexeme) {
-			"_" -> UNDERSCORE
-			"fn" -> FN
-			"as" -> AS
-			"in" -> IN
-			"if" -> IF
-			"for" -> FOR
-			"let" -> LET
-			"mut" -> MUT
-			"mod" -> MOD
-			"else" -> ELSE
-			"loop" -> LOOP
-			"impl" -> IMPL
-			"self" -> SELF
-			"enum" -> ENUM
-			"true" -> TRUE
-			"false" -> FALSE
-			"where" -> WHERE
-			"while" -> WHILE
-			"match" -> MATCH
-			"break" -> BREAK
-			"const" -> CONST
-			"return" -> RETURN
-			"struct" -> STRUCT
-			"continue" -> CONTINUE
+			"_"         -> UNDERSCORE
+			"fn"        -> FN
+			"as"        -> AS
+			"in"        -> IN
+			"if"        -> IF
+			"for"       -> FOR
+			"let"       -> LET
+			"mut"       -> MUT
+			"mod"       -> MOD
+			"else"      -> ELSE
+			"loop"      -> LOOP
+			"impl"      -> IMPL
+			"self"      -> SELF
+			"enum"      -> ENUM
+			"true"      -> TRUE
+			"false"     -> FALSE
+			"where"     -> WHERE
+			"while"     -> WHILE
+			"match"     -> MATCH
+			"break"     -> BREAK
+			"const"     -> CONST
+			"return"    -> RETURN
+			"struct"    -> STRUCT
+			"continue"  -> CONTINUE
 			"interface" -> INTERFACE
 			"typealias" -> TYPEALIAS
-			else -> IDENTIFIER
+			else        -> IDENTIFIER
 		}
 		return if (type == IDENTIFIER) createWithLexeme(type)
 		else create(type)
@@ -136,7 +136,9 @@ internal class Lexer(private val source: String, private val zinc: Zinc.Runtime)
 	private fun skipWhiteSpace() {
 		while (!atEnd()) {
 			when (char) {
-				' ', '\r' -> consume()
+				' ',
+				'\r' -> consume()
+
 				'\t' -> {
 					consume()
 					currentOnLine += Zinc.INDENT_SIZE - 1
